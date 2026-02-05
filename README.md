@@ -87,6 +87,24 @@ npm start
 
 The application will be available at `http://localhost:3000`
 
+## Testing & Verification
+
+To verify your installation is working correctly, see the comprehensive [Testing Guide (TESTING.md)](TESTING.md).
+
+**Quick Check:**
+```bash
+# Start the server
+npm start
+
+# In another terminal, test the backend
+curl http://localhost:3000/api/health
+
+# Open browser to http://localhost:3000
+# Look for green "Backend Connected" indicator
+```
+
+For detailed testing procedures, troubleshooting, and verification steps, refer to [TESTING.md](TESTING.md).
+
 ## Project Structure
 
 ```
@@ -101,6 +119,8 @@ Kitsw_Sairam/
 ├── .env.example            # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── railway.json           # Railway deployment config
+├── TESTING.md             # Testing and verification guide
+├── DEPLOYMENT.md          # Deployment instructions
 └── README.md              # This file
 ```
 
