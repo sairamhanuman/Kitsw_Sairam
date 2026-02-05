@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering College Application</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="header">
+        <h1>ENGINEERING COLLEGE - Welcome</h1>
+    </header>
+
+    <div class="container">
+        <!-- Left Side Navigation (Sidebar) -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <!-- PRE-EXAMINATIONS Section -->
+                <div class="menu-section">
+                    <div class="menu-header" data-section="pre-exam">
+                        <span class="toggle-icon">▶</span>
+                        <span>PRE-EXAMINATIONS</span>
+                    </div>
+                    <div class="submenu" id="pre-exam">
+                        <!-- Masters Submenu -->
+                        <div class="submenu-section">
+                            <div class="submenu-header" data-submenu="masters">
+                                <span class="toggle-icon">▶</span>
+                                <span>Masters</span>
+                            </div>
+                            <div class="submenu-items" id="masters">
+                                <a href="#" class="menu-item" data-content="programme">Programme</a>
+                                <a href="#" class="menu-item" data-content="branch">Branch</a>
+                                <a href="#" class="menu-item" data-content="batch">Batch</a>
+                                <a href="#" class="menu-item" data-content="semesters">Semesters</a>
+                                <a href="#" class="menu-item" data-content="regulation">Regulation</a>
+                                <a href="#" class="menu-item" data-content="section">Section</a>
+                                <a href="#" class="menu-item" data-content="exam-sessions">Exam Sessions</a>
+                                <a href="#" class="menu-item" data-content="student-management">Student Management</a>
+                                <a href="#" class="menu-item" data-content="staff-master">Staff Master</a>
+                            </div>
+                        </div>
+
+                        <!-- Course Master Submenu -->
+                        <div class="submenu-section">
+                            <div class="submenu-header" data-submenu="course-master">
+                                <span class="toggle-icon">▶</span>
+                                <span>Course Master</span>
+                            </div>
+                            <div class="submenu-items" id="course-master">
+                                <a href="#" class="menu-item" data-content="course-import">Course Import/Entry Verification</a>
+                                <a href="#" class="menu-item" data-content="course-mapping">Course Mapping vs Faculty</a>
+                            </div>
+                        </div>
+
+                        <!-- Exam Setup -->
+                        <div class="submenu-section">
+                            <a href="#" class="menu-item single-item" data-content="exam-setup">Exam Setup</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POST-EXAMINATIONS Section -->
+                <div class="menu-section">
+                    <div class="menu-header" data-section="post-exam">
+                        <span class="toggle-icon">▶</span>
+                        <span>POST-EXAMINATIONS</span>
+                    </div>
+                    <div class="submenu" id="post-exam">
+                        <p class="empty-message">No items available</p>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Right Side Content Area -->
+        <main class="content-area">
+            <div id="content-display">
+                <div class="welcome-message">
+                    <h2>Welcome to Engineering College Application</h2>
+                    <p>Please select an option from the navigation menu to get started.</p>
+                    <div class="info-box">
+                        <h3>Available Modules:</h3>
+                        <ul>
+                            <li><strong>PRE-EXAMINATIONS:</strong> Manage masters, courses, and exam setup</li>
+                            <li><strong>POST-EXAMINATIONS:</strong> Coming soon...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
