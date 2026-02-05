@@ -89,21 +89,29 @@ The application will be available at `http://localhost:3000`
 
 ## Testing & Verification
 
-To verify your installation is working correctly, see the comprehensive [Testing Guide (TESTING.md)](TESTING.md).
+To verify your installation is working correctly, see our testing guides:
 
-**Quick Check:**
+- **[VERIFICATION.md](VERIFICATION.md)** - Quick reference card (30 seconds - 5 minutes)
+- **[TESTING.md](TESTING.md)** - Comprehensive testing guide (detailed)
+
+**Quick Check (30 seconds):**
 ```bash
-# Start the server
 npm start
-
-# In another terminal, test the backend
-curl http://localhost:3000/api/health
-
 # Open browser to http://localhost:3000
-# Look for green "Backend Connected" indicator
+# Look for green "Backend Connected" indicator ✅
 ```
 
-For detailed testing procedures, troubleshooting, and verification steps, refer to [TESTING.md](TESTING.md).
+**Command-Line Check:**
+```bash
+# Start server
+npm start
+
+# Test backend
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok",...}
+```
+
+For detailed testing procedures, troubleshooting, and automated testing scripts, refer to [TESTING.md](TESTING.md).
 
 ## Project Structure
 
@@ -119,7 +127,8 @@ Kitsw_Sairam/
 ├── .env.example            # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── railway.json           # Railway deployment config
-├── TESTING.md             # Testing and verification guide
+├── VERIFICATION.md        # Quick verification reference (30 sec - 5 min)
+├── TESTING.md             # Comprehensive testing guide (detailed)
 ├── DEPLOYMENT.md          # Deployment instructions
 └── README.md              # This file
 ```
