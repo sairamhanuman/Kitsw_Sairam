@@ -2,6 +2,15 @@
 
 A comprehensive web application for managing pre-examinations and post-examinations in an engineering college.
 
+## 🎯 What to Do Next?
+
+**New here?** Check out **[WHAT_TO_DO.md](WHAT_TO_DO.md)** for a complete guide on:
+- 🚀 Getting started (5 minutes)
+- 👨‍💻 Development roadmap
+- 🎓 How to use the application
+- 🔧 Available actions for your role
+- 📋 Next steps and priorities
+
 ## Features
 
 ### PRE-EXAMINATIONS
@@ -127,6 +136,7 @@ Kitsw_Sairam/
 ├── .env.example            # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── railway.json           # Railway deployment config
+├── WHAT_TO_DO.md          # 🎯 Action guide - Start here!
 ├── VERIFICATION.md        # Quick verification reference (30 sec - 5 min)
 ├── TESTING.md             # Comprehensive testing guide (detailed)
 ├── DEPLOYMENT.md          # Deployment instructions
