@@ -104,6 +104,14 @@ app.get('/api/courses', async (req, res) => {
     res.json({ message: 'Course list endpoint - To be implemented' });
 });
 
+// Handle 404 for API routes
+app.use('/api', (req, res) => {
+    res.status(404).json({ 
+        status: 'error',
+        message: 'API endpoint not found' 
+    });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err.stack);
@@ -114,16 +122,8 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Handle 404 for API routes
-app.use('/api/*', (req, res) => {
-    res.status(404).json({ 
-        status: 'error',
-        message: 'API endpoint not found' 
-    });
-});
-
-// Serve index.html for all other routes (SPA support)
-app.get('*', (req, res) => {
+// Serve index.html for all other routes (SPA support) - MUST BE LAST
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
