@@ -165,9 +165,9 @@ async function editBatch(id) {
             
             // Populate form
             document.getElementById('batchId').value = batch.batch_id;
-            document.getElementById('batchName').value = batch.batch_name;
-            document.getElementById('startYear').value = batch.start_year;
-            document.getElementById('endYear').value = batch.end_year;
+            document.getElementById('batchName').value = batch.batch_name || '';
+            document.getElementById('startYear').value = batch.start_year || '';
+            document.getElementById('endYear').value = batch.end_year || '';
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Batch';
