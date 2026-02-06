@@ -69,14 +69,25 @@ function displayExamSessions(sessions) {
         const statusClass = session.is_active ? 'status-active' : 'status-inactive';
         const statusText = session.is_active ? 'Active' : 'Inactive';
         const examDate = session.exam_date ? new Date(session.exam_date).toLocaleDateString() : 'N/A';
-        const timings = session.timings || 'N/A';
+        
+        // Format timings display from start_time and end_time
+        let timingsDisplay = '';
+        if (session.start_time && session.end_time) {
+            timingsDisplay = `${session.start_time} - ${session.end_time}`;
+        } else if (session.start_time) {
+            timingsDisplay = session.start_time;
+        } else if (session.end_time) {
+            timingsDisplay = session.end_time;
+        } else {
+            timingsDisplay = 'N/A';
+        }
         
         tableHTML += `
             <tr>
                 <td><strong>${escapeHtml(session.session_name)}</strong></td>
                 <td>${examDate}</td>
                 <td>${escapeHtml(session.session_type || 'N/A')}</td>
-                <td>${escapeHtml(timings)}</td>
+                <td>${escapeHtml(timingsDisplay)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
@@ -175,15 +186,8 @@ async function editExamSession(id) {
             document.getElementById('sessionType').value = session.session_type || '';
             const examDate = session.exam_date ? session.exam_date.split('T')[0] : '';
             document.getElementById('examDate').value = examDate;
-            
-            // Parse timings if exists (format: "HH:MM - HH:MM")
-            if (session.timings) {
-                const timingsParts = session.timings.split(' - ');
-                if (timingsParts.length === 2) {
-                    document.getElementById('startTime').value = timingsParts[0].trim();
-                    document.getElementById('endTime').value = timingsParts[1].trim();
-                }
-            }
+            document.getElementById('startTime').value = session.start_time || '';
+            document.getElementById('endTime').value = session.end_time || '';
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Exam Session';

@@ -15,7 +15,11 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM exam_session_master WHERE is_active = 1 ORDER BY exam_date DESC'
+            `SELECT session_id, session_name, exam_date, session_type, 
+                    start_time, end_time, is_active, created_at, updated_at
+             FROM exam_session_master 
+             WHERE is_active = 1 
+             ORDER BY exam_date DESC, start_time ASC`
         );
         
         res.json({
@@ -37,7 +41,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM exam_session_master WHERE session_id = ?',
+            `SELECT session_id, session_name, exam_date, session_type, 
+                    start_time, end_time, is_active, created_at, updated_at
+             FROM exam_session_master 
+             WHERE session_id = ? AND is_active = 1`,
             [req.params.id]
         );
         
@@ -67,58 +74,37 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         console.log('=== EXAM SESSION CREATE REQUEST ===');
-        console.log('Raw request body:', JSON.stringify(req.body, null, 2));
-        console.log('Content-Type:', req.headers['content-type']);
+        console.log('Request body:', req.body);
         
         const { session_name, exam_date, session_type, start_time, end_time, is_active } = req.body;
         
-        console.log('Parsed values:', {
-            session_name,
-            exam_date,
-            session_type,
-            start_time,
-            end_time,
-            is_active
-        });
-        
         // Validation
         if (!session_name || !exam_date) {
-            console.error('Validation failed - missing required fields');
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: session_name, exam_date',
-                received: { session_name, exam_date }
+                message: 'Missing required fields: session_name, exam_date'
             });
         }
         
-        // Combine timings if provided
-        let timings = null;
-        if (start_time && end_time) {
-            timings = `${start_time} - ${end_time}`;
-            console.log('Combined timings:', timings);
-        }
+        // Insert new exam session with separate start_time and end_time
+        console.log('Inserting exam session...');
+        const [result] = await promisePool.query(
+            `INSERT INTO exam_session_master 
+            (session_name, exam_date, session_type, start_time, end_time, is_active) 
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                session_name, 
+                exam_date, 
+                session_type || null, 
+                start_time || null, 
+                end_time || null, 
+                is_active !== false
+            ]
+        );
         
-        // Insert new exam session
-        console.log('Attempting to insert exam session...');
-        const insertQuery = `INSERT INTO exam_session_master 
-            (session_name, exam_date, session_type, timings, is_active) 
-            VALUES (?, ?, ?, ?, ?)`;
-        const insertValues = [
-            session_name, 
-            exam_date, 
-            session_type || null, 
-            timings, 
-            is_active !== false
-        ];
+        console.log('Exam session created successfully:', result.insertId);
         
-        console.log('Insert query:', insertQuery);
-        console.log('Insert values:', insertValues);
-        
-        const [result] = await promisePool.query(insertQuery, insertValues);
-        
-        console.log('Insert successful! Result:', result);
-        
-        const responseData = {
+        res.status(201).json({
             status: 'success',
             message: 'Exam session created successfully',
             data: {
@@ -126,40 +112,22 @@ router.post('/', async (req, res) => {
                 session_name,
                 exam_date,
                 session_type,
-                timings,
+                start_time,
+                end_time,
                 is_active: is_active !== false
             }
-        };
-        
-        console.log('Sending success response:', responseData);
-        res.status(201).json(responseData);
-        
+        });
     } catch (error) {
         console.error('=== EXAM SESSION CREATE ERROR ===');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error code:', error.code);
-        console.error('Error errno:', error.errno);
-        console.error('Error sqlMessage:', error.sqlMessage);
-        console.error('Error sql:', error.sql);
-        console.error('Full error:', error);
+        console.error('Error:', error);
         
-        // Parse specific error types
         let errorMessage = 'Failed to create exam session';
-        let statusCode = 500;
-        
-        if (error.code === 'ER_DUP_ENTRY') {
-            errorMessage = 'An exam session with this information already exists';
-            statusCode = 409;
-        } else if (error.code === 'ER_NO_SUCH_TABLE') {
-            errorMessage = 'Database table not found. Please contact administrator.';
-            statusCode = 500;
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            errorMessage = 'Database table not found';
         } else if (error.code === 'ER_BAD_FIELD_ERROR') {
-            errorMessage = 'Database column mismatch. Please contact administrator.';
-            statusCode = 500;
+            errorMessage = 'Database column mismatch';
         }
         
-        // Return response - include SQL details only in development
         const errorResponse = {
             status: 'error',
             message: errorMessage,
@@ -168,11 +136,10 @@ router.post('/', async (req, res) => {
         
         // Only include SQL details in development for debugging
         if (process.env.NODE_ENV === 'development') {
-            errorResponse.errorCode = error.code;
             errorResponse.sqlMessage = error.sqlMessage;
         }
         
-        res.status(statusCode).json(errorResponse);
+        res.status(500).json(errorResponse);
     }
 });
 
@@ -183,7 +150,7 @@ router.put('/:id', async (req, res) => {
         
         // Check if exam session exists
         const [existing] = await promisePool.query(
-            'SELECT session_id FROM exam_session_master WHERE session_id = ?',
+            'SELECT * FROM exam_session_master WHERE session_id = ? AND is_active = 1',
             [req.params.id]
         );
         
@@ -194,23 +161,35 @@ router.put('/:id', async (req, res) => {
             });
         }
         
-        // Combine timings if provided
-        let timings = null;
-        if (start_time && end_time) {
-            timings = `${start_time} - ${end_time}`;
-        }
-        
         // Update exam session
         await promisePool.query(
             `UPDATE exam_session_master 
-            SET session_name = ?, exam_date = ?, session_type = ?, timings = ?, is_active = ?
-            WHERE session_id = ?`,
-            [session_name, exam_date, session_type || null, timings, is_active !== false, req.params.id]
+             SET session_name = ?, exam_date = ?, session_type = ?, 
+                 start_time = ?, end_time = ?, is_active = ?
+             WHERE session_id = ?`,
+            [
+                session_name || existing[0].session_name,
+                exam_date || existing[0].exam_date,
+                session_type !== undefined ? session_type : existing[0].session_type,
+                start_time !== undefined ? start_time : existing[0].start_time,
+                end_time !== undefined ? end_time : existing[0].end_time,
+                is_active !== undefined ? is_active : existing[0].is_active,
+                req.params.id
+            ]
         );
         
         res.json({
             status: 'success',
-            message: 'Exam session updated successfully'
+            message: 'Exam session updated successfully',
+            data: {
+                session_id: req.params.id,
+                session_name,
+                exam_date,
+                session_type,
+                start_time,
+                end_time,
+                is_active
+            }
         });
     } catch (error) {
         console.error('Error updating exam session:', error);
