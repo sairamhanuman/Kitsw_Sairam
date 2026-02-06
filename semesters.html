@@ -247,14 +247,23 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="semesterName">Semester Name *</label>
-                        <input type="text" id="semesterName" name="semesterName" required 
-                               placeholder="e.g., Semester 1" maxlength="50">
+                        <select id="semesterName" name="semesterName" required>
+                            <option value="">Select Semester</option>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="IV">IV</option>
+                            <option value="V">V</option>
+                            <option value="VI">VI</option>
+                            <option value="VII">VII</option>
+                            <option value="VIII">VIII</option>
+                        </select>
                     </div>
                     
                     <div class="form-group">
                         <label for="semesterNumber">Semester Number *</label>
                         <input type="number" id="semesterNumber" name="semesterNumber" required 
-                               placeholder="e.g., 1" min="1" max="12">
+                               placeholder="e.g., 1" min="1" max="8">
                     </div>
                 </div>
                 

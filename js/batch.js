@@ -67,14 +67,14 @@ function displayBatches(batches) {
     batches.forEach(batch => {
         const statusClass = batch.is_active ? 'status-active' : 'status-inactive';
         const statusText = batch.is_active ? 'Active' : 'Inactive';
-        const startDate = batch.start_date ? new Date(batch.start_date).getFullYear() : 'N/A';
-        const endDate = batch.end_date ? new Date(batch.end_date).getFullYear() : 'N/A';
+        const startYear = batch.start_year || 'N/A';
+        const endYear = batch.end_year || 'N/A';
         
         tableHTML += `
             <tr>
                 <td><strong>${escapeHtml(batch.batch_name)}</strong></td>
-                <td>${startDate}</td>
-                <td>${endDate}</td>
+                <td>${startYear}</td>
+                <td>${endYear}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
@@ -105,10 +105,9 @@ async function saveBatch() {
     const batchName = document.getElementById('batchName').value.trim();
     
     const formData = {
-        batch_year: startYear,
         batch_name: batchName,
-        start_date: `${startYear}-01-01`,
-        end_date: `${endYear}-12-31`,
+        start_year: startYear,
+        end_year: endYear,
         is_active: true
     };
     
@@ -167,18 +166,12 @@ async function editBatch(id) {
             // Populate form
             document.getElementById('batchId').value = batch.batch_id;
             document.getElementById('batchName').value = batch.batch_name;
-            const startDate = batch.start_date ? new Date(batch.start_date) : null;
-            const endDate = batch.end_date ? new Date(batch.end_date) : null;
-            document.getElementById('startYear').value = startDate ? startDate.getFullYear() : batch.batch_year;
-            document.getElementById('endYear').value = endDate ? endDate.getFullYear() : (batch.batch_year + 4);
+            document.getElementById('startYear').value = batch.start_year;
+            document.getElementById('endYear').value = batch.end_year;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Batch';
             document.getElementById('submitBtnText').textContent = 'Update Batch';
-            
-            // Disable year fields during edit
-            document.getElementById('startYear').disabled = true;
-            document.getElementById('endYear').disabled = true;
             
             currentEditId = id;
             

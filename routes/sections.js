@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM section_master ORDER BY section_code'
+            'SELECT * FROM section_master ORDER BY section_name'
         );
         
         res.json({
@@ -66,35 +66,22 @@ router.get('/:id', async (req, res) => {
 // POST create new section
 router.post('/', async (req, res) => {
     try {
-        const { section_code, section_name, capacity, description, is_active } = req.body;
+        const { section_name, capacity, is_active } = req.body;
         
         // Validation
-        if (!section_code || !section_name) {
+        if (!section_name) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: section_code, section_name'
-            });
-        }
-        
-        // Check if section code already exists
-        const [existing] = await promisePool.query(
-            'SELECT section_id FROM section_master WHERE section_code = ?',
-            [section_code]
-        );
-        
-        if (existing.length > 0) {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Section code already exists'
+                message: 'Missing required field: section_name'
             });
         }
         
         // Insert new section
         const [result] = await promisePool.query(
             `INSERT INTO section_master 
-            (section_code, section_name, capacity, description, is_active) 
-            VALUES (?, ?, ?, ?, ?)`,
-            [section_code, section_name, capacity || 60, description || null, is_active !== false]
+            (section_name, capacity, is_active) 
+            VALUES (?, ?, ?)`,
+            [section_name, capacity || 60, is_active !== false]
         );
         
         res.status(201).json({
@@ -102,10 +89,8 @@ router.post('/', async (req, res) => {
             message: 'Section created successfully',
             data: {
                 section_id: result.insertId,
-                section_code,
                 section_name,
                 capacity: capacity || 60,
-                description,
                 is_active: is_active !== false
             }
         });
@@ -122,7 +107,7 @@ router.post('/', async (req, res) => {
 // PUT update section
 router.put('/:id', async (req, res) => {
     try {
-        const { section_name, capacity, description, is_active } = req.body;
+        const { section_name, capacity, is_active } = req.body;
         
         // Check if section exists
         const [existing] = await promisePool.query(
@@ -140,9 +125,9 @@ router.put('/:id', async (req, res) => {
         // Update section
         await promisePool.query(
             `UPDATE section_master 
-            SET section_name = ?, capacity = ?, description = ?, is_active = ?
+            SET section_name = ?, capacity = ?, is_active = ?
             WHERE section_id = ?`,
-            [section_name, capacity || 60, description || null, is_active !== false, req.params.id]
+            [section_name, capacity || 60, is_active !== false, req.params.id]
         );
         
         res.json({
@@ -164,7 +149,7 @@ router.delete('/:id', async (req, res) => {
     try {
         // Check if section exists
         const [existing] = await promisePool.query(
-            'SELECT section_id, section_code FROM section_master WHERE section_id = ?',
+            'SELECT section_id, section_name FROM section_master WHERE section_id = ?',
             [req.params.id]
         );
         
@@ -183,7 +168,7 @@ router.delete('/:id', async (req, res) => {
         
         res.json({
             status: 'success',
-            message: `Section ${existing[0].section_code} deleted successfully`
+            message: `Section ${existing[0].section_name} deleted successfully`
         });
     } catch (error) {
         console.error('Error deleting section:', error);

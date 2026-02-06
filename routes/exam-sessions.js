@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM exam_session_master ORDER BY exam_year DESC, exam_month'
+            'SELECT * FROM exam_session_master ORDER BY exam_date DESC'
         );
         
         res.json({
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM exam_session_master WHERE exam_session_id = ?',
+            'SELECT * FROM exam_session_master WHERE session_id = ?',
             [req.params.id]
         );
         
@@ -66,49 +66,32 @@ router.get('/:id', async (req, res) => {
 // POST create new exam session
 router.post('/', async (req, res) => {
     try {
-        const { session_code, session_name, exam_month, exam_year, start_date, end_date, description, is_active } = req.body;
+        const { session_name, exam_date, session_type, is_active } = req.body;
         
         // Validation
-        if (!session_code || !session_name || !exam_month || !exam_year) {
+        if (!session_name || !exam_date) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: session_code, session_name, exam_month, exam_year'
-            });
-        }
-        
-        // Check if session code already exists
-        const [existing] = await promisePool.query(
-            'SELECT exam_session_id FROM exam_session_master WHERE session_code = ?',
-            [session_code]
-        );
-        
-        if (existing.length > 0) {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Session code already exists'
+                message: 'Missing required fields: session_name, exam_date'
             });
         }
         
         // Insert new exam session
         const [result] = await promisePool.query(
             `INSERT INTO exam_session_master 
-            (session_code, session_name, exam_month, exam_year, start_date, end_date, description, is_active) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [session_code, session_name, exam_month, exam_year, start_date || null, end_date || null, description || null, is_active !== false]
+            (session_name, exam_date, session_type, is_active) 
+            VALUES (?, ?, ?, ?)`,
+            [session_name, exam_date, session_type || null, is_active !== false]
         );
         
         res.status(201).json({
             status: 'success',
             message: 'Exam session created successfully',
             data: {
-                exam_session_id: result.insertId,
-                session_code,
+                session_id: result.insertId,
                 session_name,
-                exam_month,
-                exam_year,
-                start_date,
-                end_date,
-                description,
+                exam_date,
+                session_type,
                 is_active: is_active !== false
             }
         });
@@ -125,11 +108,11 @@ router.post('/', async (req, res) => {
 // PUT update exam session
 router.put('/:id', async (req, res) => {
     try {
-        const { session_name, exam_month, exam_year, start_date, end_date, description, is_active } = req.body;
+        const { session_name, exam_date, session_type, is_active } = req.body;
         
         // Check if exam session exists
         const [existing] = await promisePool.query(
-            'SELECT exam_session_id FROM exam_session_master WHERE exam_session_id = ?',
+            'SELECT session_id FROM exam_session_master WHERE session_id = ?',
             [req.params.id]
         );
         
@@ -143,9 +126,9 @@ router.put('/:id', async (req, res) => {
         // Update exam session
         await promisePool.query(
             `UPDATE exam_session_master 
-            SET session_name = ?, exam_month = ?, exam_year = ?, start_date = ?, end_date = ?, description = ?, is_active = ?
-            WHERE exam_session_id = ?`,
-            [session_name, exam_month, exam_year, start_date || null, end_date || null, description || null, is_active !== false, req.params.id]
+            SET session_name = ?, exam_date = ?, session_type = ?, is_active = ?
+            WHERE session_id = ?`,
+            [session_name, exam_date, session_type || null, is_active !== false, req.params.id]
         );
         
         res.json({
@@ -167,7 +150,7 @@ router.delete('/:id', async (req, res) => {
     try {
         // Check if exam session exists
         const [existing] = await promisePool.query(
-            'SELECT exam_session_id, session_code FROM exam_session_master WHERE exam_session_id = ?',
+            'SELECT session_id, session_name FROM exam_session_master WHERE session_id = ?',
             [req.params.id]
         );
         
@@ -180,13 +163,13 @@ router.delete('/:id', async (req, res) => {
         
         // Delete exam session
         await promisePool.query(
-            'DELETE FROM exam_session_master WHERE exam_session_id = ?',
+            'DELETE FROM exam_session_master WHERE session_id = ?',
             [req.params.id]
         );
         
         res.json({
             status: 'success',
-            message: `Exam session ${existing[0].session_code} deleted successfully`
+            message: `Exam session ${existing[0].session_name} deleted successfully`
         });
     } catch (error) {
         console.error('Error deleting exam session:', error);
