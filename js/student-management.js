@@ -110,29 +110,43 @@ async function editStudent(id) {
             // Populate form fields
             document.getElementById('studentId').value = student.student_id || '';
             document.getElementById('admissionNumber').value = student.admission_number || '';
+            document.getElementById('htNumber').value = student.ht_number || '';
             document.getElementById('rollNumber').value = student.roll_number || '';
-            document.getElementById('firstName').value = student.first_name || '';
-            document.getElementById('lastName').value = student.last_name || '';
+            document.getElementById('fullName').value = student.full_name || '';
             document.getElementById('dateOfBirth').value = student.date_of_birth ? student.date_of_birth.split('T')[0] : '';
-            document.getElementById('gender').value = student.gender || '';
-            document.getElementById('bloodGroup').value = student.blood_group || '';
-            document.getElementById('email').value = student.email || '';
-            document.getElementById('mobileNumber').value = student.mobile_number || '';
+            
+            // Set gender radio button
+            if (student.gender) {
+                const genderRadio = document.querySelector(`input[name="gender"][value="${student.gender}"]`);
+                if (genderRadio) genderRadio.checked = true;
+            }
+            
+            document.getElementById('fatherName').value = student.father_name || '';
+            document.getElementById('motherName').value = student.mother_name || '';
             document.getElementById('aadhaarNumber').value = student.aadhaar_number || '';
-            document.getElementById('parentName').value = student.parent_name || '';
+            document.getElementById('casteCategory').value = student.caste_category || '';
+            document.getElementById('studentMobile').value = student.student_mobile || '';
             document.getElementById('parentMobile').value = student.parent_mobile || '';
-            document.getElementById('address').value = student.address || '';
-            document.getElementById('city').value = student.city || '';
-            document.getElementById('state').value = student.state || '';
-            document.getElementById('pincode').value = student.pincode || '';
-            document.getElementById('admissionYear').value = student.admission_year || '';
+            document.getElementById('email').value = student.email || '';
+            document.getElementById('admissionDate').value = student.admission_date ? student.admission_date.split('T')[0] : '';
+            document.getElementById('completionYear').value = student.completion_year || '';
+            document.getElementById('dateOfLeaving').value = student.date_of_leaving ? student.date_of_leaving.split('T')[0] : '';
+            document.getElementById('discontinueDate').value = student.discontinue_date ? student.discontinue_date.split('T')[0] : '';
             document.getElementById('programmeId').value = student.programme_id || '';
             document.getElementById('branchId').value = student.branch_id || '';
             document.getElementById('batchId').value = student.batch_id || '';
-            document.getElementById('currentSemester').value = student.current_semester || '';
+            document.getElementById('semesterId').value = student.semester_id || '';
             document.getElementById('regulationId').value = student.regulation_id || '';
             document.getElementById('sectionId').value = student.section_id || '';
             document.getElementById('studentStatus').value = student.student_status || 'In Roll';
+            
+            // Set checkboxes
+            document.getElementById('detainee').checked = student.is_detainee || false;
+            document.getElementById('transitory').checked = student.is_transitory || false;
+            document.getElementById('handicapped').checked = student.is_handicapped || false;
+            document.getElementById('lateral').checked = student.is_lateral || false;
+            document.getElementById('joinCurriculum').checked = student.join_curriculum || false;
+            document.getElementById('lockStudent').checked = student.is_locked || false;
             
             // Update modal
             document.getElementById('modalTitle').textContent = 'Edit Student';
@@ -164,29 +178,35 @@ async function saveStudent() {
     // Collect form data
     const formData = {
         admission_number: document.getElementById('admissionNumber').value.trim(),
+        ht_number: document.getElementById('htNumber').value.trim(),
         roll_number: document.getElementById('rollNumber').value.trim(),
-        first_name: document.getElementById('firstName').value.trim(),
-        last_name: document.getElementById('lastName').value.trim(),
-        date_of_birth: document.getElementById('dateOfBirth').value,
-        gender: document.getElementById('gender').value,
-        blood_group: document.getElementById('bloodGroup').value,
-        email: document.getElementById('email').value.trim(),
-        mobile_number: document.getElementById('mobileNumber').value.trim(),
+        full_name: document.getElementById('fullName').value.trim(),
+        date_of_birth: document.getElementById('dateOfBirth').value || null,
+        gender: document.querySelector('input[name="gender"]:checked')?.value || null,
+        father_name: document.getElementById('fatherName').value.trim(),
+        mother_name: document.getElementById('motherName').value.trim(),
         aadhaar_number: document.getElementById('aadhaarNumber').value.trim(),
-        parent_name: document.getElementById('parentName').value.trim(),
+        caste_category: document.getElementById('casteCategory').value.trim(),
+        student_mobile: document.getElementById('studentMobile').value.trim(),
         parent_mobile: document.getElementById('parentMobile').value.trim(),
-        address: document.getElementById('address').value.trim(),
-        city: document.getElementById('city').value.trim(),
-        state: document.getElementById('state').value.trim(),
-        pincode: document.getElementById('pincode').value.trim(),
-        admission_year: parseInt(document.getElementById('admissionYear').value),
-        programme_id: parseInt(document.getElementById('programmeId').value),
-        branch_id: parseInt(document.getElementById('branchId').value),
-        batch_id: parseInt(document.getElementById('batchId').value),
-        current_semester: parseInt(document.getElementById('currentSemester').value),
-        regulation_id: parseInt(document.getElementById('regulationId').value),
-        section_id: parseInt(document.getElementById('sectionId').value),
-        student_status: document.getElementById('studentStatus').value || 'In Roll'
+        email: document.getElementById('email').value.trim(),
+        admission_date: document.getElementById('admissionDate').value || null,
+        completion_year: document.getElementById('completionYear').value.trim(),
+        date_of_leaving: document.getElementById('dateOfLeaving').value || null,
+        discontinue_date: document.getElementById('discontinueDate').value || null,
+        programme_id: parseInt(document.getElementById('programmeId').value) || null,
+        branch_id: parseInt(document.getElementById('branchId').value) || null,
+        batch_id: parseInt(document.getElementById('batchId').value) || null,
+        semester_id: parseInt(document.getElementById('semesterId').value) || null,
+        regulation_id: parseInt(document.getElementById('regulationId').value) || null,
+        section_id: parseInt(document.getElementById('sectionId').value) || null,
+        student_status: document.getElementById('studentStatus').value || 'In Roll',
+        is_detainee: document.getElementById('detainee').checked,
+        is_transitory: document.getElementById('transitory').checked,
+        is_handicapped: document.getElementById('handicapped').checked,
+        is_lateral: document.getElementById('lateral').checked,
+        join_curriculum: document.getElementById('joinCurriculum').checked,
+        is_locked: document.getElementById('lockStudent').checked
     };
     
     try {
@@ -241,19 +261,18 @@ function resetForm() {
 
 // Validate form
 function validateForm() {
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
+    const fullName = document.getElementById('fullName').value.trim();
     const admissionNumber = document.getElementById('admissionNumber').value.trim();
     const rollNumber = document.getElementById('rollNumber').value.trim();
     const email = document.getElementById('email').value.trim();
-    const mobileNumber = document.getElementById('mobileNumber').value.trim();
+    const studentMobile = document.getElementById('studentMobile').value.trim();
     const aadhaarNumber = document.getElementById('aadhaarNumber').value.trim();
     const programmeId = document.getElementById('programmeId').value;
     const branchId = document.getElementById('branchId').value;
     const batchId = document.getElementById('batchId').value;
     
     // Check required fields
-    if (!firstName || !lastName || !admissionNumber || !rollNumber) {
+    if (!fullName || !admissionNumber) {
         showAlert('Please fill in all required fields', 'danger');
         return false;
     }
@@ -273,10 +292,10 @@ function validateForm() {
     }
     
     // Validate mobile number (10 digits)
-    if (mobileNumber) {
+    if (studentMobile) {
         const mobileRegex = /^[0-9]{10}$/;
-        if (!mobileRegex.test(mobileNumber)) {
-            showAlert('Mobile number must be 10 digits', 'danger');
+        if (!mobileRegex.test(studentMobile)) {
+            showAlert('Student mobile number must be 10 digits', 'danger');
             return false;
         }
     }
@@ -468,7 +487,7 @@ function displayStudents(students) {
     `;
     
     students.forEach((student, index) => {
-        const fullName = `${student.first_name} ${student.last_name}`;
+        const fullName = student.full_name || 'N/A';
         const photoUrl = student.photo_url ? `${API_BASE_URL}${student.photo_url}` : '';
         
         // Status badge color
@@ -771,7 +790,7 @@ async function loadSemesters() {
             const semesters = result.data || [];
             
             // Populate form dropdown
-            const formSelect = document.getElementById('currentSemester');
+            const formSelect = document.getElementById('semesterId');
             if (formSelect) {
                 formSelect.innerHTML = '<option value="">Select Semester</option>';
                 semesters.forEach(sem => {

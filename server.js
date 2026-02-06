@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
+const crypto = require('crypto');
 const initializeDatabase = require('./db/init');
 
 // Load environment variables
@@ -29,8 +30,9 @@ const storage = multer.diskStorage({
         cb(null, 'uploads/students/')
     },
     filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'student-' + uniqueSuffix + path.extname(file.originalname));
+        // Use crypto.randomUUID for collision-resistant unique filenames
+        const uniqueId = crypto.randomUUID();
+        cb(null, 'student-' + uniqueId + path.extname(file.originalname));
     }
 });
 
