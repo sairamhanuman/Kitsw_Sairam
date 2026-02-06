@@ -2,6 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const ExcelJS = require('exceljs');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
 
 // Create a promise pool for database operations
 let promisePool;
@@ -919,36 +924,441 @@ router.get('/export/excel', async (req, res) => {
     }
 });
 
+// Configure multer for Excel upload
+const uploadExcel = multer({
+    dest: 'uploads/temp/',
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only CSV and Excel files are allowed'));
+        }
+    }
+});
+
+// Helper function to parse DD/MM/YYYY to YYYY-MM-DD
+function parseDateDDMMYYYY(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.trim().split('/');
+    if (parts.length !== 3) return null;
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+// Helper function to parse Yes/No to boolean
+function parseYesNo(value) {
+    if (!value) return false;
+    return value.trim().toLowerCase() === 'yes' ? true : false;
+}
+
 // POST import students from Excel
-router.post('/import/excel', async (req, res) => {
+router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
     try {
-        // This would require file upload middleware
-        // For now, returning a placeholder
-        res.status(501).json({
-            status: 'info',
-            message: 'Excel import functionality - to be implemented with file upload'
+        console.log('=== EXCEL IMPORT REQUEST ===');
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        const filePath = req.file.path;
+        const students = [];
+        const errors = [];
+        let lineNumber = 0;
+        let isHeaderFound = false;
+        
+        // Read file and manually parse to skip first 6 rows
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const lines = fileContent.split('\n');
+        
+        let headers = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            lineNumber = i + 1;
+            const line = lines[i].trim();
+            
+            // Skip empty lines
+            if (!line) continue;
+            
+            // Find the header row (row 6) - it starts with "Admission Number"
+            if (line.startsWith('Admission Number') || line.startsWith('"Admission Number"')) {
+                headers = line.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                isHeaderFound = true;
+                continue;
+            }
+            
+            // Skip rows before header
+            if (!isHeaderFound) {
+                continue;
+            }
+            
+            // Parse data rows
+            try {
+                // Simple CSV parsing - handle quoted values
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim());
+                
+                // Create row object
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header] = values[idx] || '';
+                });
+                
+                // Validate and parse row
+                const student = {
+                    admission_number: row['Admission Number']?.trim(),
+                    ht_number: row['HT Number']?.trim() || null,
+                    roll_number: row['Roll Number']?.trim() || null,
+                    full_name: row['Full Name']?.trim(),
+                    date_of_birth: parseDateDDMMYYYY(row['Date of Birth (DD/MM/YYYY)']),
+                    gender: row['Gender (Male/Female/Other)']?.trim(),
+                    father_name: row['Father Name']?.trim() || null,
+                    mother_name: row['Mother Name']?.trim() || null,
+                    aadhaar_number: row['Aadhaar Number']?.trim() || null,
+                    caste_category: row['Caste Category']?.trim() || null,
+                    student_mobile: row['Student Mobile']?.trim() || null,
+                    parent_mobile: row['Parent Mobile']?.trim() || null,
+                    email: row['Email']?.trim() || null,
+                    admission_date: parseDateDDMMYYYY(row['Admission Date (DD/MM/YYYY)']),
+                    completion_year: row['Completion Year']?.trim() || null,
+                    student_status: row['Student Status (In Roll/Detained/Left out)']?.trim() || 'In Roll',
+                    section: row['Section']?.trim() || null,
+                    is_detainee: parseYesNo(row['Detainee (Yes/No)']),
+                    is_lateral: parseYesNo(row['Lateral (Yes/No)']),
+                    is_handicapped: parseYesNo(row['Handicapped (Yes/No)']),
+                    is_transitory: parseYesNo(row['Transitory (Yes/No)']),
+                    programme_id: req.body.programme_id || null,
+                    branch_id: req.body.branch_id || null,
+                    batch_id: req.body.batch_id || null,
+                    semester_id: req.body.semester_id || null,
+                    section_id: null
+                };
+                
+                // Validate required fields
+                if (!student.admission_number) {
+                    errors.push({
+                        row: lineNumber,
+                        error: 'Admission Number is required'
+                    });
+                    continue;
+                }
+                
+                if (!student.full_name) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Full Name is required'
+                    });
+                    continue;
+                }
+                
+                // Validate gender
+                if (student.gender && !['Male', 'Female', 'Other'].includes(student.gender)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Gender must be Male, Female, or Other'
+                    });
+                    continue;
+                }
+                
+                // Validate mobile numbers
+                if (student.student_mobile && !/^\d{10}$/.test(student.student_mobile)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Student Mobile must be 10 digits'
+                    });
+                    continue;
+                }
+                
+                if (student.parent_mobile && !/^\d{10}$/.test(student.parent_mobile)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Parent Mobile must be 10 digits'
+                    });
+                    continue;
+                }
+                
+                // Validate aadhaar
+                if (student.aadhaar_number && !/^\d{12}$/.test(student.aadhaar_number)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Aadhaar Number must be 12 digits'
+                    });
+                    continue;
+                }
+                
+                // Validate email
+                if (student.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Invalid email format'
+                    });
+                    continue;
+                }
+                
+                // Validate student status
+                if (student.student_status && !['In Roll', 'Detained', 'Left out'].includes(student.student_status)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Student Status must be In Roll, Detained, or Left out'
+                    });
+                    continue;
+                }
+                
+                students.push({ ...student, lineNumber });
+                
+            } catch (error) {
+                errors.push({
+                    row: lineNumber,
+                    error: error.message
+                });
+            }
+        }
+        
+        console.log(`Parsed ${students.length} valid students, ${errors.length} errors`);
+        
+        // Bulk insert students
+        let importedCount = 0;
+        
+        for (const student of students) {
+            try {
+                // Check if admission number already exists
+                const [existing] = await promisePool.query(
+                    'SELECT student_id FROM student_master WHERE admission_number = ?',
+                    [student.admission_number]
+                );
+                
+                if (existing.length > 0) {
+                    errors.push({
+                        row: student.lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Duplicate admission number'
+                    });
+                    continue;
+                }
+                
+                // Insert student
+                await promisePool.query(
+                    `INSERT INTO student_master 
+                    (admission_number, ht_number, roll_number, full_name, date_of_birth, gender,
+                     father_name, mother_name, aadhaar_number, caste_category,
+                     student_mobile, parent_mobile, email, admission_date, completion_year,
+                     student_status, programme_id, branch_id, batch_id, semester_id,
+                     is_detainee, is_lateral, is_handicapped, is_transitory, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+                    [
+                        student.admission_number, student.ht_number, student.roll_number,
+                        student.full_name, student.date_of_birth, student.gender,
+                        student.father_name, student.mother_name, student.aadhaar_number,
+                        student.caste_category, student.student_mobile, student.parent_mobile,
+                        student.email, student.admission_date, student.completion_year,
+                        student.student_status, student.programme_id, student.branch_id,
+                        student.batch_id, student.semester_id, student.is_detainee,
+                        student.is_lateral, student.is_handicapped, student.is_transitory
+                    ]
+                );
+                
+                importedCount++;
+                
+            } catch (error) {
+                errors.push({
+                    row: student.lineNumber,
+                    admission_number: student.admission_number,
+                    error: error.message
+                });
+            }
+        }
+        
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+        
+        res.json({
+            status: 'success',
+            message: 'Import completed',
+            data: {
+                total: students.length,
+                imported: importedCount,
+                failed: errors.length,
+                errors: errors
+            }
         });
+        
     } catch (error) {
-        console.error('Error importing from Excel:', error);
+        console.error('=== EXCEL IMPORT ERROR ===');
+        console.error('Error:', error);
+        
+        // Clean up file if it exists
+        if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (cleanupError) {
+                console.error('Failed to cleanup temp file:', cleanupError);
+            }
+        }
+        
         res.status(500).json({
             status: 'error',
-            message: 'Failed to import from Excel',
+            message: 'Failed to import Excel file',
             error: error.message
         });
     }
 });
 
+// Configure multer for ZIP upload
+const uploadZip = multer({
+    dest: 'uploads/temp/',
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.zip') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only ZIP files are allowed'));
+        }
+    }
+});
+
 // POST bulk import photos from ZIP
-router.post('/import-photos', async (req, res) => {
+router.post('/import-photos', uploadZip.single('file'), async (req, res) => {
     try {
-        // This would require file upload middleware for ZIP files
-        // For now, returning a placeholder
-        res.status(501).json({
-            status: 'info',
-            message: 'Bulk photo import functionality - to be implemented with file upload'
+        console.log('=== PHOTO IMPORT REQUEST ===');
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        const zipPath = req.file.path;
+        const zip = new AdmZip(zipPath);
+        const zipEntries = zip.getEntries();
+        
+        const results = {
+            total: 0,
+            uploaded: 0,
+            failed: 0,
+            errors: []
+        };
+        
+        // Ensure uploads directory exists
+        const uploadsDir = path.join(__dirname, '../uploads/students');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        for (const entry of zipEntries) {
+            if (entry.isDirectory) continue;
+            
+            const filename = entry.entryName;
+            const ext = path.extname(filename).toLowerCase();
+            
+            // Check if valid image
+            if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+                continue;
+            }
+            
+            results.total++;
+            
+            try {
+                // Extract filename without extension
+                const basename = path.basename(filename, ext);
+                
+                // Try to find student by admission number or roll number
+                const [students] = await promisePool.query(
+                    'SELECT student_id, admission_number FROM student_master WHERE (admission_number = ? OR roll_number = ?) AND is_active = 1',
+                    [basename, basename]
+                );
+                
+                if (students.length === 0) {
+                    results.failed++;
+                    results.errors.push({
+                        filename: filename,
+                        error: 'Student not found'
+                    });
+                    continue;
+                }
+                
+                const student = students[0];
+                
+                // Check file size (max 5MB)
+                const fileData = entry.getData();
+                if (fileData.length > 5 * 1024 * 1024) {
+                    results.failed++;
+                    results.errors.push({
+                        filename: filename,
+                        error: 'File size exceeds 5MB limit'
+                    });
+                    continue;
+                }
+                
+                // Extract and save photo
+                const newFilename = `${student.student_id}_${Date.now()}${ext}`;
+                const photoPath = path.join(uploadsDir, newFilename);
+                
+                fs.writeFileSync(photoPath, fileData);
+                
+                // Update photo_url in database
+                const photoUrl = `/uploads/students/${newFilename}`;
+                await promisePool.query(
+                    'UPDATE student_master SET photo_url = ? WHERE student_id = ?',
+                    [photoUrl, student.student_id]
+                );
+                
+                results.uploaded++;
+                console.log(`✅ Uploaded photo for ${student.admission_number}`);
+                
+            } catch (error) {
+                results.failed++;
+                results.errors.push({
+                    filename: filename,
+                    error: error.message
+                });
+            }
+        }
+        
+        // Clean up ZIP file
+        try {
+            fs.unlinkSync(zipPath);
+        } catch (cleanupError) {
+            console.error('Failed to cleanup ZIP file:', cleanupError);
+        }
+        
+        console.log(`Photo import completed: ${results.uploaded}/${results.total} successful`);
+        
+        res.json({
+            status: 'success',
+            message: 'Photo import completed',
+            data: results
         });
+        
     } catch (error) {
-        console.error('Error importing photos:', error);
+        console.error('=== PHOTO IMPORT ERROR ===');
+        console.error('Error:', error);
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to import photos',

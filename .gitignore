@@ -45,3 +45,6 @@ test_soft_delete.js
 tmp/
 temp/
 *.tmp
+
+# Uploaded files
+uploads/
