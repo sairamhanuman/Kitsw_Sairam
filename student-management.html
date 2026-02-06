@@ -1210,26 +1210,21 @@
 
         // Generate sample Excel
         function generateSampleExcel() {
-            try {
-                // Build query string with current filter values
-                const params = new URLSearchParams();
-                
-                const programmeId = document.getElementById('filter-programme').value;
-                const branchId = document.getElementById('filter-branch').value;
-                const batchId = document.getElementById('filter-batch').value;
-                const semesterId = document.getElementById('filter-semester').value;
-                
-                if (programmeId) params.append('programme_id', programmeId);
-                if (branchId) params.append('branch_id', branchId);
-                if (batchId) params.append('batch_id', batchId);
-                if (semesterId) params.append('semester_id', semesterId);
-                
-                // Download file
-                window.location.href = `/api/students/sample-excel?${params.toString()}`;
-            } catch (error) {
-                console.error('Error generating sample Excel:', error);
-                alert('Error generating sample Excel: ' + error.message);
-            }
+            // Build query string with current filter values
+            const params = new URLSearchParams();
+            
+            const programmeId = document.getElementById('filter-programme').value;
+            const branchId = document.getElementById('filter-branch').value;
+            const batchId = document.getElementById('filter-batch').value;
+            const semesterId = document.getElementById('filter-semester').value;
+            
+            if (programmeId) params.append('programme_id', programmeId);
+            if (branchId) params.append('branch_id', branchId);
+            if (batchId) params.append('batch_id', batchId);
+            if (semesterId) params.append('semester_id', semesterId);
+            
+            // Download file
+            window.location.href = `/api/students/sample-excel?${params.toString()}`;
         }
 
         // Handle Excel file selection

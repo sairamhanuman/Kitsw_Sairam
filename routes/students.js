@@ -778,8 +778,8 @@ router.get('/export/excel', async (req, res) => {
                 s.admission_date,
                 s.completion_year,
                 s.student_status,
-                COALESCE(p.programme_code, '-') as programme_name,
-                COALESCE(b.branch_code, '-') as branch_name,
+                COALESCE(p.programme_code, '-') as programme_name,  -- Using code, aliased as name for backward compatibility
+                COALESCE(b.branch_code, '-') as branch_name,        -- Using code, aliased as name for backward compatibility
                 COALESCE(bat.batch_name, '-') as batch_name,
                 COALESCE(sem.semester_name, '-') as semester_name,
                 COALESCE(sec.section_name, '-') as section_name,
