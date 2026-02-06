@@ -39,6 +39,7 @@ build/
 # Testing
 coverage/
 .nyc_output/
+test_soft_delete.js
 
 # Temporary files
 tmp/

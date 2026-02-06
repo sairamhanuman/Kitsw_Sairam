@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM batch_master ORDER BY start_year DESC'
+            'SELECT * FROM batch_master WHERE is_active = 1 ORDER BY start_year DESC'
         );
         
         res.json({
@@ -148,40 +148,37 @@ router.put('/:id', async (req, res) => {
 // DELETE batch
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if batch exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting batch with ID: ${id}`);
+        
+        // Check if batch exists and is active
         const [existing] = await promisePool.query(
-            'SELECT batch_id, batch_name FROM batch_master WHERE batch_id = ?',
-            [req.params.id]
+            'SELECT * FROM batch_master WHERE batch_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Batch not found'
+                message: 'Batch not found or already deleted'
             });
         }
         
-        // Delete batch
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM batch_master WHERE batch_id = ?',
-            [req.params.id]
+            'UPDATE batch_master SET is_active = 0, deleted_at = NOW() WHERE batch_id = ?',
+            [id]
         );
+        
+        console.log(`Batch ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Batch ${existing[0].batch_name} deleted successfully`
+            message: 'Batch deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting batch:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete batch as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting batch:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete batch',

@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM programme_master ORDER BY programme_code'
+            'SELECT * FROM programme_master WHERE is_active = 1 ORDER BY programme_code'
         );
         
         res.json({
@@ -164,40 +164,37 @@ router.put('/:id', async (req, res) => {
 // DELETE programme
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if programme exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting programme with ID: ${id}`);
+        
+        // Check if programme exists and is active
         const [existing] = await promisePool.query(
-            'SELECT programme_id, programme_code FROM programme_master WHERE programme_id = ?',
-            [req.params.id]
+            'SELECT * FROM programme_master WHERE programme_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Programme not found'
+                message: 'Programme not found or already deleted'
             });
         }
         
-        // Delete programme
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM programme_master WHERE programme_id = ?',
-            [req.params.id]
+            'UPDATE programme_master SET is_active = 0, deleted_at = NOW() WHERE programme_id = ?',
+            [id]
         );
+        
+        console.log(`Programme ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Programme ${existing[0].programme_code} deleted successfully`
+            message: 'Programme deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting programme:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete programme as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting programme:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete programme',

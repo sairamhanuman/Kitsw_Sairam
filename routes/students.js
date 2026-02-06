@@ -27,6 +27,12 @@ router.get('/', async (req, res) => {
              LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id
              LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
              LEFT JOIN section_master sec ON s.section_id = sec.section_id
+             WHERE s.is_active = 1
+               AND (p.is_active = 1 OR p.is_active IS NULL)
+               AND (b.is_active = 1 OR b.is_active IS NULL)
+               AND (bat.is_active = 1 OR bat.is_active IS NULL)
+               AND (r.is_active = 1 OR r.is_active IS NULL)
+               AND (sec.is_active = 1 OR sec.is_active IS NULL)
              ORDER BY s.roll_number`
         );
         
@@ -376,40 +382,37 @@ router.put('/:id', async (req, res) => {
 // DELETE student
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if student exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting student with ID: ${id}`);
+        
+        // Check if student exists and is active
         const [existing] = await promisePool.query(
-            'SELECT student_id, roll_number FROM student_master WHERE student_id = ?',
-            [req.params.id]
+            'SELECT * FROM student_master WHERE student_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Student not found'
+                message: 'Student not found or already deleted'
             });
         }
         
-        // Delete student
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM student_master WHERE student_id = ?',
-            [req.params.id]
+            'UPDATE student_master SET is_active = 0, deleted_at = NOW() WHERE student_id = ?',
+            [id]
         );
+        
+        console.log(`Student ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Student ${existing[0].roll_number} deleted successfully`
+            message: 'Student deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting student:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete student as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting student:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete student',
