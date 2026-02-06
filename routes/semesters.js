@@ -66,7 +66,8 @@ router.get('/:id', async (req, res) => {
 // POST create new semester
 router.post('/', async (req, res) => {
     try {
-        console.log('Received semester data:', req.body); // Debug log
+        // Debug logging - consider removing in production or using environment-based logging
+        console.log('Received semester data:', req.body);
         
         const { semester_number, semester_name, description, is_active } = req.body;
         

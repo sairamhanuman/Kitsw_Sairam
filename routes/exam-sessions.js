@@ -66,7 +66,8 @@ router.get('/:id', async (req, res) => {
 // POST create new exam session
 router.post('/', async (req, res) => {
     try {
-        console.log('Received exam session data:', req.body); // Debug log
+        // Debug logging - consider removing in production or using environment-based logging
+        console.log('Received exam session data:', req.body);
         
         const { session_name, exam_date, session_type, start_time, end_time, is_active } = req.body;
         

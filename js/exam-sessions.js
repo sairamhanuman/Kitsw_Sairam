@@ -111,7 +111,10 @@ async function saveExamSession() {
         is_active: true
     };
     
-    console.log('Sending exam session data:', formData); // Debug log
+    // Debug logging - remove in production
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Sending exam session data:', formData);
+    }
     
     // Validation
     if (!formData.session_name || !formData.exam_date || !formData.session_type) {
