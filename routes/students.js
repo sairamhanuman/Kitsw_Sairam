@@ -32,15 +32,13 @@ router.get('/', async (req, res) => {
                    b.branch_name, b.branch_code,
                    bat.batch_name, 
                    sem.semester_name,
-                   r.regulation_name, 
                    sec.section_name
             FROM student_master s
-            LEFT JOIN programme_master p ON s.programme_id = p.programme_id
-            LEFT JOIN branch_master b ON s.branch_id = b.branch_id
-            LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id
-            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id
-            LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
-            LEFT JOIN section_master sec ON s.section_id = sec.section_id
+            LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
+            LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
+            LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
+            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
+            LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
             WHERE s.is_active = 1
         `;
         
@@ -129,15 +127,13 @@ router.get('/:id', async (req, res) => {
                     b.branch_name, b.branch_code,
                     bat.batch_name, 
                     sem.semester_name,
-                    r.regulation_name, 
                     sec.section_name
              FROM student_master s
-             LEFT JOIN programme_master p ON s.programme_id = p.programme_id
-             LEFT JOIN branch_master b ON s.branch_id = b.branch_id
-             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id
-             LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id
-             LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
-             LEFT JOIN section_master sec ON s.section_id = sec.section_id
+             LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
+             LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
+             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
+             LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
+             LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
              WHERE s.student_id = ?`,
             [req.params.id]
         );
@@ -611,25 +607,93 @@ router.post('/bulk-lock', async (req, res) => {
 // GET export students to Excel
 router.get('/export/excel', async (req, res) => {
     try {
-        // Get all active students with full details
-        const [students] = await promisePool.query(`
-            SELECT s.*, 
-                   p.programme_name, p.programme_code,
-                   b.branch_name, b.branch_code,
-                   bat.batch_name, 
-                   sem.semester_name,
-                   r.regulation_name, 
-                   sec.section_name
+        console.log('=== EXCEL EXPORT REQUEST ===');
+        
+        // Build query with filters
+        const { programme_id, branch_id, batch_id, semester_id, student_status, search } = req.query;
+        
+        let query = `
+            SELECT 
+                s.student_id,
+                s.admission_number,
+                s.ht_number,
+                s.roll_number,
+                s.full_name,
+                s.date_of_birth,
+                s.gender,
+                s.father_name,
+                s.mother_name,
+                s.student_mobile,
+                s.parent_mobile,
+                s.email,
+                s.aadhaar_number,
+                s.caste_category,
+                s.admission_date,
+                s.completion_year,
+                s.student_status,
+                COALESCE(p.programme_name, '-') as programme_name,
+                COALESCE(b.branch_name, '-') as branch_name,
+                COALESCE(bat.batch_name, '-') as batch_name,
+                COALESCE(sem.semester_name, '-') as semester_name,
+                COALESCE(sec.section_name, '-') as section_name,
+                s.is_detainee,
+                s.is_lateral,
+                s.is_handicapped,
+                s.is_transitory
             FROM student_master s
-            LEFT JOIN programme_master p ON s.programme_id = p.programme_id
-            LEFT JOIN branch_master b ON s.branch_id = b.branch_id
-            LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id
-            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id
-            LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
-            LEFT JOIN section_master sec ON s.section_id = sec.section_id
+            LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
+            LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
+            LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
+            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
+            LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
             WHERE s.is_active = 1
-            ORDER BY s.admission_number
-        `);
+        `;
+        
+        const params = [];
+        
+        // Apply filters
+        if (programme_id) {
+            query += ' AND s.programme_id = ?';
+            params.push(programme_id);
+        }
+        if (branch_id) {
+            query += ' AND s.branch_id = ?';
+            params.push(branch_id);
+        }
+        if (batch_id) {
+            query += ' AND s.batch_id = ?';
+            params.push(batch_id);
+        }
+        if (semester_id) {
+            query += ' AND s.semester_id = ?';
+            params.push(semester_id);
+        }
+        if (student_status) {
+            query += ' AND s.student_status = ?';
+            params.push(student_status);
+        }
+        if (search) {
+            query += ' AND (s.full_name LIKE ? OR s.admission_number LIKE ? OR s.roll_number LIKE ?)';
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+        
+        query += ' ORDER BY s.admission_number';
+        
+        console.log('Export query:', query);
+        console.log('Export params:', params);
+        
+        const [students] = await promisePool.query(query, params);
+        
+        console.log(`Found ${students.length} students to export`);
+        
+        if (students.length === 0) {
+            return res.json({
+                status: 'success',
+                message: 'No students found to export',
+                data: []
+            });
+        }
         
         // Create workbook
         const workbook = new ExcelJS.Workbook();
@@ -641,21 +705,20 @@ router.get('/export/excel', async (req, res) => {
             { header: 'HT Number', key: 'ht_number', width: 15 },
             { header: 'Roll Number', key: 'roll_number', width: 15 },
             { header: 'Full Name', key: 'full_name', width: 30 },
+            { header: 'Date of Birth', key: 'date_of_birth', width: 12 },
+            { header: 'Gender', key: 'gender', width: 10 },
+            { header: 'Father Name', key: 'father_name', width: 25 },
+            { header: 'Mother Name', key: 'mother_name', width: 25 },
             { header: 'Programme', key: 'programme_name', width: 20 },
             { header: 'Branch', key: 'branch_name', width: 30 },
             { header: 'Batch', key: 'batch_name', width: 15 },
             { header: 'Semester', key: 'semester_name', width: 15 },
             { header: 'Section', key: 'section_name', width: 10 },
-            { header: 'Regulation', key: 'regulation_name', width: 15 },
-            { header: 'DOB', key: 'date_of_birth', width: 12 },
-            { header: 'Gender', key: 'gender', width: 10 },
-            { header: 'Father Name', key: 'father_name', width: 25 },
-            { header: 'Mother Name', key: 'mother_name', width: 25 },
-            { header: 'Aadhaar Number', key: 'aadhaar_number', width: 15 },
-            { header: 'Caste Category', key: 'caste_category', width: 15 },
             { header: 'Student Mobile', key: 'student_mobile', width: 15 },
             { header: 'Parent Mobile', key: 'parent_mobile', width: 15 },
             { header: 'Email', key: 'email', width: 30 },
+            { header: 'Aadhaar Number', key: 'aadhaar_number', width: 15 },
+            { header: 'Caste Category', key: 'caste_category', width: 15 },
             { header: 'Admission Date', key: 'admission_date', width: 15 },
             { header: 'Completion Year', key: 'completion_year', width: 15 },
             { header: 'Student Status', key: 'student_status', width: 15 },
@@ -688,18 +751,23 @@ router.get('/export/excel', async (req, res) => {
         
         // Set response headers
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=students.xlsx');
+        res.setHeader('Content-Disposition', `attachment; filename=students_${Date.now()}.xlsx`);
         
         // Write to response
         await workbook.xlsx.write(res);
         res.end();
         
     } catch (error) {
-        console.error('Error exporting to Excel:', error);
+        console.error('=== EXCEL EXPORT ERROR ===');
+        console.error('Error:', error);
+        console.error('Error code:', error.code);
+        console.error('SQL Message:', error.sqlMessage);
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to export to Excel',
-            error: error.message
+            error: error.message,
+            sqlMessage: error.sqlMessage
         });
     }
 });

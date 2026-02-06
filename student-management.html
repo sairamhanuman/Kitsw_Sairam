@@ -42,49 +42,79 @@
             opacity: 0.9;
         }
 
-        /* Statistics Cards */
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
+        /* Statistics Bar - Compact Single Line */
+        .stats-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-            transition: transform 0.3s;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
-        .stat-card:hover {
-            transform: translateY(-5px);
+        .stats-bar .stats-content {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
-        .stat-card .stat-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
+        .stats-bar .stat-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        .stat-card .stat-value {
-            font-size: 32px;
+        .stats-bar .stat-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .stats-bar .stat-label {
+            font-weight: 600;
+        }
+
+        .stats-bar .stat-value {
             font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 1.1em;
         }
 
-        .stat-card .stat-label {
-            color: #6c757d;
-            font-size: 14px;
+        .stats-bar .export-btn {
+            padding: 6px 15px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
         }
 
-        .stat-total { border-left: 4px solid #667eea; }
-        .stat-boys { border-left: 4px solid #17a2b8; }
-        .stat-girls { border-left: 4px solid #e83e8c; }
-        .stat-inroll { border-left: 4px solid #28a745; }
-        .stat-detained { border-left: 4px solid #ffc107; }
-        .stat-leftout { border-left: 4px solid #dc3545; }
+        .stats-bar .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .stats-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .stats-bar .stats-content {
+                gap: 15px;
+                justify-content: center;
+            }
+            
+            .stats-bar .export-btn {
+                width: 100%;
+            }
+        }
 
         /* Filter Panel */
         .filter-section {
@@ -627,10 +657,6 @@
                 padding: 10px;
             }
 
-            .stats-container {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .filter-row {
                 grid-template-columns: 1fr;
             }
@@ -678,37 +704,48 @@
         <!-- Alert Container -->
         <div id="alertContainer"></div>
 
-        <!-- Statistics Cards -->
-        <div class="stats-container">
-            <div class="stat-card stat-total">
-                <div class="stat-icon">👥</div>
-                <div class="stat-value" id="totalStudents">0</div>
-                <div class="stat-label">Total Students</div>
+        <!-- Compact Statistics Bar -->
+        <div class="stats-bar">
+            <div class="stats-content">
+                <div class="stat-item">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value" id="statTotal">0</span>
+                </div>
+                
+                <div class="stat-divider"></div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">👨‍🎓 Boys:</span>
+                    <span class="stat-value" id="statBoys">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">👩‍🎓 Girls:</span>
+                    <span class="stat-value" id="statGirls">0</span>
+                </div>
+                
+                <div class="stat-divider"></div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">✅ In Roll:</span>
+                    <span class="stat-value" id="statInRoll">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">⚠️ Detained:</span>
+                    <span class="stat-value" id="statDetained">0</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-label">❌ Left Out:</span>
+                    <span class="stat-value" id="statLeftOut">0</span>
+                </div>
             </div>
-            <div class="stat-card stat-boys">
-                <div class="stat-icon">👨‍🎓</div>
-                <div class="stat-value" id="boysCount">0</div>
-                <div class="stat-label">Boys</div>
-            </div>
-            <div class="stat-card stat-girls">
-                <div class="stat-icon">👩‍🎓</div>
-                <div class="stat-value" id="girlsCount">0</div>
-                <div class="stat-label">Girls</div>
-            </div>
-            <div class="stat-card stat-inroll">
-                <div class="stat-icon">✅</div>
-                <div class="stat-value" id="inRollCount">0</div>
-                <div class="stat-label">In Roll</div>
-            </div>
-            <div class="stat-card stat-detained">
-                <div class="stat-icon">⚠️</div>
-                <div class="stat-value" id="detainedCount">0</div>
-                <div class="stat-label">Detained</div>
-            </div>
-            <div class="stat-card stat-leftout">
-                <div class="stat-icon">❌</div>
-                <div class="stat-value" id="leftOutCount">0</div>
-                <div class="stat-label">Left Out</div>
+            
+            <div>
+                <button onclick="exportToExcel()" class="export-btn">
+                    📥 Export to Excel
+                </button>
             </div>
         </div>
 

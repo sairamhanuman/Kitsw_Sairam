@@ -434,21 +434,41 @@ function handleSearch() {
 
 // Update statistics
 function updateStatistics(data) {
-    // Calculate statistics
-    const total = data.length;
-    const boys = data.filter(s => s.gender === 'Male').length;
-    const girls = data.filter(s => s.gender === 'Female').length;
-    const inRoll = data.filter(s => s.student_status === 'In Roll').length;
-    const detained = data.filter(s => s.student_status === 'Detained').length;
-    const leftOut = data.filter(s => s.student_status === 'Left Out').length;
-    
-    // Update stat cards
-    document.getElementById('totalStudents').textContent = total;
-    document.getElementById('totalBoys').textContent = boys;
-    document.getElementById('totalGirls').textContent = girls;
-    document.getElementById('totalInRoll').textContent = inRoll;
-    document.getElementById('totalDetained').textContent = detained;
-    document.getElementById('totalLeftOut').textContent = leftOut;
+    // If data is an object with statistics property (from API response), use it
+    if (data && typeof data === 'object' && 'statistics' in data) {
+        const stats = data.statistics;
+        document.getElementById('statTotal').textContent = stats.total || 0;
+        document.getElementById('statBoys').textContent = stats.boys || 0;
+        document.getElementById('statGirls').textContent = stats.girls || 0;
+        document.getElementById('statInRoll').textContent = stats.in_roll || 0;
+        document.getElementById('statDetained').textContent = stats.detained || 0;
+        document.getElementById('statLeftOut').textContent = stats.left_out || 0;
+    } 
+    // If data is an array of students, calculate statistics
+    else if (Array.isArray(data)) {
+        const total = data.length;
+        const boys = data.filter(s => s.gender === 'Male').length;
+        const girls = data.filter(s => s.gender === 'Female').length;
+        const inRoll = data.filter(s => s.student_status === 'In Roll').length;
+        const detained = data.filter(s => s.student_status === 'Detained').length;
+        const leftOut = data.filter(s => s.student_status === 'Left Out' || s.student_status === 'Left out').length;
+        
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statBoys').textContent = boys;
+        document.getElementById('statGirls').textContent = girls;
+        document.getElementById('statInRoll').textContent = inRoll;
+        document.getElementById('statDetained').textContent = detained;
+        document.getElementById('statLeftOut').textContent = leftOut;
+    }
+    // Otherwise, set all to 0
+    else {
+        document.getElementById('statTotal').textContent = 0;
+        document.getElementById('statBoys').textContent = 0;
+        document.getElementById('statGirls').textContent = 0;
+        document.getElementById('statInRoll').textContent = 0;
+        document.getElementById('statDetained').textContent = 0;
+        document.getElementById('statLeftOut').textContent = 0;
+    }
 }
 
 // ==================== TABLE DISPLAY FUNCTIONS ====================
@@ -548,9 +568,18 @@ async function loadStudents() {
         const result = await response.json();
         
         if (response.ok) {
-            const students = result.data || [];
-            displayStudents(students);
-            updateStatistics(students);
+            // The API returns result.data as an object with students and statistics
+            if (result.data && result.data.students) {
+                displayStudents(result.data.students);
+                updateStatistics(result.data); // Pass the whole data object which has statistics
+            } else if (Array.isArray(result.data)) {
+                // Fallback if API returns array directly
+                displayStudents(result.data);
+                updateStatistics(result.data);
+            } else {
+                displayStudents([]);
+                updateStatistics([]);
+            }
         } else {
             showAlert(result.message || 'Failed to load students', 'danger');
             displayStudents([]);
