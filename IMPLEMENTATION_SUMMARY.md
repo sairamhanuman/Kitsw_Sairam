@@ -1,5 +1,17 @@
 # Student Management Module - Implementation Complete ✅
 
+## 🔒 Security Update (2026-02-06)
+
+**CRITICAL SECURITY FIX**: Upgraded multer from 1.4.5-lts.2 to 2.0.2 to patch 4 DoS vulnerabilities:
+1. Denial of Service via unhandled exception from malformed request
+2. Denial of Service via unhandled exception  
+3. Denial of Service from maliciously crafted requests
+4. Denial of Service via memory leaks from unclosed streams
+
+**Status**: ✅ All vulnerabilities patched - npm audit reports **0 vulnerabilities**
+
+---
+
 ## Executive Summary
 
 Successfully implemented a comprehensive Student Management module for the Engineering College Management System with all required features, security best practices, and production-ready code.

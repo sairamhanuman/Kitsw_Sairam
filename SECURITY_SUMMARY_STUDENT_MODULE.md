@@ -1,5 +1,30 @@
 # Security Summary - Student Management Module
 
+## 🔒 CRITICAL SECURITY UPDATE (2026-02-06)
+
+**Multer Vulnerability Patched**: Upgraded from 1.4.5-lts.2 to 2.0.2
+
+### Vulnerabilities Fixed ✅
+1. **DoS via unhandled exception from malformed request** (CVE)
+   - Affected: >= 1.4.4-lts.1, < 2.0.2
+   - Fixed in: 2.0.2
+   
+2. **DoS via unhandled exception** (CVE)
+   - Affected: >= 1.4.4-lts.1, < 2.0.1
+   - Fixed in: 2.0.1
+   
+3. **DoS from maliciously crafted requests** (CVE)
+   - Affected: >= 1.4.4-lts.1, < 2.0.0
+   - Fixed in: 2.0.0
+   
+4. **DoS via memory leaks from unclosed streams** (CVE)
+   - Affected: < 2.0.0
+   - Fixed in: 2.0.0
+
+**Current Status**: ✅ All patched - npm audit shows **0 vulnerabilities**
+
+---
+
 ## Security Review Completed ✅
 
 Date: 2026-02-06  

@@ -1,5 +1,12 @@
 # Student Management Module Documentation
 
+## 🔒 Security Update (2026-02-06)
+
+**CRITICAL**: Multer upgraded from 1.4.5-lts.2 to 2.0.2 to fix 4 DoS vulnerabilities.  
+**Status**: ✅ All patched - 0 vulnerabilities
+
+---
+
 ## Overview
 
 The Student Management module is a comprehensive system for managing student records in an engineering college. It includes complete CRUD operations, advanced filtering, statistics, photo uploads, and Excel import/export functionality.
@@ -477,12 +484,12 @@ The modal is organized into collapsible sections:
 ## Dependencies
 
 ### Backend
-- `express`: Web framework
-- `mysql2`: Database driver
-- `multer`: File upload handling
-- `exceljs`: Excel file generation
-- `dotenv`: Environment configuration
-- `cors`: Cross-origin resource sharing
+- `express`: Web framework (5.2.1)
+- `mysql2`: Database driver (3.16.3)
+- `multer`: File upload handling (**2.0.2** - patched for DoS vulnerabilities)
+- `exceljs`: Excel file generation (4.4.0)
+- `dotenv`: Environment configuration (17.2.3)
+- `cors`: Cross-origin resource sharing (2.8.6)
 
 ### Frontend
 - Native JavaScript (ES6+)
