@@ -963,6 +963,29 @@
         // Constants
         const RELOAD_DELAY_MS = 1500; // Delay before reloading students after import (for UX - allows user to read results)
 
+        // Helper utility functions for safe DOM element access
+        // Helper function to safely get element value
+        function getElementValue(elementId, defaultValue = '') {
+            const element = document.getElementById(elementId);
+            return element?.value || defaultValue;
+        }
+
+        // Helper function to safely show/hide element
+        function toggleElement(elementId, show) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        // Helper function to safely set element content
+        function setElementContent(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = content;
+            }
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadMasterData();
@@ -1402,8 +1425,15 @@
 
         // Perform Excel Import
         async function performImportExcel() {
+            console.log('=== EXCEL IMPORT DEBUG ===');
+            console.log('Filter elements check:');
+            console.log('- filter-programme:', document.getElementById('filter-programme'));
+            console.log('- filter-branch:', document.getElementById('filter-branch'));
+            console.log('- filter-batch:', document.getElementById('filter-batch'));
+            console.log('- filter-semester:', document.getElementById('filter-semester'));
+            
             const fileInput = document.getElementById('excelFileInput');
-            const file = fileInput.files[0];
+            const file = fileInput?.files[0];
             
             if (!file) {
                 showMessage('Please select a file', 'error');
@@ -1413,19 +1443,28 @@
             const formData = new FormData();
             formData.append('file', file);
             
-            // Add filter context (programme, branch, batch, semester)
-            const programmeId = document.getElementById('filterProgramme').value;
-            const branchId = document.getElementById('filterBranch').value;
-            const batchId = document.getElementById('filterBatch').value;
-            const semesterId = document.getElementById('filterSemester').value;
+            // Safely get filter values with null checks and defaults - using correct element IDs
+            const programmeId = getElementValue('filter-programme');
+            const branchId = getElementValue('filter-branch');
+            const batchId = getElementValue('filter-batch');
+            const semesterId = getElementValue('filter-semester');
             
+            // Only append if values exist
             if (programmeId) formData.append('programme_id', programmeId);
             if (branchId) formData.append('branch_id', branchId);
             if (batchId) formData.append('batch_id', batchId);
             if (semesterId) formData.append('semester_id', semesterId);
             
-            document.getElementById('importProgress').style.display = 'block';
-            document.getElementById('importResults').style.display = 'none';
+            console.log('Import Excel with filters:', {
+                programme_id: programmeId,
+                branch_id: branchId,
+                batch_id: batchId,
+                semester_id: semesterId
+            });
+            
+            // Show progress with safe element access
+            toggleElement('importProgress', true);
+            toggleElement('importResults', false);
             
             try {
                 const response = await fetch('/api/students/import/excel', {
@@ -1435,64 +1474,121 @@
                 
                 const result = await response.json();
                 
-                document.getElementById('importProgress').style.display = 'none';
+                // Hide progress
+                toggleElement('importProgress', false);
                 
                 if (response.ok) {
                     // Show results
                     const resultsDiv = document.getElementById('importResults');
-                    resultsDiv.style.display = 'block';
-                    
-                    let html = `<h4>Import Results</h4>`;
-                    html += `<p style="color: #28a745; font-weight: bold;">✅ ${result.data.imported} students imported successfully</p>`;
-                    
-                    if (result.data.failed > 0) {
-                        html += `<p style="color: #dc3545; font-weight: bold;">❌ ${result.data.failed} records failed</p>`;
-                        html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
-                        html += `<ul>`;
-                        result.data.errors.forEach(err => {
-                            const admissionInfo = err.admission_number ? ` (${err.admission_number})` : '';
-                            html += `<li>Row ${err.row}${admissionInfo}: ${err.error}</li>`;
-                        });
-                        html += `</ul></div>`;
+                    if (resultsDiv) {
+                        resultsDiv.style.display = 'block';
+                        
+                        let html = `<div class="alert alert-success">`;
+                        html += `<h4>✅ Import Results</h4>`;
+                        html += `<p><strong>${result.data.imported}</strong> students imported successfully</p>`;
+                        
+                        if (result.data.failed > 0) {
+                            html += `<p class="text-warning"><strong>${result.data.failed}</strong> students failed</p>`;
+                            html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
+                            html += `<ul style="text-align: left;">`;
+                            result.data.errors.forEach(err => {
+                                html += `<li><small>Row ${err.row}: ${err.error}`;
+                                if (err.admission_number) {
+                                    html += ` (${err.admission_number})`;
+                                }
+                                html += `</small></li>`;
+                            });
+                            html += `</ul></div>`;
+                        }
+                        
+                        html += `</div>`;
+                        resultsDiv.innerHTML = html;
                     }
                     
-                    resultsDiv.innerHTML = html;
+                    showMessage(`Successfully imported ${result.data.imported} students`, 'success');
                     
-                    // Reload student list after successful import
-                    if (result.data.imported > 0) {
-                        setTimeout(() => {
+                    // Reload student list after 3 seconds
+                    setTimeout(() => {
+                        if (typeof loadStudents === 'function') {
                             loadStudents();
-                            showMessage(`Successfully imported ${result.data.imported} students`, 'success');
-                        }, RELOAD_DELAY_MS);
-                    }
+                        }
+                        closeImportExcelModal();
+                    }, 3000);
+                    
                 } else {
                     showMessage(result.message || 'Import failed', 'error');
                 }
+                
             } catch (error) {
                 console.error('Error importing Excel:', error);
-                showMessage('Failed to import Excel file', 'error');
-                document.getElementById('importProgress').style.display = 'none';
+                showMessage('Failed to import Excel file: ' + error.message, 'error');
+                
+                toggleElement('importProgress', false);
             }
         }
 
-        // Close Import Modal
-        function closeImportModal() {
-            document.getElementById('importExcelModal').style.display = 'none';
+        // Close Import Excel Modal with safe element access
+        function closeImportExcelModal() {
+            const modal = document.getElementById('importExcelModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            const results = document.getElementById('importResults');
+            if (results) {
+                results.style.display = 'none';
+                results.innerHTML = '';
+            }
+            
+            const fileInput = document.getElementById('excelFileInput');
+            if (fileInput) {
+                fileInput.value = '';
+            }
         }
 
-        // Import Photos - Open Modal
+        // Close Import Modal (alias for backward compatibility)
+        function closeImportModal() {
+            closeImportExcelModal();
+        }
+
+        // Open Import Excel Modal with error handling
+        function openImportExcelModal() {
+            const modal = document.getElementById('importExcelModal');
+            if (modal) {
+                modal.style.display = 'block';
+            } else {
+                console.error('Import Excel modal not found');
+                showMessage('Import modal not available', 'error');
+            }
+        }
+
+        // Import Photos - Open Modal with safe element access
         function importPhotos() {
-            document.getElementById('importPhotosModal').style.display = 'block';
-            // Reset modal state
-            document.getElementById('zipFileInput').value = '';
-            document.getElementById('photoImportProgress').style.display = 'none';
-            document.getElementById('photoImportResults').style.display = 'none';
+            openImportPhotosModal();
+        }
+
+        // Open Import Photos Modal with error handling
+        function openImportPhotosModal() {
+            const modal = document.getElementById('importPhotosModal');
+            if (modal) {
+                modal.style.display = 'block';
+                // Reset modal state with safe element access
+                const fileInput = document.getElementById('zipFileInput');
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+                toggleElement('photoImportProgress', false);
+                toggleElement('photoImportResults', false);
+            } else {
+                console.error('Import Photos modal not found');
+                showMessage('Import photos modal not available', 'error');
+            }
         }
 
         // Perform Photo Import
         async function performImportPhotos() {
             const fileInput = document.getElementById('zipFileInput');
-            const file = fileInput.files[0];
+            const file = fileInput?.files[0];
             
             if (!file) {
                 showMessage('Please select a ZIP file', 'error');
@@ -1502,8 +1598,11 @@
             const formData = new FormData();
             formData.append('file', file);
             
-            document.getElementById('photoImportProgress').style.display = 'block';
-            document.getElementById('photoImportResults').style.display = 'none';
+            console.log('Importing photos from ZIP:', file.name);
+            
+            // Show progress with safe element access
+            toggleElement('photoImportProgress', true);
+            toggleElement('photoImportResults', false);
             
             try {
                 const response = await fetch('/api/students/import-photos', {
@@ -1513,48 +1612,77 @@
                 
                 const result = await response.json();
                 
-                document.getElementById('photoImportProgress').style.display = 'none';
+                // Hide progress
+                toggleElement('photoImportProgress', false);
                 
                 if (response.ok) {
                     // Show results
                     const resultsDiv = document.getElementById('photoImportResults');
-                    resultsDiv.style.display = 'block';
-                    
-                    let html = `<h4>Photo Import Results</h4>`;
-                    html += `<p style="color: #28a745; font-weight: bold;">✅ ${result.data.uploaded} photos uploaded successfully</p>`;
-                    
-                    if (result.data.failed > 0) {
-                        html += `<p style="color: #dc3545; font-weight: bold;">❌ ${result.data.failed} photos failed</p>`;
-                        html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
-                        html += `<ul>`;
-                        result.data.errors.forEach(err => {
-                            html += `<li>${err.filename}: ${err.error}</li>`;
-                        });
-                        html += `</ul></div>`;
+                    if (resultsDiv) {
+                        resultsDiv.style.display = 'block';
+                        
+                        let html = `<div class="alert alert-success">`;
+                        html += `<h4>✅ Photo Import Results</h4>`;
+                        html += `<p><strong>${result.data.uploaded}</strong> photos uploaded successfully</p>`;
+                        
+                        if (result.data.failed > 0) {
+                            html += `<p class="text-warning"><strong>${result.data.failed}</strong> photos failed</p>`;
+                            html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
+                            html += `<ul style="text-align: left;">`;
+                            result.data.errors.forEach(err => {
+                                html += `<li><small>${err.filename}: ${err.error}</small></li>`;
+                            });
+                            html += `</ul></div>`;
+                        }
+                        
+                        html += `</div>`;
+                        resultsDiv.innerHTML = html;
                     }
                     
-                    resultsDiv.innerHTML = html;
+                    showMessage(`Successfully uploaded ${result.data.uploaded} photos`, 'success');
                     
-                    // Reload student list after successful photo import
-                    if (result.data.uploaded > 0) {
-                        setTimeout(() => {
+                    // Reload student list after 3 seconds
+                    setTimeout(() => {
+                        if (typeof loadStudents === 'function') {
                             loadStudents();
-                            showMessage(`Successfully uploaded ${result.data.uploaded} photos`, 'success');
-                        }, RELOAD_DELAY_MS);
-                    }
+                        }
+                        closeImportPhotosModal();
+                    }, 3000);
+                    
                 } else {
                     showMessage(result.message || 'Photo import failed', 'error');
                 }
+                
             } catch (error) {
                 console.error('Error importing photos:', error);
-                showMessage('Failed to import photos', 'error');
-                document.getElementById('photoImportProgress').style.display = 'none';
+                showMessage('Failed to import photos: ' + error.message, 'error');
+                
+                toggleElement('photoImportProgress', false);
             }
         }
 
-        // Close Photo Modal
+        // Close Import Photos Modal with safe element access
+        function closeImportPhotosModal() {
+            const modal = document.getElementById('importPhotosModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            const results = document.getElementById('photoImportResults');
+            if (results) {
+                results.style.display = 'none';
+                results.innerHTML = '';
+            }
+            
+            const fileInput = document.getElementById('zipFileInput');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+        }
+
+        // Close Photo Modal (alias for backward compatibility)
         function closePhotoModal() {
-            document.getElementById('importPhotosModal').style.display = 'none';
+            closeImportPhotosModal();
         }
 
         // Close modals when clicking outside
