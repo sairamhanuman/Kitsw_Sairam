@@ -56,7 +56,8 @@ function displayExamSessions(sessions) {
                 <tr>
                     <th>Session Name</th>
                     <th>Exam Date</th>
-                    <th>Type</th>
+                    <th>Session Type</th>
+                    <th>Timings</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -67,20 +68,22 @@ function displayExamSessions(sessions) {
     sessions.forEach(session => {
         const statusClass = session.is_active ? 'status-active' : 'status-inactive';
         const statusText = session.is_active ? 'Active' : 'Inactive';
-        const examDate = `${session.exam_month}/${session.exam_year}`;
+        const examDate = session.exam_date ? new Date(session.exam_date).toLocaleDateString() : 'N/A';
+        const timings = session.timings || 'N/A';
         
         tableHTML += `
             <tr>
                 <td><strong>${escapeHtml(session.session_name)}</strong></td>
                 <td>${examDate}</td>
-                <td>${escapeHtml(session.session_code)}</td>
+                <td>${escapeHtml(session.session_type || 'N/A')}</td>
+                <td>${escapeHtml(timings)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-sm btn-primary" onclick="editExamSession(${session.exam_session_id})">
+                        <button class="btn btn-sm btn-primary" onclick="editExamSession(${session.session_id})">
                             Edit
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteExamSession(${session.exam_session_id}, '${escapeHtml(session.session_name)}')">
+                        <button class="btn btn-sm btn-danger" onclick="deleteExamSession(${session.session_id}, '${escapeHtml(session.session_name)}')">
                             Delete
                         </button>
                     </div>
@@ -99,21 +102,22 @@ function displayExamSessions(sessions) {
 
 // Save exam session (Create or Update)
 async function saveExamSession() {
-    const examDate = document.getElementById('examDate').value;
-    const examDateObj = new Date(examDate);
-    
     const formData = {
-        session_code: document.getElementById('sessionType').value.trim().toUpperCase().replace(/\s+/g, '_'),
-        session_name: document.getElementById('sessionName').value.trim(),
-        exam_month: examDateObj.getMonth() + 1,
-        exam_year: examDateObj.getFullYear(),
-        start_date: examDate,
-        end_date: examDate,
+        session_name: document.getElementById('sessionName').value,
+        exam_date: document.getElementById('examDate').value,
+        session_type: document.getElementById('sessionType').value,
+        start_time: document.getElementById('startTime').value || null,
+        end_time: document.getElementById('endTime').value || null,
         is_active: true
     };
     
+    // Debug logging - remove in production
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Sending exam session data:', formData);
+    }
+    
     // Validation
-    if (!formData.session_name || !examDate || !document.getElementById('sessionType').value.trim()) {
+    if (!formData.session_name || !formData.exam_date || !formData.session_type) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -165,18 +169,24 @@ async function editExamSession(id) {
             const session = result.data;
             
             // Populate form
-            document.getElementById('sessionId').value = session.exam_session_id;
+            document.getElementById('sessionId').value = session.session_id;
             document.getElementById('sessionName').value = session.session_name;
-            document.getElementById('sessionType').value = session.session_code || '';
-            const examDate = session.start_date ? session.start_date.split('T')[0] : '';
+            document.getElementById('sessionType').value = session.session_type || '';
+            const examDate = session.exam_date ? session.exam_date.split('T')[0] : '';
             document.getElementById('examDate').value = examDate;
+            
+            // Parse timings if exists (format: "HH:MM - HH:MM")
+            if (session.timings) {
+                const timingsParts = session.timings.split(' - ');
+                if (timingsParts.length === 2) {
+                    document.getElementById('startTime').value = timingsParts[0].trim();
+                    document.getElementById('endTime').value = timingsParts[1].trim();
+                }
+            }
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Exam Session';
             document.getElementById('submitBtnText').textContent = 'Update Exam Session';
-            
-            // Disable type field during edit
-            document.getElementById('sessionType').disabled = true;
             
             currentEditId = id;
             
@@ -220,7 +230,6 @@ async function deleteExamSession(id, name) {
 function resetForm() {
     document.getElementById('examSessionForm').reset();
     document.getElementById('sessionId').value = '';
-    document.getElementById('sessionType').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Exam Session';
     document.getElementById('submitBtnText').textContent = 'Add Exam Session';
     currentEditId = null;

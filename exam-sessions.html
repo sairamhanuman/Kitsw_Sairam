@@ -247,20 +247,38 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="sessionName">Session Name *</label>
-                        <input type="text" id="sessionName" name="sessionName" required 
-                               placeholder="e.g., Mid-Term 1" maxlength="100">
+                        <select id="sessionName" name="session_name" required>
+                            <option value="">Select Session</option>
+                            <option value="FN">FN (Forenoon)</option>
+                            <option value="AN">AN (Afternoon)</option>
+                        </select>
                     </div>
                     
                     <div class="form-group">
                         <label for="examDate">Exam Date *</label>
-                        <input type="date" id="examDate" name="examDate" required>
+                        <input type="date" id="examDate" name="exam_date" required>
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="sessionType">Session Type *</label>
-                    <input type="text" id="sessionType" name="sessionType" required 
-                           placeholder="e.g., Mid-Term, End-Term, Supplementary" maxlength="50">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sessionType">Session Type *</label>
+                        <input type="text" id="sessionType" name="session_type" required 
+                               placeholder="e.g., MSE-1, ESE, Quiz-1" maxlength="50">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label id="timingsLabel">Timings (HH:MM - HH:MM)</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="time" id="startTime" name="start_time" 
+                                   aria-labelledby="timingsLabel" aria-label="Start time"
+                                   placeholder="09:30" style="flex: 1;">
+                            <span>-</span>
+                            <input type="time" id="endTime" name="end_time" 
+                                   aria-labelledby="timingsLabel" aria-label="End time"
+                                   placeholder="12:30" style="flex: 1;">
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="btn-group">
