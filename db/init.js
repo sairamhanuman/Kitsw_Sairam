@@ -106,6 +106,20 @@ const tableSchemas = {
             FOREIGN KEY (branch_id) REFERENCES branch_master(branch_id),
             FOREIGN KEY (section_id) REFERENCES section_master(section_id)
         )
+    `,
+    
+    staff_master: `
+        CREATE TABLE IF NOT EXISTS staff_master (
+            staff_id INT PRIMARY KEY AUTO_INCREMENT,
+            staff_name VARCHAR(200) NOT NULL,
+            email VARCHAR(200) UNIQUE,
+            phone VARCHAR(20),
+            department VARCHAR(100),
+            designation VARCHAR(100),
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
     `
 };
 
@@ -217,7 +231,8 @@ async function initializeDatabase(pool) {
             'regulation_master',
             'section_master',
             'exam_session_master',
-            'student_master'
+            'student_master',
+            'staff_master'
         ];
         
         let allTablesCreated = true;
