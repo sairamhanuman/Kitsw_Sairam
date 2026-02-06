@@ -153,6 +153,7 @@ async function createTable(pool, tableName, schema) {
  * Add deleted_at column to existing tables (migration)
  */
 async function addDeletedAtColumn(pool) {
+    // Whitelist of allowed table names (prevents SQL injection)
     const tables = [
         'programme_master',
         'branch_master',
@@ -169,13 +170,16 @@ async function addDeletedAtColumn(pool) {
     
     for (const tableName of tables) {
         try {
-            // Check if column exists
+            // Check if column exists (uses parameterized query for table name)
             const [columns] = await pool.query(
-                `SHOW COLUMNS FROM ${tableName} LIKE 'deleted_at'`
+                'SHOW COLUMNS FROM ?? LIKE ?',
+                [tableName, 'deleted_at']
             );
             
             if (columns.length === 0) {
                 // Column doesn't exist, add it
+                // Note: MySQL does not support parameterized table names in ALTER TABLE statements
+                // The table name is validated by the whitelist above, so this is safe
                 await pool.query(
                     `ALTER TABLE ${tableName} 
                      ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER is_active`
