@@ -174,8 +174,9 @@ async function editProgramme(id) {
             document.getElementById('formTitle').textContent = 'Edit Programme';
             document.getElementById('submitBtnText').textContent = 'Update Programme';
             
-            // Disable code field during edit
+            // Disable code field during edit and show note
             document.getElementById('programmeCode').disabled = true;
+            document.getElementById('codeEditNote').style.display = 'block';
             
             currentEditId = id;
             
@@ -220,6 +221,7 @@ function resetForm() {
     document.getElementById('programmeForm').reset();
     document.getElementById('programmeId').value = '';
     document.getElementById('programmeCode').disabled = false;
+    document.getElementById('codeEditNote').style.display = 'none';
     document.getElementById('formTitle').textContent = 'Add New Programme';
     document.getElementById('submitBtnText').textContent = 'Add Programme';
     currentEditId = null;

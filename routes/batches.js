@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM batch_master ORDER BY batch_year DESC'
+            'SELECT * FROM batch_master ORDER BY start_year DESC'
         );
         
         res.json({
@@ -66,35 +66,22 @@ router.get('/:id', async (req, res) => {
 // POST create new batch
 router.post('/', async (req, res) => {
     try {
-        const { batch_year, batch_name, start_date, end_date, description, is_active } = req.body;
+        const { batch_name, start_year, end_year, is_active } = req.body;
         
         // Validation
-        if (!batch_year || !batch_name || !start_date) {
+        if (!batch_name || !start_year || !end_year) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: batch_year, batch_name, start_date'
-            });
-        }
-        
-        // Check if batch year already exists
-        const [existing] = await promisePool.query(
-            'SELECT batch_id FROM batch_master WHERE batch_year = ?',
-            [batch_year]
-        );
-        
-        if (existing.length > 0) {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Batch year already exists'
+                message: 'Missing required fields: batch_name, start_year, end_year'
             });
         }
         
         // Insert new batch
         const [result] = await promisePool.query(
             `INSERT INTO batch_master 
-            (batch_year, batch_name, start_date, end_date, description, is_active) 
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [batch_year, batch_name, start_date, end_date || null, description || null, is_active !== false]
+            (batch_name, start_year, end_year, is_active) 
+            VALUES (?, ?, ?, ?)`,
+            [batch_name, start_year, end_year, is_active !== false]
         );
         
         res.status(201).json({
@@ -102,11 +89,9 @@ router.post('/', async (req, res) => {
             message: 'Batch created successfully',
             data: {
                 batch_id: result.insertId,
-                batch_year,
                 batch_name,
-                start_date,
-                end_date,
-                description,
+                start_year,
+                end_year,
                 is_active: is_active !== false
             }
         });
@@ -123,7 +108,7 @@ router.post('/', async (req, res) => {
 // PUT update batch
 router.put('/:id', async (req, res) => {
     try {
-        const { batch_name, start_date, end_date, description, is_active } = req.body;
+        const { batch_name, start_year, end_year, is_active } = req.body;
         
         // Check if batch exists
         const [existing] = await promisePool.query(
@@ -141,9 +126,9 @@ router.put('/:id', async (req, res) => {
         // Update batch
         await promisePool.query(
             `UPDATE batch_master 
-            SET batch_name = ?, start_date = ?, end_date = ?, description = ?, is_active = ?
+            SET batch_name = ?, start_year = ?, end_year = ?, is_active = ?
             WHERE batch_id = ?`,
-            [batch_name, start_date, end_date || null, description || null, is_active !== false, req.params.id]
+            [batch_name, start_year, end_year, is_active !== false, req.params.id]
         );
         
         res.json({
