@@ -110,23 +110,6 @@ const tableSchemas = {
 };
 
 /**
- * Check if a table exists
- */
-async function tableExists(pool, tableName) {
-    try {
-        const [rows] = await pool.query(
-            `SELECT COUNT(*) as count FROM information_schema.tables 
-             WHERE table_schema = DATABASE() AND table_name = ?`,
-            [tableName]
-        );
-        return rows[0].count > 0;
-    } catch (error) {
-        console.error(`Error checking if table ${tableName} exists:`, error.message);
-        return false;
-    }
-}
-
-/**
  * Create a single table
  */
 async function createTable(pool, tableName, schema) {
@@ -240,14 +223,6 @@ async function initializeDatabase(pool) {
         let allTablesCreated = true;
         
         for (const tableName of tableOrder) {
-            const exists = await tableExists(pool, tableName);
-            
-            if (exists) {
-                console.log(`⊙ Table '${tableName}' already exists`);
-            } else {
-                console.log(`Creating table '${tableName}'...`);
-            }
-            
             const created = await createTable(pool, tableName, tableSchemas[tableName]);
             if (!created) {
                 allTablesCreated = false;

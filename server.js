@@ -34,23 +34,20 @@ const pool = mysql.createPool({
 // Promisify pool queries
 const promisePool = pool.promise();
 
-// Test database connection
-pool.getConnection(async (err, connection) => {
-    if (err) {
-        console.error('Error connecting to database:', err.message);
-        console.log('Note: Database connection will be required for API endpoints');
-    } else {
+// Test database connection and initialize tables
+(async () => {
+    try {
+        const connection = await promisePool.getConnection();
         console.log('Database connection successful');
         connection.release();
         
         // Initialize database tables
-        try {
-            await initializeDatabase(promisePool);
-        } catch (error) {
-            console.error('Failed to initialize database:', error.message);
-        }
+        await initializeDatabase(promisePool);
+    } catch (err) {
+        console.error('Error connecting to database:', err.message);
+        console.log('Note: Database connection will be required for API endpoints');
     }
-});
+})();
 
 // Routes
 
