@@ -22,12 +22,17 @@ router.get('/', async (req, res) => {
                     r.regulation_name, 
                     sec.section_name
              FROM student_master s
-             LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
-             LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
-             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
-             LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id AND r.is_active = 1
-             LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
+             LEFT JOIN programme_master p ON s.programme_id = p.programme_id
+             LEFT JOIN branch_master b ON s.branch_id = b.branch_id
+             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id
+             LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
+             LEFT JOIN section_master sec ON s.section_id = sec.section_id
              WHERE s.is_active = 1
+               AND (p.is_active = 1 OR p.is_active IS NULL)
+               AND (b.is_active = 1 OR b.is_active IS NULL)
+               AND (bat.is_active = 1 OR bat.is_active IS NULL)
+               AND (r.is_active = 1 OR r.is_active IS NULL)
+               AND (sec.is_active = 1 OR sec.is_active IS NULL)
              ORDER BY s.roll_number`
         );
         

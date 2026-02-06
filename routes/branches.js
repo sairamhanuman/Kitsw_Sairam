@@ -18,7 +18,8 @@ router.get('/', async (req, res) => {
             `SELECT b.*, p.programme_name 
              FROM branch_master b 
              LEFT JOIN programme_master p ON b.programme_id = p.programme_id 
-             WHERE b.is_active = 1 AND (p.is_active = 1 OR p.is_active IS NULL)
+             WHERE b.is_active = 1
+               AND (p.is_active = 1 OR p.is_active IS NULL)
              ORDER BY b.branch_code`
         );
         
