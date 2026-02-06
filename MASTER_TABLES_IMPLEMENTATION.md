@@ -387,3 +387,14 @@ You can update the JavaScript code to make API calls to these endpoints and disp
 - Timestamps (created_at, updated_at) are automatically managed
 - All tables have proper indexing for query performance
 - Foreign key relationships ensure data integrity
+
+## Known Limitations
+
+1. **Update Endpoints**: The PUT endpoints currently update all fields. If a required field is not provided in the request body, it may be set to null/undefined. In a production environment, you should either:
+   - Validate that all required fields are provided in UPDATE requests
+   - Implement PATCH endpoints that only update provided fields
+   - Fetch existing values and merge with provided values before updating
+
+2. **Sample Data Dates**: Some sample data may reference past dates. Update the schema.sql with current academic year data as needed.
+
+These limitations are acceptable for this initial implementation and can be addressed in future iterations.
