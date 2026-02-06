@@ -75,14 +75,9 @@ app.get('/api/db-test', async (req, res) => {
 
 // API endpoints structure (ready for future implementation)
 
-// Programme Management
-app.get('/api/programmes', async (req, res) => {
-    res.json({ message: 'Programme list endpoint - To be implemented' });
-});
-
-app.post('/api/programmes', async (req, res) => {
-    res.json({ message: 'Create programme endpoint - To be implemented' });
-});
+// Programme Management Routes
+const programmeRoutes = require('./routes/programmes')(promisePool);
+app.use('/api/programmes', programmeRoutes);
 
 // Branch Management
 app.get('/api/branches', async (req, res) => {
