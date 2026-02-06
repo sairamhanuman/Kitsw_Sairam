@@ -112,6 +112,159 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/students/sample-excel - Generate sample Excel template (MUST BE BEFORE /:id ROUTE)
+router.get('/sample-excel', async (req, res) => {
+    try {
+        console.log('=== GENERATE SAMPLE EXCEL TEMPLATE ===');
+        
+        // Get current filter values to populate header
+        const { programme_id, branch_id, batch_id, semester_id } = req.query;
+        
+        let batchName = '2025-2026';
+        let programmeName = 'B.Tech';
+        let branchName = 'CSE';
+        let semesterName = 'I';
+        
+        // Fetch actual values if provided
+        if (batch_id) {
+            const [batches] = await promisePool.query(
+                'SELECT batch_name FROM batch_master WHERE batch_id = ? AND is_active = 1',
+                [batch_id]
+            );
+            if (batches.length > 0) batchName = batches[0].batch_name;
+        }
+        
+        if (programme_id) {
+            const [programmes] = await promisePool.query(
+                'SELECT programme_code FROM programme_master WHERE programme_id = ? AND is_active = 1',
+                [programme_id]
+            );
+            if (programmes.length > 0) programmeName = programmes[0].programme_code;
+        }
+        
+        if (branch_id) {
+            const [branches] = await promisePool.query(
+                'SELECT branch_code FROM branch_master WHERE branch_id = ? AND is_active = 1',
+                [branch_id]
+            );
+            if (branches.length > 0) branchName = branches[0].branch_code;
+        }
+        
+        if (semester_id) {
+            const [semesters] = await promisePool.query(
+                'SELECT semester_name FROM semester_master WHERE semester_id = ? AND is_active = 1',
+                [semester_id]
+            );
+            if (semesters.length > 0) semesterName = semesters[0].semester_name;
+        }
+        
+        // Build CSV content
+        let csv = '';
+        
+        // Header Section (Rows 1-5)
+        csv += `Batch,${batchName}\n`;
+        csv += `Programme,${programmeName}\n`;
+        csv += `Branch,${branchName}\n`;
+        csv += `Semester,${semesterName}\n`;
+        csv += '\n'; // Empty line
+        
+        // Column Headers (Row 6)
+        const headers = [
+            'Admission Number',
+            'HT Number',
+            'Roll Number',
+            'Full Name',
+            'Date of Birth (DD/MM/YYYY)',
+            'Gender (Male/Female/Other)',
+            'Father Name',
+            'Mother Name',
+            'Aadhaar Number',
+            'Caste Category',
+            'Student Mobile',
+            'Parent Mobile',
+            'Email',
+            'Admission Date (DD/MM/YYYY)',
+            'Completion Year',
+            'Student Status (In Roll/Detained/Left out)',
+            'Section',
+            'Detainee (Yes/No)',
+            'Lateral (Yes/No)',
+            'Handicapped (Yes/No)',
+            'Transitory (Yes/No)'
+        ];
+        csv += headers.join(',') + '\n';
+        
+        // Sample Data (Row 7)
+        const sampleRow = [
+            'B25AI001',
+            'HT12345',
+            '101',
+            'SAIRAM',
+            '15/01/2005',
+            'Male',
+            'HANUMAN',
+            'SATHYA SAI',
+            '123456789012',
+            'OC',
+            '9000000000',
+            '9000000000',
+            'sairam@example.com',
+            '15/06/2025',
+            '2029',
+            'In Roll',
+            'A',
+            'No',
+            'No',
+            'No',
+            'No'
+        ];
+        csv += sampleRow.map(val => `"${val}"`).join(',') + '\n';
+        
+        // Add one more sample row
+        const sampleRow2 = [
+            'B25AI002',
+            'HT12346',
+            '102',
+            'KRISHNA',
+            '20/02/2005',
+            'Female',
+            'RAMA',
+            'SITA',
+            '123456789013',
+            'BC',
+            '9000000001',
+            '9000000001',
+            'krishna@example.com',
+            '15/06/2025',
+            '2029',
+            'In Roll',
+            'A',
+            'No',
+            'Yes',
+            'No',
+            'No'
+        ];
+        csv += sampleRow2.map(val => `"${val}"`).join(',') + '\n';
+        
+        console.log('Sample Excel template generated successfully');
+        
+        // Set headers for file download
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename=student_import_template_${Date.now()}.csv`);
+        res.send(csv);
+        
+    } catch (error) {
+        console.error('=== SAMPLE EXCEL GENERATION ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to generate sample Excel template',
+            error: error.message
+        });
+    }
+});
+
 // GET single student by ID
 router.get('/:id', async (req, res) => {
     try {
@@ -625,8 +778,8 @@ router.get('/export/excel', async (req, res) => {
                 s.admission_date,
                 s.completion_year,
                 s.student_status,
-                COALESCE(p.programme_name, '-') as programme_name,
-                COALESCE(b.branch_name, '-') as branch_name,
+                COALESCE(p.programme_code, '-') as programme_name,  -- Using code, aliased as name for backward compatibility
+                COALESCE(b.branch_code, '-') as branch_name,        -- Using code, aliased as name for backward compatibility
                 COALESCE(bat.batch_name, '-') as batch_name,
                 COALESCE(sem.semester_name, '-') as semester_name,
                 COALESCE(sec.section_name, '-') as section_name,
@@ -762,126 +915,6 @@ router.get('/export/excel', async (req, res) => {
             message: 'Failed to export to Excel',
             error: error.message,
             sqlMessage: error.sqlMessage
-        });
-    }
-});
-
-// GET generate sample Excel template
-router.get('/sample-excel', async (req, res) => {
-    try {
-        // Create workbook
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Students');
-        
-        // Define columns with headers
-        worksheet.columns = [
-            { header: 'Admission Number*', key: 'admission_number', width: 15 },
-            { header: 'HT Number', key: 'ht_number', width: 15 },
-            { header: 'Roll Number', key: 'roll_number', width: 15 },
-            { header: 'Full Name*', key: 'full_name', width: 30 },
-            { header: 'Date of Birth (YYYY-MM-DD)', key: 'date_of_birth', width: 20 },
-            { header: 'Gender (Male/Female/Other)', key: 'gender', width: 25 },
-            { header: 'Father Name', key: 'father_name', width: 25 },
-            { header: 'Mother Name', key: 'mother_name', width: 25 },
-            { header: 'Aadhaar Number (12 digits)', key: 'aadhaar_number', width: 20 },
-            { header: 'Caste Category', key: 'caste_category', width: 15 },
-            { header: 'Programme ID*', key: 'programme_id', width: 15 },
-            { header: 'Branch ID*', key: 'branch_id', width: 15 },
-            { header: 'Batch ID*', key: 'batch_id', width: 15 },
-            { header: 'Semester ID', key: 'semester_id', width: 15 },
-            { header: 'Section ID', key: 'section_id', width: 15 },
-            { header: 'Student Mobile (10 digits)', key: 'student_mobile', width: 20 },
-            { header: 'Parent Mobile (10 digits)', key: 'parent_mobile', width: 20 },
-            { header: 'Email', key: 'email', width: 30 },
-            { header: 'Admission Date (YYYY-MM-DD)', key: 'admission_date', width: 20 },
-            { header: 'Completion Year', key: 'completion_year', width: 15 },
-            { header: 'Student Status', key: 'student_status', width: 15 },
-            { header: 'Detainee (Yes/No)', key: 'is_detainee', width: 15 },
-            { header: 'Lateral (Yes/No)', key: 'is_lateral', width: 15 },
-            { header: 'Handicapped (Yes/No)', key: 'is_handicapped', width: 15 },
-            { header: 'Transitory (Yes/No)', key: 'is_transitory', width: 15 }
-        ];
-        
-        // Add sample data rows
-        worksheet.addRow({
-            admission_number: 'B25AI001',
-            ht_number: 'HT001',
-            roll_number: 'R001',
-            full_name: 'John Doe',
-            date_of_birth: '2005-01-15',
-            gender: 'Male',
-            father_name: 'John Father',
-            mother_name: 'John Mother',
-            aadhaar_number: '123456789012',
-            caste_category: 'OC',
-            programme_id: '1',
-            branch_id: '1',
-            batch_id: '1',
-            semester_id: '1',
-            section_id: '1',
-            student_mobile: '9876543210',
-            parent_mobile: '9876543211',
-            email: 'john@example.com',
-            admission_date: '2025-07-01',
-            completion_year: '2029',
-            student_status: 'In Roll',
-            is_detainee: 'No',
-            is_lateral: 'No',
-            is_handicapped: 'No',
-            is_transitory: 'No'
-        });
-        
-        worksheet.addRow({
-            admission_number: 'B25AI002',
-            ht_number: 'HT002',
-            roll_number: 'R002',
-            full_name: 'Jane Smith',
-            date_of_birth: '2005-03-20',
-            gender: 'Female',
-            father_name: 'Jane Father',
-            mother_name: 'Jane Mother',
-            aadhaar_number: '123456789013',
-            caste_category: 'BC',
-            programme_id: '1',
-            branch_id: '1',
-            batch_id: '1',
-            semester_id: '1',
-            section_id: '1',
-            student_mobile: '9876543212',
-            parent_mobile: '9876543213',
-            email: 'jane@example.com',
-            admission_date: '2025-07-01',
-            completion_year: '2029',
-            student_status: 'In Roll',
-            is_detainee: 'No',
-            is_lateral: 'No',
-            is_handicapped: 'No',
-            is_transitory: 'No'
-        });
-        
-        // Style header row
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF4472C4' }
-        };
-        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        
-        // Set response headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=student_import_sample.xlsx');
-        
-        // Write to response
-        await workbook.xlsx.write(res);
-        res.end();
-        
-    } catch (error) {
-        console.error('Error generating sample Excel:', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to generate sample Excel',
-            error: error.message
         });
     }
 });

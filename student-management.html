@@ -821,8 +821,8 @@
                 const progData = await progResponse.json();
                 if (progData.status === 'success') {
                     masterData.programmes = progData.data;
-                    populateDropdown('filter-programme', progData.data, 'programme_id', 'programme_name');
-                    populateDropdown('programme-id', progData.data, 'programme_id', 'programme_name');
+                    populateDropdown('filter-programme', progData.data, 'programme_id', 'programme_code');
+                    populateDropdown('programme-id', progData.data, 'programme_id', 'programme_code');
                 }
 
                 // Load Branches
@@ -830,8 +830,8 @@
                 const branchData = await branchResponse.json();
                 if (branchData.status === 'success') {
                     masterData.branches = branchData.data;
-                    populateDropdown('filter-branch', branchData.data, 'branch_id', 'branch_name');
-                    populateDropdown('branch-id', branchData.data, 'branch_id', 'branch_name');
+                    populateDropdown('filter-branch', branchData.data, 'branch_id', 'branch_code');
+                    populateDropdown('branch-id', branchData.data, 'branch_id', 'branch_code');
                 }
 
                 // Load Batches
@@ -1210,7 +1210,21 @@
 
         // Generate sample Excel
         function generateSampleExcel() {
-            window.location.href = '/api/students/sample-excel';
+            // Build query string with current filter values
+            const params = new URLSearchParams();
+            
+            const programmeId = document.getElementById('filter-programme').value;
+            const branchId = document.getElementById('filter-branch').value;
+            const batchId = document.getElementById('filter-batch').value;
+            const semesterId = document.getElementById('filter-semester').value;
+            
+            if (programmeId) params.append('programme_id', programmeId);
+            if (branchId) params.append('branch_id', branchId);
+            if (batchId) params.append('batch_id', batchId);
+            if (semesterId) params.append('semester_id', semesterId);
+            
+            // Download file
+            window.location.href = `/api/students/sample-excel?${params.toString()}`;
         }
 
         // Handle Excel file selection
