@@ -52,8 +52,7 @@ const tableSchemas = {
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            CONSTRAINT uk_semester_number UNIQUE (semester_number),
-            INDEX idx_semester_number (semester_number)
+            CONSTRAINT uk_semester_number UNIQUE (semester_number)
         )
     `,
     
