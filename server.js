@@ -3,6 +3,7 @@ const mysql = require('mysql2');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
 const initializeDatabase = require('./db/init');
 
 // Load environment variables
@@ -18,6 +19,35 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure multer for photo uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/students/')
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'student-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: function (req, file, cb) {
+        const filetypes = /jpeg|jpg|png/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only JPEG, JPG, and PNG images are allowed!'));
+    }
+});
 
 // MySQL connection pool
 const pool = mysql.createPool({
@@ -148,6 +178,55 @@ app.use('/api/exam-sessions', examSessionRoutes);
 // Student Management Routes
 const studentRoutes = require('./routes/students')(promisePool);
 app.use('/api/students', studentRoutes);
+
+// Photo upload route for students (must be after students routes initialization)
+app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        // Check if student exists
+        const [student] = await promisePool.query(
+            'SELECT student_id FROM student_master WHERE student_id = ?',
+            [id]
+        );
+        
+        if (student.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found'
+            });
+        }
+        
+        // Update student photo URL
+        const photoUrl = `/uploads/students/${req.file.filename}`;
+        await promisePool.query(
+            'UPDATE student_master SET photo_url = ? WHERE student_id = ?',
+            [photoUrl, id]
+        );
+        
+        res.json({
+            status: 'success',
+            message: 'Photo uploaded successfully',
+            data: {
+                photo_url: photoUrl
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading photo:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to upload photo',
+            error: error.message
+        });
+    }
+});
 
 // Staff Management Routes
 const staffRoutes = require('./routes/staff')(promisePool);
