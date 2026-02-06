@@ -103,19 +103,75 @@ const tableSchemas = {
     student_master: `
         CREATE TABLE IF NOT EXISTS student_master (
             student_id INT PRIMARY KEY AUTO_INCREMENT,
-            student_name VARCHAR(200) NOT NULL,
-            email VARCHAR(200) UNIQUE,
-            phone VARCHAR(20),
-            batch_id INT,
+            
+            -- Basic Information
+            admission_number VARCHAR(50) UNIQUE NOT NULL,
+            ht_number VARCHAR(50),
+            roll_number VARCHAR(50),
+            full_name VARCHAR(255) NOT NULL,
+            
+            -- Academic Information
+            programme_id INT,
             branch_id INT,
+            batch_id INT,
+            semester_id INT,
             section_id INT,
+            regulation_id INT,
+            
+            -- Personal Information
+            date_of_birth DATE,
+            gender ENUM('Male', 'Female', 'Other') NOT NULL,
+            father_name VARCHAR(255),
+            mother_name VARCHAR(255),
+            aadhaar_number VARCHAR(12),
+            caste_category VARCHAR(50),
+            
+            -- Contact Information
+            student_mobile VARCHAR(15),
+            parent_mobile VARCHAR(15),
+            email VARCHAR(255),
+            
+            -- Dates
+            admission_date DATE,
+            completion_year VARCHAR(10),
+            date_of_leaving DATE NULL,
+            discontinue_date DATE NULL,
+            
+            -- Status and Flags
+            student_status ENUM('In Roll', 'Detained', 'Left out') DEFAULT 'In Roll',
+            is_detainee BOOLEAN DEFAULT FALSE,
+            is_transitory BOOLEAN DEFAULT FALSE,
+            is_handicapped BOOLEAN DEFAULT FALSE,
+            is_lateral BOOLEAN DEFAULT FALSE,
+            join_curriculum BOOLEAN DEFAULT FALSE,
+            is_locked BOOLEAN DEFAULT FALSE,
+            
+            -- Photo
+            photo_url VARCHAR(500),
+            
+            -- Soft Delete
             is_active BOOLEAN DEFAULT TRUE,
             deleted_at TIMESTAMP NULL DEFAULT NULL,
+            
+            -- Timestamps
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (batch_id) REFERENCES batch_master(batch_id),
+            
+            -- Foreign Keys
+            FOREIGN KEY (programme_id) REFERENCES programme_master(programme_id),
             FOREIGN KEY (branch_id) REFERENCES branch_master(branch_id),
-            FOREIGN KEY (section_id) REFERENCES section_master(section_id)
+            FOREIGN KEY (batch_id) REFERENCES batch_master(batch_id),
+            FOREIGN KEY (semester_id) REFERENCES semester_master(semester_id),
+            FOREIGN KEY (section_id) REFERENCES section_master(section_id),
+            FOREIGN KEY (regulation_id) REFERENCES regulation_master(regulation_id),
+            
+            -- Indexes
+            INDEX idx_admission_number (admission_number),
+            INDEX idx_roll_number (roll_number),
+            INDEX idx_student_status (student_status),
+            INDEX idx_is_active (is_active),
+            INDEX idx_programme_branch (programme_id, branch_id),
+            INDEX idx_batch_semester (batch_id, semester_id)
         )
     `,
     
