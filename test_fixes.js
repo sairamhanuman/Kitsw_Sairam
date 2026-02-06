@@ -136,7 +136,10 @@ async function testGetExamSessions() {
         console.log(`✓ Retrieved ${result.data.data.length} exam sessions`);
         console.log('First 3 exam sessions:');
         result.data.data.slice(0, 3).forEach(session => {
-            console.log(`  - ${session.session_name} (${session.exam_date}) - ${session.timings || 'No timings'}`);
+            const timings = session.start_time && session.end_time 
+                ? `${session.start_time} - ${session.end_time}` 
+                : 'No timings';
+            console.log(`  - ${session.session_name} (${session.exam_date}) - ${timings}`);
         });
     } else {
         console.log('✗ Failed to retrieve exam sessions');

@@ -128,12 +128,18 @@ router.post('/', async (req, res) => {
             errorMessage = 'Database column mismatch';
         }
         
-        res.status(500).json({
+        const errorResponse = {
             status: 'error',
             message: errorMessage,
-            error: error.message,
-            sqlMessage: error.sqlMessage
-        });
+            error: error.message
+        };
+        
+        // Only include SQL details in development for debugging
+        if (process.env.NODE_ENV === 'development') {
+            errorResponse.sqlMessage = error.sqlMessage;
+        }
+        
+        res.status(500).json(errorResponse);
     }
 });
 
@@ -164,9 +170,9 @@ router.put('/:id', async (req, res) => {
             [
                 session_name || existing[0].session_name,
                 exam_date || existing[0].exam_date,
-                session_type,
-                start_time,
-                end_time,
+                session_type !== undefined ? session_type : existing[0].session_type,
+                start_time !== undefined ? start_time : existing[0].start_time,
+                end_time !== undefined ? end_time : existing[0].end_time,
                 is_active !== undefined ? is_active : existing[0].is_active,
                 req.params.id
             ]
