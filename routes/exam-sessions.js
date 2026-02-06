@@ -1,0 +1,202 @@
+// Exam Session Routes
+const express = require('express');
+const router = express.Router();
+
+// Create a promise pool for database operations
+let promisePool;
+
+// Initialize the router with database pool
+function initializeRouter(pool) {
+    promisePool = pool;
+    return router;
+}
+
+// GET all exam sessions
+router.get('/', async (req, res) => {
+    try {
+        const [rows] = await promisePool.query(
+            'SELECT * FROM exam_session_master ORDER BY exam_year DESC, exam_month'
+        );
+        
+        res.json({
+            status: 'success',
+            message: 'Exam sessions retrieved successfully',
+            data: rows
+        });
+    } catch (error) {
+        console.error('Error fetching exam sessions:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch exam sessions',
+            error: error.message
+        });
+    }
+});
+
+// GET single exam session by ID
+router.get('/:id', async (req, res) => {
+    try {
+        const [rows] = await promisePool.query(
+            'SELECT * FROM exam_session_master WHERE exam_session_id = ?',
+            [req.params.id]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Exam session not found'
+            });
+        }
+        
+        res.json({
+            status: 'success',
+            message: 'Exam session retrieved successfully',
+            data: rows[0]
+        });
+    } catch (error) {
+        console.error('Error fetching exam session:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch exam session',
+            error: error.message
+        });
+    }
+});
+
+// POST create new exam session
+router.post('/', async (req, res) => {
+    try {
+        const { session_code, session_name, exam_month, exam_year, start_date, end_date, description, is_active } = req.body;
+        
+        // Validation
+        if (!session_code || !session_name || !exam_month || !exam_year) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Missing required fields: session_code, session_name, exam_month, exam_year'
+            });
+        }
+        
+        // Check if session code already exists
+        const [existing] = await promisePool.query(
+            'SELECT exam_session_id FROM exam_session_master WHERE session_code = ?',
+            [session_code]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(409).json({
+                status: 'error',
+                message: 'Session code already exists'
+            });
+        }
+        
+        // Insert new exam session
+        const [result] = await promisePool.query(
+            `INSERT INTO exam_session_master 
+            (session_code, session_name, exam_month, exam_year, start_date, end_date, description, is_active) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [session_code, session_name, exam_month, exam_year, start_date || null, end_date || null, description || null, is_active !== false]
+        );
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Exam session created successfully',
+            data: {
+                exam_session_id: result.insertId,
+                session_code,
+                session_name,
+                exam_month,
+                exam_year,
+                start_date,
+                end_date,
+                description,
+                is_active: is_active !== false
+            }
+        });
+    } catch (error) {
+        console.error('Error creating exam session:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to create exam session',
+            error: error.message
+        });
+    }
+});
+
+// PUT update exam session
+router.put('/:id', async (req, res) => {
+    try {
+        const { session_name, exam_month, exam_year, start_date, end_date, description, is_active } = req.body;
+        
+        // Check if exam session exists
+        const [existing] = await promisePool.query(
+            'SELECT exam_session_id FROM exam_session_master WHERE exam_session_id = ?',
+            [req.params.id]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Exam session not found'
+            });
+        }
+        
+        // Update exam session
+        await promisePool.query(
+            `UPDATE exam_session_master 
+            SET session_name = ?, exam_month = ?, exam_year = ?, start_date = ?, end_date = ?, description = ?, is_active = ?
+            WHERE exam_session_id = ?`,
+            [session_name, exam_month, exam_year, start_date || null, end_date || null, description || null, is_active !== false, req.params.id]
+        );
+        
+        res.json({
+            status: 'success',
+            message: 'Exam session updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating exam session:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update exam session',
+            error: error.message
+        });
+    }
+});
+
+// DELETE exam session
+router.delete('/:id', async (req, res) => {
+    try {
+        // Check if exam session exists
+        const [existing] = await promisePool.query(
+            'SELECT exam_session_id, session_code FROM exam_session_master WHERE exam_session_id = ?',
+            [req.params.id]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Exam session not found'
+            });
+        }
+        
+        // Delete exam session
+        await promisePool.query(
+            'DELETE FROM exam_session_master WHERE exam_session_id = ?',
+            [req.params.id]
+        );
+        
+        res.json({
+            status: 'success',
+            message: `Exam session ${existing[0].session_code} deleted successfully`
+        });
+    } catch (error) {
+        console.error('Error deleting exam session:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to delete exam session',
+            error: error.message
+        });
+    }
+});
+
+module.exports = initializeRouter;

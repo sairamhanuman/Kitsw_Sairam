@@ -79,20 +79,33 @@ app.get('/api/db-test', async (req, res) => {
 const programmeRoutes = require('./routes/programmes')(promisePool);
 app.use('/api/programmes', programmeRoutes);
 
-// Branch Management
-app.get('/api/branches', async (req, res) => {
-    res.json({ message: 'Branch list endpoint - To be implemented' });
-});
+// Branch Management Routes
+const branchRoutes = require('./routes/branches')(promisePool);
+app.use('/api/branches', branchRoutes);
 
-// Batch Management
-app.get('/api/batches', async (req, res) => {
-    res.json({ message: 'Batch list endpoint - To be implemented' });
-});
+// Batch Management Routes
+const batchRoutes = require('./routes/batches')(promisePool);
+app.use('/api/batches', batchRoutes);
 
-// Student Management
-app.get('/api/students', async (req, res) => {
-    res.json({ message: 'Student list endpoint - To be implemented' });
-});
+// Semester Management Routes
+const semesterRoutes = require('./routes/semesters')(promisePool);
+app.use('/api/semesters', semesterRoutes);
+
+// Regulation Management Routes
+const regulationRoutes = require('./routes/regulations')(promisePool);
+app.use('/api/regulations', regulationRoutes);
+
+// Section Management Routes
+const sectionRoutes = require('./routes/sections')(promisePool);
+app.use('/api/sections', sectionRoutes);
+
+// Exam Session Management Routes
+const examSessionRoutes = require('./routes/exam-sessions')(promisePool);
+app.use('/api/exam-sessions', examSessionRoutes);
+
+// Student Management Routes
+const studentRoutes = require('./routes/students')(promisePool);
+app.use('/api/students', studentRoutes);
 
 // Course Management
 app.get('/api/courses', async (req, res) => {
