@@ -3,6 +3,7 @@ const mysql = require('mysql2');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+const initializeDatabase = require('./db/init');
 
 // Load environment variables
 dotenv.config();
@@ -33,16 +34,20 @@ const pool = mysql.createPool({
 // Promisify pool queries
 const promisePool = pool.promise();
 
-// Test database connection
-pool.getConnection((err, connection) => {
-    if (err) {
-        console.error('Error connecting to database:', err.message);
-        console.log('Note: Database connection will be required for API endpoints');
-    } else {
+// Test database connection and initialize tables
+(async () => {
+    try {
+        const connection = await promisePool.getConnection();
         console.log('Database connection successful');
         connection.release();
+        
+        // Initialize database tables
+        await initializeDatabase(promisePool);
+    } catch (err) {
+        console.error('Error connecting to database:', err.message);
+        console.log('Note: Database connection will be required for API endpoints');
     }
-});
+})();
 
 // Routes
 
