@@ -187,6 +187,14 @@ router.delete('/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting semester:', error);
         
+        // Check if error is due to foreign key constraint
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+            return res.status(409).json({
+                status: 'error',
+                message: 'Cannot delete semester as it is referenced by other records'
+            });
+        }
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete semester',
