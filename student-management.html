@@ -442,6 +442,112 @@
             margin: 15px 0;
         }
 
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .modal-content p {
+            color: #666;
+            margin: 10px 0;
+        }
+
+        .modal-content input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .modal-buttons {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .modal-buttons button {
+            margin-left: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar::after {
+            content: '';
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            background-size: 200% 100%;
+            animation: progress 1.5s linear infinite;
+        }
+
+        @keyframes progress {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+
+        .import-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .import-results h4 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .import-results ul {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .import-results li {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 3px solid #dc3545;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .details-panel {
@@ -792,6 +898,53 @@
                     <button type="button" class="btn btn-danger" onclick="deleteStudent()">🗑️ Delete Student</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Import Excel Modal -->
+    <div id="importExcelModal" class="modal">
+        <div class="modal-content">
+            <h3>📥 Import Students from Excel</h3>
+            <p>Upload a CSV or Excel file matching the sample template format.</p>
+            <p><small>The file should have 6 header rows followed by student data.</small></p>
+            
+            <input type="file" id="excelFileInput" accept=".csv,.xlsx,.xls">
+            
+            <div id="importProgress" style="display:none;">
+                <p>⏳ Importing students...</p>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div id="importResults" class="import-results" style="display:none;"></div>
+            
+            <div class="modal-buttons">
+                <button onclick="performImportExcel()" class="btn btn-primary">Import</button>
+                <button onclick="closeImportModal()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Photos Modal -->
+    <div id="importPhotosModal" class="modal">
+        <div class="modal-content">
+            <h3>📸 Import Student Photos (ZIP)</h3>
+            <p>Upload a ZIP file containing photos named by admission number or roll number.</p>
+            <p><small>Example: B25AI001.jpg, B25AI002.png, 101.jpg</small></p>
+            <p><small>Supported formats: JPG, JPEG, PNG (max 5MB per photo)</small></p>
+            
+            <input type="file" id="zipFileInput" accept=".zip">
+            
+            <div id="photoImportProgress" style="display:none;">
+                <p>⏳ Importing photos...</p>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div id="photoImportResults" class="import-results" style="display:none;"></div>
+            
+            <div class="modal-buttons">
+                <button onclick="performImportPhotos()" class="btn btn-primary">Import</button>
+                <button onclick="closePhotoModal()" class="btn btn-secondary">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -1235,22 +1388,183 @@
             }
         }
 
-        // Import Excel
+        // Import Excel - Open Modal
         function importExcel() {
-            alert('Excel import functionality - to be implemented with file upload');
+            document.getElementById('importExcelModal').style.display = 'block';
+            // Reset modal state
+            document.getElementById('excelFileInput').value = '';
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('importResults').style.display = 'none';
         }
 
-        // Handle photos ZIP selection
-        function handlePhotosZip() {
-            const fileInput = document.getElementById('photos-zip');
-            if (fileInput.files.length > 0) {
-                console.log('Photos ZIP selected:', fileInput.files[0].name);
+        // Perform Excel Import
+        async function performImportExcel() {
+            const fileInput = document.getElementById('excelFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Add filter context (programme, branch, batch, semester)
+            const programmeId = document.getElementById('filterProgramme').value;
+            const branchId = document.getElementById('filterBranch').value;
+            const batchId = document.getElementById('filterBatch').value;
+            const semesterId = document.getElementById('filterSemester').value;
+            
+            if (programmeId) formData.append('programme_id', programmeId);
+            if (branchId) formData.append('branch_id', branchId);
+            if (batchId) formData.append('batch_id', batchId);
+            if (semesterId) formData.append('semester_id', semesterId);
+            
+            document.getElementById('importProgress').style.display = 'block';
+            document.getElementById('importResults').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/students/import/excel', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('importProgress').style.display = 'none';
+                
+                if (response.ok) {
+                    // Show results
+                    const resultsDiv = document.getElementById('importResults');
+                    resultsDiv.style.display = 'block';
+                    
+                    let html = `<h4>Import Results</h4>`;
+                    html += `<p style="color: #28a745; font-weight: bold;">✅ ${result.data.imported} students imported successfully</p>`;
+                    
+                    if (result.data.failed > 0) {
+                        html += `<p style="color: #dc3545; font-weight: bold;">❌ ${result.data.failed} records failed</p>`;
+                        html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
+                        html += `<ul>`;
+                        result.data.errors.forEach(err => {
+                            const admissionInfo = err.admission_number ? ` (${err.admission_number})` : '';
+                            html += `<li>Row ${err.row}${admissionInfo}: ${err.error}</li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                    
+                    // Reload student list after successful import
+                    if (result.data.imported > 0) {
+                        setTimeout(() => {
+                            loadStudents();
+                            showMessage(`Successfully imported ${result.data.imported} students`, 'success');
+                        }, 2000);
+                    }
+                } else {
+                    showMessage(result.message || 'Import failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error importing Excel:', error);
+                showMessage('Failed to import Excel file', 'error');
+                document.getElementById('importProgress').style.display = 'none';
             }
         }
 
-        // Import photos
+        // Close Import Modal
+        function closeImportModal() {
+            document.getElementById('importExcelModal').style.display = 'none';
+        }
+
+        // Import Photos - Open Modal
         function importPhotos() {
-            alert('Bulk photo import functionality - to be implemented with ZIP file upload');
+            document.getElementById('importPhotosModal').style.display = 'block';
+            // Reset modal state
+            document.getElementById('zipFileInput').value = '';
+            document.getElementById('photoImportProgress').style.display = 'none';
+            document.getElementById('photoImportResults').style.display = 'none';
+        }
+
+        // Perform Photo Import
+        async function performImportPhotos() {
+            const fileInput = document.getElementById('zipFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a ZIP file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            document.getElementById('photoImportProgress').style.display = 'block';
+            document.getElementById('photoImportResults').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/students/import-photos', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('photoImportProgress').style.display = 'none';
+                
+                if (response.ok) {
+                    // Show results
+                    const resultsDiv = document.getElementById('photoImportResults');
+                    resultsDiv.style.display = 'block';
+                    
+                    let html = `<h4>Photo Import Results</h4>`;
+                    html += `<p style="color: #28a745; font-weight: bold;">✅ ${result.data.uploaded} photos uploaded successfully</p>`;
+                    
+                    if (result.data.failed > 0) {
+                        html += `<p style="color: #dc3545; font-weight: bold;">❌ ${result.data.failed} photos failed</p>`;
+                        html += `<div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">`;
+                        html += `<ul>`;
+                        result.data.errors.forEach(err => {
+                            html += `<li>${err.filename}: ${err.error}</li>`;
+                        });
+                        html += `</ul></div>`;
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                    
+                    // Reload student list after successful photo import
+                    if (result.data.uploaded > 0) {
+                        setTimeout(() => {
+                            loadStudents();
+                            showMessage(`Successfully uploaded ${result.data.uploaded} photos`, 'success');
+                        }, 2000);
+                    }
+                } else {
+                    showMessage(result.message || 'Photo import failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error importing photos:', error);
+                showMessage('Failed to import photos', 'error');
+                document.getElementById('photoImportProgress').style.display = 'none';
+            }
+        }
+
+        // Close Photo Modal
+        function closePhotoModal() {
+            document.getElementById('importPhotosModal').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const excelModal = document.getElementById('importExcelModal');
+            const photoModal = document.getElementById('importPhotosModal');
+            
+            if (event.target === excelModal) {
+                closeImportModal();
+            }
+            if (event.target === photoModal) {
+                closePhotoModal();
+            }
         }
     </script>
 </body>
