@@ -78,6 +78,35 @@ app.get('/api/db-test', async (req, res) => {
     }
 });
 
+// Database diagnostics endpoint
+app.get('/api/diagnostics/tables', async (req, res) => {
+    try {
+        // Check semester_master table
+        const [semesterColumns] = await promisePool.query(
+            "SHOW COLUMNS FROM semester_master"
+        );
+        
+        // Check exam_session_master table
+        const [examSessionColumns] = await promisePool.query(
+            "SHOW COLUMNS FROM exam_session_master"
+        );
+        
+        res.json({
+            status: 'success',
+            tables: {
+                semester_master: semesterColumns,
+                exam_session_master: examSessionColumns
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+            code: error.code
+        });
+    }
+});
+
 // API endpoints structure (ready for future implementation)
 
 // Programme Management Routes

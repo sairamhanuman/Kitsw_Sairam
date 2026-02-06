@@ -102,6 +102,8 @@ async function saveSemester() {
         is_active: true
     };
     
+    console.log('Sending semester data:', formData);
+    
     // Validation
     if (!formData.semester_number || !formData.semester_name) {
         showAlert('Please fill in all required fields', 'danger');
@@ -131,17 +133,21 @@ async function saveSemester() {
         }
         
         const result = await response.json();
+        console.log('Server response:', result);
         
         if (response.ok) {
             showAlert(result.message || 'Semester saved successfully', 'success');
             resetForm();
             loadSemesters();
         } else {
-            showAlert(result.message || 'Failed to save semester', 'danger');
+            // Show detailed error message
+            const errorMsg = result.sqlMessage || result.error || result.message || 'Failed to save semester';
+            showAlert(errorMsg, 'danger');
+            console.error('Server error details:', result);
         }
     } catch (error) {
-        console.error('Error saving semester:', error);
-        showAlert('Error: ' + error.message, 'danger');
+        console.error('Network error:', error);
+        showAlert('Network error: ' + error.message, 'danger');
     }
 }
 

@@ -111,10 +111,7 @@ async function saveExamSession() {
         is_active: true
     };
     
-    // Debug logging - remove in production
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('Sending exam session data:', formData);
-    }
+    console.log('Sending exam session data:', formData);
     
     // Validation
     if (!formData.session_name || !formData.exam_date || !formData.session_type) {
@@ -145,17 +142,21 @@ async function saveExamSession() {
         }
         
         const result = await response.json();
+        console.log('Server response:', result);
         
         if (response.ok) {
             showAlert(result.message || 'Exam session saved successfully', 'success');
             resetForm();
             loadExamSessions();
         } else {
-            showAlert(result.message || 'Failed to save exam session', 'danger');
+            // Show detailed error message
+            const errorMsg = result.sqlMessage || result.error || result.message || 'Failed to save exam session';
+            showAlert(errorMsg, 'danger');
+            console.error('Server error details:', result);
         }
     } catch (error) {
-        console.error('Error saving exam session:', error);
-        showAlert('Error: ' + error.message, 'danger');
+        console.error('Network error:', error);
+        showAlert('Network error: ' + error.message, 'danger');
     }
 }
 
