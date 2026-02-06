@@ -968,215 +968,252 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
         const filePath = req.file.path;
         const students = [];
         const errors = [];
-        let rowNumber = 0;
+        let lineNumber = 0;
+        let isHeaderFound = false;
         
-        // Parse CSV
-        const stream = fs.createReadStream(filePath)
-            .pipe(csv())
-            .on('data', (row) => {
-                rowNumber++;
+        // Read file and manually parse to skip first 6 rows
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const lines = fileContent.split('\n');
+        
+        let headers = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            lineNumber = i + 1;
+            const line = lines[i].trim();
+            
+            // Skip empty lines
+            if (!line) continue;
+            
+            // Find the header row (row 6) - it starts with "Admission Number"
+            if (line.startsWith('Admission Number') || line.startsWith('"Admission Number"')) {
+                headers = line.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                isHeaderFound = true;
+                continue;
+            }
+            
+            // Skip rows before header
+            if (!isHeaderFound) {
+                continue;
+            }
+            
+            // Parse data rows
+            try {
+                // Simple CSV parsing - handle quoted values
+                const values = [];
+                let current = '';
+                let inQuotes = false;
                 
-                // Skip header rows (first 6 rows)
-                if (rowNumber <= 6) {
-                    return;
-                }
-                
-                try {
-                    // Validate and parse row
-                    const student = {
-                        admission_number: row['Admission Number']?.trim(),
-                        ht_number: row['HT Number']?.trim() || null,
-                        roll_number: row['Roll Number']?.trim() || null,
-                        full_name: row['Full Name']?.trim(),
-                        date_of_birth: parseDateDDMMYYYY(row['Date of Birth (DD/MM/YYYY)']),
-                        gender: row['Gender (Male/Female/Other)']?.trim(),
-                        father_name: row['Father Name']?.trim() || null,
-                        mother_name: row['Mother Name']?.trim() || null,
-                        aadhaar_number: row['Aadhaar Number']?.trim() || null,
-                        caste_category: row['Caste Category']?.trim() || null,
-                        student_mobile: row['Student Mobile']?.trim() || null,
-                        parent_mobile: row['Parent Mobile']?.trim() || null,
-                        email: row['Email']?.trim() || null,
-                        admission_date: parseDateDDMMYYYY(row['Admission Date (DD/MM/YYYY)']),
-                        completion_year: row['Completion Year']?.trim() || null,
-                        student_status: row['Student Status (In Roll/Detained/Left out)']?.trim() || 'In Roll',
-                        section: row['Section']?.trim() || null,
-                        is_detainee: parseYesNo(row['Detainee (Yes/No)']),
-                        is_lateral: parseYesNo(row['Lateral (Yes/No)']),
-                        is_handicapped: parseYesNo(row['Handicapped (Yes/No)']),
-                        is_transitory: parseYesNo(row['Transitory (Yes/No)']),
-                        programme_id: req.body.programme_id || null,
-                        branch_id: req.body.branch_id || null,
-                        batch_id: req.body.batch_id || null,
-                        semester_id: req.body.semester_id || null,
-                        section_id: null // Will be looked up by section name if provided
-                    };
-                    
-                    // Validate required fields
-                    if (!student.admission_number) {
-                        errors.push({
-                            row: rowNumber,
-                            error: 'Admission Number is required'
-                        });
-                        return;
-                    }
-                    
-                    if (!student.full_name) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Full Name is required'
-                        });
-                        return;
-                    }
-                    
-                    // Validate gender
-                    if (student.gender && !['Male', 'Female', 'Other'].includes(student.gender)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Gender must be Male, Female, or Other'
-                        });
-                        return;
-                    }
-                    
-                    // Validate mobile numbers
-                    if (student.student_mobile && !/^\d{10}$/.test(student.student_mobile)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Student Mobile must be 10 digits'
-                        });
-                        return;
-                    }
-                    
-                    if (student.parent_mobile && !/^\d{10}$/.test(student.parent_mobile)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Parent Mobile must be 10 digits'
-                        });
-                        return;
-                    }
-                    
-                    // Validate aadhaar
-                    if (student.aadhaar_number && !/^\d{12}$/.test(student.aadhaar_number)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Aadhaar Number must be 12 digits'
-                        });
-                        return;
-                    }
-                    
-                    // Validate email
-                    if (student.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Invalid email format'
-                        });
-                        return;
-                    }
-                    
-                    // Validate student status
-                    if (student.student_status && !['In Roll', 'Detained', 'Left out'].includes(student.student_status)) {
-                        errors.push({
-                            row: rowNumber,
-                            admission_number: student.admission_number,
-                            error: 'Student Status must be In Roll, Detained, or Left out'
-                        });
-                        return;
-                    }
-                    
-                    students.push(student);
-                    
-                } catch (error) {
-                    errors.push({
-                        row: rowNumber,
-                        error: error.message
-                    });
-                }
-            })
-            .on('end', async () => {
-                console.log(`Parsed ${students.length} valid students, ${errors.length} errors`);
-                
-                // Bulk insert students
-                let importedCount = 0;
-                
-                for (const student of students) {
-                    try {
-                        // Check if admission number already exists
-                        const [existing] = await promisePool.query(
-                            'SELECT student_id FROM student_master WHERE admission_number = ?',
-                            [student.admission_number]
-                        );
-                        
-                        if (existing.length > 0) {
-                            errors.push({
-                                row: students.indexOf(student) + 7, // +7 for header rows
-                                admission_number: student.admission_number,
-                                error: 'Duplicate admission number'
-                            });
-                            continue;
-                        }
-                        
-                        // Insert student
-                        await promisePool.query(
-                            `INSERT INTO student_master 
-                            (admission_number, ht_number, roll_number, full_name, date_of_birth, gender,
-                             father_name, mother_name, aadhaar_number, caste_category,
-                             student_mobile, parent_mobile, email, admission_date, completion_year,
-                             student_status, programme_id, branch_id, batch_id, semester_id,
-                             is_detainee, is_lateral, is_handicapped, is_transitory, is_active)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-                            [
-                                student.admission_number, student.ht_number, student.roll_number,
-                                student.full_name, student.date_of_birth, student.gender,
-                                student.father_name, student.mother_name, student.aadhaar_number,
-                                student.caste_category, student.student_mobile, student.parent_mobile,
-                                student.email, student.admission_date, student.completion_year,
-                                student.student_status, student.programme_id, student.branch_id,
-                                student.batch_id, student.semester_id, student.is_detainee,
-                                student.is_lateral, student.is_handicapped, student.is_transitory
-                            ]
-                        );
-                        
-                        importedCount++;
-                        
-                    } catch (error) {
-                        errors.push({
-                            row: students.indexOf(student) + 7,
-                            admission_number: student.admission_number,
-                            error: error.message
-                        });
+                for (let char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
                     }
                 }
+                values.push(current.trim());
                 
-                // Clean up uploaded file
-                fs.unlinkSync(filePath);
-                
-                res.json({
-                    status: 'success',
-                    message: 'Import completed',
-                    data: {
-                        total: students.length,
-                        imported: importedCount,
-                        failed: errors.length,
-                        errors: errors
-                    }
+                // Create row object
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header] = values[idx] || '';
                 });
-            })
-            .on('error', (error) => {
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
+                
+                // Validate and parse row
+                const student = {
+                    admission_number: row['Admission Number']?.trim(),
+                    ht_number: row['HT Number']?.trim() || null,
+                    roll_number: row['Roll Number']?.trim() || null,
+                    full_name: row['Full Name']?.trim(),
+                    date_of_birth: parseDateDDMMYYYY(row['Date of Birth (DD/MM/YYYY)']),
+                    gender: row['Gender (Male/Female/Other)']?.trim(),
+                    father_name: row['Father Name']?.trim() || null,
+                    mother_name: row['Mother Name']?.trim() || null,
+                    aadhaar_number: row['Aadhaar Number']?.trim() || null,
+                    caste_category: row['Caste Category']?.trim() || null,
+                    student_mobile: row['Student Mobile']?.trim() || null,
+                    parent_mobile: row['Parent Mobile']?.trim() || null,
+                    email: row['Email']?.trim() || null,
+                    admission_date: parseDateDDMMYYYY(row['Admission Date (DD/MM/YYYY)']),
+                    completion_year: row['Completion Year']?.trim() || null,
+                    student_status: row['Student Status (In Roll/Detained/Left out)']?.trim() || 'In Roll',
+                    section: row['Section']?.trim() || null,
+                    is_detainee: parseYesNo(row['Detainee (Yes/No)']),
+                    is_lateral: parseYesNo(row['Lateral (Yes/No)']),
+                    is_handicapped: parseYesNo(row['Handicapped (Yes/No)']),
+                    is_transitory: parseYesNo(row['Transitory (Yes/No)']),
+                    programme_id: req.body.programme_id || null,
+                    branch_id: req.body.branch_id || null,
+                    batch_id: req.body.batch_id || null,
+                    semester_id: req.body.semester_id || null,
+                    section_id: null
+                };
+                
+                // Validate required fields
+                if (!student.admission_number) {
+                    errors.push({
+                        row: lineNumber,
+                        error: 'Admission Number is required'
+                    });
+                    continue;
                 }
-                throw error;
-            });
+                
+                if (!student.full_name) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Full Name is required'
+                    });
+                    continue;
+                }
+                
+                // Validate gender
+                if (student.gender && !['Male', 'Female', 'Other'].includes(student.gender)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Gender must be Male, Female, or Other'
+                    });
+                    continue;
+                }
+                
+                // Validate mobile numbers
+                if (student.student_mobile && !/^\d{10}$/.test(student.student_mobile)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Student Mobile must be 10 digits'
+                    });
+                    continue;
+                }
+                
+                if (student.parent_mobile && !/^\d{10}$/.test(student.parent_mobile)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Parent Mobile must be 10 digits'
+                    });
+                    continue;
+                }
+                
+                // Validate aadhaar
+                if (student.aadhaar_number && !/^\d{12}$/.test(student.aadhaar_number)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Aadhaar Number must be 12 digits'
+                    });
+                    continue;
+                }
+                
+                // Validate email
+                if (student.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Invalid email format'
+                    });
+                    continue;
+                }
+                
+                // Validate student status
+                if (student.student_status && !['In Roll', 'Detained', 'Left out'].includes(student.student_status)) {
+                    errors.push({
+                        row: lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Student Status must be In Roll, Detained, or Left out'
+                    });
+                    continue;
+                }
+                
+                students.push({ ...student, lineNumber });
+                
+            } catch (error) {
+                errors.push({
+                    row: lineNumber,
+                    error: error.message
+                });
+            }
+        }
+        
+        console.log(`Parsed ${students.length} valid students, ${errors.length} errors`);
+        
+        // Bulk insert students
+        let importedCount = 0;
+        
+        for (const student of students) {
+            try {
+                // Check if admission number already exists
+                const [existing] = await promisePool.query(
+                    'SELECT student_id FROM student_master WHERE admission_number = ?',
+                    [student.admission_number]
+                );
+                
+                if (existing.length > 0) {
+                    errors.push({
+                        row: student.lineNumber,
+                        admission_number: student.admission_number,
+                        error: 'Duplicate admission number'
+                    });
+                    continue;
+                }
+                
+                // Insert student
+                await promisePool.query(
+                    `INSERT INTO student_master 
+                    (admission_number, ht_number, roll_number, full_name, date_of_birth, gender,
+                     father_name, mother_name, aadhaar_number, caste_category,
+                     student_mobile, parent_mobile, email, admission_date, completion_year,
+                     student_status, programme_id, branch_id, batch_id, semester_id,
+                     is_detainee, is_lateral, is_handicapped, is_transitory, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+                    [
+                        student.admission_number, student.ht_number, student.roll_number,
+                        student.full_name, student.date_of_birth, student.gender,
+                        student.father_name, student.mother_name, student.aadhaar_number,
+                        student.caste_category, student.student_mobile, student.parent_mobile,
+                        student.email, student.admission_date, student.completion_year,
+                        student.student_status, student.programme_id, student.branch_id,
+                        student.batch_id, student.semester_id, student.is_detainee,
+                        student.is_lateral, student.is_handicapped, student.is_transitory
+                    ]
+                );
+                
+                importedCount++;
+                
+            } catch (error) {
+                errors.push({
+                    row: student.lineNumber,
+                    admission_number: student.admission_number,
+                    error: error.message
+                });
+            }
+        }
+        
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+        
+        res.json({
+            status: 'success',
+            message: 'Import completed',
+            data: {
+                total: students.length,
+                imported: importedCount,
+                failed: errors.length,
+                errors: errors
+            }
+        });
         
     } catch (error) {
         console.error('=== EXCEL IMPORT ERROR ===');
         console.error('Error:', error);
+        
+        // Clean up file if it exists
+        if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
         
         res.status(500).json({
             status: 'error',
