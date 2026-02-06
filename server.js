@@ -112,6 +112,10 @@ app.use('/api/exam-sessions', examSessionRoutes);
 const studentRoutes = require('./routes/students')(promisePool);
 app.use('/api/students', studentRoutes);
 
+// Staff Management Routes
+const staffRoutes = require('./routes/staff')(promisePool);
+app.use('/api/staff', staffRoutes);
+
 // Course Management
 app.get('/api/courses', async (req, res) => {
     res.json({ message: 'Course list endpoint - To be implemented' });

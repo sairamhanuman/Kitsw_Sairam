@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM regulation_master ORDER BY effective_from DESC'
+            'SELECT * FROM regulation_master ORDER BY regulation_year DESC'
         );
         
         res.json({
@@ -66,35 +66,35 @@ router.get('/:id', async (req, res) => {
 // POST create new regulation
 router.post('/', async (req, res) => {
     try {
-        const { regulation_code, regulation_name, effective_from, effective_to, description, is_active } = req.body;
+        const { regulation_name, regulation_year, description, is_active } = req.body;
         
         // Validation
-        if (!regulation_code || !regulation_name || !effective_from) {
+        if (!regulation_name || !regulation_year) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: regulation_code, regulation_name, effective_from'
+                message: 'Missing required fields: regulation_name, regulation_year'
             });
         }
         
-        // Check if regulation code already exists
+        // Check if regulation year already exists
         const [existing] = await promisePool.query(
-            'SELECT regulation_id FROM regulation_master WHERE regulation_code = ?',
-            [regulation_code]
+            'SELECT regulation_id FROM regulation_master WHERE regulation_year = ?',
+            [regulation_year]
         );
         
         if (existing.length > 0) {
             return res.status(409).json({
                 status: 'error',
-                message: 'Regulation code already exists'
+                message: 'Regulation year already exists'
             });
         }
         
         // Insert new regulation
         const [result] = await promisePool.query(
             `INSERT INTO regulation_master 
-            (regulation_code, regulation_name, effective_from, effective_to, description, is_active) 
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [regulation_code, regulation_name, effective_from, effective_to || null, description || null, is_active !== false]
+            (regulation_name, regulation_year, description, is_active) 
+            VALUES (?, ?, ?, ?)`,
+            [regulation_name, regulation_year, description || null, is_active !== false]
         );
         
         res.status(201).json({
@@ -102,10 +102,8 @@ router.post('/', async (req, res) => {
             message: 'Regulation created successfully',
             data: {
                 regulation_id: result.insertId,
-                regulation_code,
                 regulation_name,
-                effective_from,
-                effective_to,
+                regulation_year,
                 description,
                 is_active: is_active !== false
             }
@@ -123,7 +121,7 @@ router.post('/', async (req, res) => {
 // PUT update regulation
 router.put('/:id', async (req, res) => {
     try {
-        const { regulation_name, effective_from, effective_to, description, is_active } = req.body;
+        const { regulation_name, regulation_year, description, is_active } = req.body;
         
         // Check if regulation exists
         const [existing] = await promisePool.query(
@@ -141,9 +139,9 @@ router.put('/:id', async (req, res) => {
         // Update regulation
         await promisePool.query(
             `UPDATE regulation_master 
-            SET regulation_name = ?, effective_from = ?, effective_to = ?, description = ?, is_active = ?
+            SET regulation_name = ?, regulation_year = ?, description = ?, is_active = ?
             WHERE regulation_id = ?`,
-            [regulation_name, effective_from, effective_to || null, description || null, is_active !== false, req.params.id]
+            [regulation_name, regulation_year, description || null, is_active !== false, req.params.id]
         );
         
         res.json({
@@ -165,7 +163,7 @@ router.delete('/:id', async (req, res) => {
     try {
         // Check if regulation exists
         const [existing] = await promisePool.query(
-            'SELECT regulation_id, regulation_code FROM regulation_master WHERE regulation_id = ?',
+            'SELECT regulation_id, regulation_name FROM regulation_master WHERE regulation_id = ?',
             [req.params.id]
         );
         
@@ -184,7 +182,7 @@ router.delete('/:id', async (req, res) => {
         
         res.json({
             status: 'success',
-            message: `Regulation ${existing[0].regulation_code} deleted successfully`
+            message: `Regulation ${existing[0].regulation_name} deleted successfully`
         });
     } catch (error) {
         console.error('Error deleting regulation:', error);
