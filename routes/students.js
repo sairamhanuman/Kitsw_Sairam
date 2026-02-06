@@ -276,6 +276,77 @@ router.put('/:id', async (req, res) => {
             }
         }
         
+        // Verify foreign key references if provided
+        if (programme_id) {
+            const [programme] = await promisePool.query(
+                'SELECT programme_id FROM programme_master WHERE programme_id = ?',
+                [programme_id]
+            );
+            
+            if (programme.length === 0) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid programme_id'
+                });
+            }
+        }
+        
+        if (branch_id) {
+            const [branch] = await promisePool.query(
+                'SELECT branch_id FROM branch_master WHERE branch_id = ?',
+                [branch_id]
+            );
+            
+            if (branch.length === 0) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid branch_id'
+                });
+            }
+        }
+        
+        if (batch_id) {
+            const [batch] = await promisePool.query(
+                'SELECT batch_id FROM batch_master WHERE batch_id = ?',
+                [batch_id]
+            );
+            
+            if (batch.length === 0) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid batch_id'
+                });
+            }
+        }
+        
+        if (regulation_id) {
+            const [regulation] = await promisePool.query(
+                'SELECT regulation_id FROM regulation_master WHERE regulation_id = ?',
+                [regulation_id]
+            );
+            
+            if (regulation.length === 0) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid regulation_id'
+                });
+            }
+        }
+        
+        if (section_id) {
+            const [section] = await promisePool.query(
+                'SELECT section_id FROM section_master WHERE section_id = ?',
+                [section_id]
+            );
+            
+            if (section.length === 0) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid section_id'
+                });
+            }
+        }
+        
         // Update student
         await promisePool.query(
             `UPDATE student_master 
