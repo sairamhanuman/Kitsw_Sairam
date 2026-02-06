@@ -48,10 +48,11 @@ const tableSchemas = {
         CREATE TABLE IF NOT EXISTS semester_master (
             semester_id INT PRIMARY KEY AUTO_INCREMENT,
             semester_name VARCHAR(50) NOT NULL,
-            semester_number INT NOT NULL UNIQUE,
+            semester_number INT NOT NULL,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            CONSTRAINT uk_semester_number UNIQUE (semester_number),
             INDEX idx_semester_number (semester_number)
         )
     `,

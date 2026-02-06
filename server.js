@@ -78,8 +78,16 @@ app.get('/api/db-test', async (req, res) => {
     }
 });
 
-// Database diagnostics endpoint
+// Database diagnostics endpoint - Development only
 app.get('/api/diagnostics/tables', async (req, res) => {
+    // Only allow in development environment for security
+    if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({
+            status: 'error',
+            message: 'This endpoint is only available in development mode'
+        });
+    }
+    
     try {
         // Check semester_master table
         const [semesterColumns] = await promisePool.query(

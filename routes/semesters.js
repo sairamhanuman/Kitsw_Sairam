@@ -163,13 +163,20 @@ router.post('/', async (req, res) => {
             statusCode = 500;
         }
         
-        res.status(statusCode).json({
+        // Return response - include SQL details only in development
+        const errorResponse = {
             status: 'error',
             message: errorMessage,
-            error: error.message,
-            errorCode: error.code,
-            sqlMessage: error.sqlMessage
-        });
+            error: error.message
+        };
+        
+        // Only include SQL details in development for debugging
+        if (process.env.NODE_ENV === 'development') {
+            errorResponse.errorCode = error.code;
+            errorResponse.sqlMessage = error.sqlMessage;
+        }
+        
+        res.status(statusCode).json(errorResponse);
     }
 });
 
