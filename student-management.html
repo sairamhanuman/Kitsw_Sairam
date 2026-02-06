@@ -1072,10 +1072,11 @@
                 // Build query string
                 const params = new URLSearchParams();
                 
-                const programmeId = document.getElementById('filter-programme').value;
-                const branchId = document.getElementById('filter-branch').value;
-                const batchId = document.getElementById('filter-batch').value;
-                const semesterId = document.getElementById('filter-semester').value;
+                // Safely get filter values
+                const programmeId = getElementValue('filter-programme');
+                const branchId = getElementValue('filter-branch');
+                const batchId = getElementValue('filter-batch');
+                const semesterId = getElementValue('filter-semester');
                 
                 if (programmeId) params.append('programme_id', programmeId);
                 if (branchId) params.append('branch_id', branchId);
@@ -1142,11 +1143,19 @@
 
         // Clear filters
         function clearFilters() {
-            document.getElementById('filter-programme').value = '';
-            document.getElementById('filter-branch').value = '';
-            document.getElementById('filter-batch').value = '';
-            document.getElementById('filter-semester').value = '';
-            document.getElementById('action-bar').classList.remove('visible');
+            // Safely clear filter values
+            const filterProgramme = document.getElementById('filter-programme');
+            const filterBranch = document.getElementById('filter-branch');
+            const filterBatch = document.getElementById('filter-batch');
+            const filterSemester = document.getElementById('filter-semester');
+            const actionBar = document.getElementById('action-bar');
+            
+            if (filterProgramme) filterProgramme.value = '';
+            if (filterBranch) filterBranch.value = '';
+            if (filterBatch) filterBatch.value = '';
+            if (filterSemester) filterSemester.value = '';
+            if (actionBar) actionBar.classList.remove('visible');
+            
             loadStudents();
         }
 
