@@ -82,6 +82,8 @@ NODE_ENV=development
 CREATE DATABASE engineering_college;
 ```
 
+**Note**: All database tables are created automatically on startup. See [DB_SETUP.md](DB_SETUP.md) for details.
+
 ## Running Locally
 
 ### Development Mode (with auto-reload)
@@ -130,12 +132,17 @@ Kitsw_Sairam/
 │   └── styles.css          # Application styles
 ├── js/
 │   └── script.js           # Frontend JavaScript
+├── db/
+│   └── init.js             # Database initialization module
+├── routes/
+│   └── programmes.js       # Programme API routes
 ├── index.html              # Main HTML file
 ├── server.js               # Express server
 ├── package.json            # Dependencies and scripts
 ├── .env.example            # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── railway.json           # Railway deployment config
+├── DB_SETUP.md            # 📚 Database schema documentation
 ├── WHAT_TO_DO.md          # 🎯 Action guide - Start here!
 ├── VERIFICATION.md        # Quick verification reference (30 sec - 5 min)
 ├── TESTING.md             # Comprehensive testing guide (detailed)
@@ -192,13 +199,23 @@ GET /api/db-test
 ```
 Tests the database connection.
 
+### Programme Management
+```
+GET /api/programmes        - List all programmes
+POST /api/programmes       - Create a new programme
+GET /api/programmes/:id    - Get programme by ID
+PUT /api/programmes/:id    - Update programme
+DELETE /api/programmes/:id - Delete programme
+```
+
 ### Future Endpoints (Coming Soon)
-- `GET /api/programmes` - List all programmes
-- `POST /api/programmes` - Create a new programme
 - `GET /api/branches` - List all branches
 - `GET /api/batches` - List all batches
 - `GET /api/students` - List all students
 - `GET /api/courses` - List all courses
+
+### Database Documentation
+See [DB_SETUP.md](DB_SETUP.md) for complete database schema and setup documentation.
 
 ## Usage
 
