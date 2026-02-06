@@ -99,19 +99,21 @@ function displayExamSessions(sessions) {
 
 // Save exam session (Create or Update)
 async function saveExamSession() {
+    const examDate = document.getElementById('examDate').value;
+    const examDateObj = new Date(examDate);
+    
     const formData = {
-        session_code: document.getElementById('sessionCode').value.trim().toUpperCase(),
+        session_code: document.getElementById('sessionType').value.trim().toUpperCase().replace(/\s+/g, '_'),
         session_name: document.getElementById('sessionName').value.trim(),
-        exam_month: document.getElementById('examMonth').value,
-        exam_year: parseInt(document.getElementById('examYear').value),
-        start_date: document.getElementById('startDate').value,
-        end_date: document.getElementById('endDate').value,
-        description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        exam_month: examDateObj.getMonth() + 1,
+        exam_year: examDateObj.getFullYear(),
+        start_date: examDate,
+        end_date: examDate,
+        is_active: true
     };
     
     // Validation
-    if (!formData.session_code || !formData.session_name || !formData.exam_month || !formData.exam_year) {
+    if (!formData.session_name || !examDate || !document.getElementById('sessionType').value.trim()) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -163,22 +165,18 @@ async function editExamSession(id) {
             const session = result.data;
             
             // Populate form
-            document.getElementById('examSessionId').value = session.exam_session_id;
-            document.getElementById('sessionCode').value = session.session_code;
+            document.getElementById('sessionId').value = session.exam_session_id;
             document.getElementById('sessionName').value = session.session_name;
-            document.getElementById('examMonth').value = session.exam_month;
-            document.getElementById('examYear').value = session.exam_year;
-            document.getElementById('startDate').value = session.start_date ? session.start_date.split('T')[0] : '';
-            document.getElementById('endDate').value = session.end_date ? session.end_date.split('T')[0] : '';
-            document.getElementById('description').value = session.description || '';
-            document.getElementById('isActive').checked = session.is_active;
+            document.getElementById('sessionType').value = session.session_code || '';
+            const examDate = session.start_date ? session.start_date.split('T')[0] : '';
+            document.getElementById('examDate').value = examDate;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Exam Session';
             document.getElementById('submitBtnText').textContent = 'Update Exam Session';
             
-            // Disable code field during edit
-            document.getElementById('sessionCode').disabled = true;
+            // Disable type field during edit
+            document.getElementById('sessionType').disabled = true;
             
             currentEditId = id;
             
@@ -221,8 +219,8 @@ async function deleteExamSession(id, name) {
 // Reset form
 function resetForm() {
     document.getElementById('examSessionForm').reset();
-    document.getElementById('examSessionId').value = '';
-    document.getElementById('sessionCode').disabled = false;
+    document.getElementById('sessionId').value = '';
+    document.getElementById('sessionType').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Exam Session';
     document.getElementById('submitBtnText').textContent = 'Add Exam Session';
     currentEditId = null;

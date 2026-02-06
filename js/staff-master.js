@@ -108,11 +108,12 @@ async function saveStaff() {
         phone: document.getElementById('phone').value.trim(),
         department: document.getElementById('department').value.trim(),
         designation: document.getElementById('designation').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: true
     };
     
     // Validation
-    if (!formData.staff_name) {
+    if (!formData.staff_name || !formData.email || !formData.phone || 
+        !formData.department || !formData.designation) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -170,11 +171,13 @@ async function editStaff(id) {
             document.getElementById('phone').value = staff.phone || '';
             document.getElementById('department').value = staff.department || '';
             document.getElementById('designation').value = staff.designation || '';
-            document.getElementById('isActive').checked = staff.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Staff';
             document.getElementById('submitBtnText').textContent = 'Update Staff';
+            
+            // Disable email field during edit
+            document.getElementById('email').disabled = true;
             
             currentEditId = id;
             
@@ -218,6 +221,7 @@ async function deleteStaff(id, name) {
 function resetForm() {
     document.getElementById('staffForm').reset();
     document.getElementById('staffId').value = '';
+    document.getElementById('email').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Staff';
     document.getElementById('submitBtnText').textContent = 'Add Staff';
     currentEditId = null;

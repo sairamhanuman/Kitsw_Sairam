@@ -100,17 +100,20 @@ function displayBatches(batches) {
 
 // Save batch (Create or Update)
 async function saveBatch() {
+    const startYear = parseInt(document.getElementById('startYear').value);
+    const endYear = parseInt(document.getElementById('endYear').value);
+    const batchName = document.getElementById('batchName').value.trim();
+    
     const formData = {
-        batch_year: parseInt(document.getElementById('batchYear').value),
-        batch_name: document.getElementById('batchName').value.trim(),
-        start_date: document.getElementById('startDate').value,
-        end_date: document.getElementById('endDate').value,
-        description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        batch_year: startYear,
+        batch_name: batchName,
+        start_date: `${startYear}-01-01`,
+        end_date: `${endYear}-12-31`,
+        is_active: true
     };
     
     // Validation
-    if (!formData.batch_year || !formData.batch_name || !formData.start_date) {
+    if (!startYear || !endYear || !batchName) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -163,19 +166,19 @@ async function editBatch(id) {
             
             // Populate form
             document.getElementById('batchId').value = batch.batch_id;
-            document.getElementById('batchYear').value = batch.batch_year;
             document.getElementById('batchName').value = batch.batch_name;
-            document.getElementById('startDate').value = batch.start_date ? batch.start_date.split('T')[0] : '';
-            document.getElementById('endDate').value = batch.end_date ? batch.end_date.split('T')[0] : '';
-            document.getElementById('description').value = batch.description || '';
-            document.getElementById('isActive').checked = batch.is_active;
+            const startDate = batch.start_date ? new Date(batch.start_date) : null;
+            const endDate = batch.end_date ? new Date(batch.end_date) : null;
+            document.getElementById('startYear').value = startDate ? startDate.getFullYear() : batch.batch_year;
+            document.getElementById('endYear').value = endDate ? endDate.getFullYear() : (batch.batch_year + 4);
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Batch';
             document.getElementById('submitBtnText').textContent = 'Update Batch';
             
-            // Disable year field during edit
-            document.getElementById('batchYear').disabled = true;
+            // Disable year fields during edit
+            document.getElementById('startYear').disabled = true;
+            document.getElementById('endYear').disabled = true;
             
             currentEditId = id;
             
@@ -219,7 +222,8 @@ async function deleteBatch(id, name) {
 function resetForm() {
     document.getElementById('batchForm').reset();
     document.getElementById('batchId').value = '';
-    document.getElementById('batchYear').disabled = false;
+    document.getElementById('startYear').disabled = false;
+    document.getElementById('endYear').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Batch';
     document.getElementById('submitBtnText').textContent = 'Add Batch';
     currentEditId = null;

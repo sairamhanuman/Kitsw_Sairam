@@ -99,8 +99,7 @@ async function saveSemester() {
     const formData = {
         semester_number: parseInt(document.getElementById('semesterNumber').value),
         semester_name: document.getElementById('semesterName').value.trim(),
-        description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: true
     };
     
     // Validation
@@ -159,8 +158,6 @@ async function editSemester(id) {
             document.getElementById('semesterId').value = semester.semester_id;
             document.getElementById('semesterNumber').value = semester.semester_number;
             document.getElementById('semesterName').value = semester.semester_name;
-            document.getElementById('description').value = semester.description || '';
-            document.getElementById('isActive').checked = semester.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Semester';

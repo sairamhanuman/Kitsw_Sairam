@@ -5,10 +5,8 @@ let currentEditId = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadProgrammes();
     loadBranches();
     loadBatches();
-    loadRegulations();
     loadSections();
     loadStudents();
     setupFormSubmit();
@@ -21,32 +19,6 @@ function setupFormSubmit() {
         e.preventDefault();
         await saveStudent();
     });
-}
-
-// Load programmes for dropdown
-async function loadProgrammes() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/programmes`);
-        const result = await response.json();
-        
-        if (response.ok) {
-            const select = document.getElementById('programmeId');
-            select.innerHTML = '<option value="">Select Programme</option>';
-            
-            if (result.data && result.data.length > 0) {
-                result.data.forEach(programme => {
-                    if (programme.is_active) {
-                        const option = document.createElement('option');
-                        option.value = programme.programme_id;
-                        option.textContent = `${programme.programme_code} - ${programme.programme_name}`;
-                        select.appendChild(option);
-                    }
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error loading programmes:', error);
-    }
 }
 
 // Load branches for dropdown
@@ -98,32 +70,6 @@ async function loadBatches() {
         }
     } catch (error) {
         console.error('Error loading batches:', error);
-    }
-}
-
-// Load regulations for dropdown
-async function loadRegulations() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/regulations`);
-        const result = await response.json();
-        
-        if (response.ok) {
-            const select = document.getElementById('regulationId');
-            select.innerHTML = '<option value="">Select Regulation</option>';
-            
-            if (result.data && result.data.length > 0) {
-                result.data.forEach(regulation => {
-                    if (regulation.is_active) {
-                        const option = document.createElement('option');
-                        option.value = regulation.regulation_id;
-                        option.textContent = `${regulation.regulation_name} (${regulation.regulation_year})`;
-                        select.appendChild(option);
-                    }
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error loading regulations:', error);
     }
 }
 
@@ -240,28 +186,30 @@ function displayStudents(students) {
 
 // Save student (Create or Update)
 async function saveStudent() {
+    const studentName = document.getElementById('studentName').value.trim();
+    const nameParts = studentName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+    
     const formData = {
-        roll_number: document.getElementById('rollNumber').value.trim().toUpperCase(),
-        first_name: document.getElementById('firstName').value.trim(),
-        last_name: document.getElementById('lastName').value.trim(),
+        roll_number: `STU${Date.now()}`,
+        first_name: firstName,
+        last_name: lastName,
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
-        date_of_birth: document.getElementById('dateOfBirth').value,
-        admission_year: parseInt(document.getElementById('admissionYear').value),
-        programme_id: parseInt(document.getElementById('programmeId').value),
+        admission_year: new Date().getFullYear(),
+        programme_id: 1,
         branch_id: parseInt(document.getElementById('branchId').value),
         batch_id: parseInt(document.getElementById('batchId').value),
-        regulation_id: parseInt(document.getElementById('regulationId').value),
+        regulation_id: 1,
         section_id: parseInt(document.getElementById('sectionId').value),
-        current_semester: parseInt(document.getElementById('currentSemester').value),
-        address: document.getElementById('address').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        current_semester: 1,
+        is_active: true
     };
     
     // Validation
-    if (!formData.roll_number || !formData.first_name || !formData.last_name || 
-        !formData.admission_year || !formData.programme_id || !formData.branch_id || 
-        !formData.batch_id || !formData.regulation_id || !formData.section_id) {
+    if (!studentName || !formData.email || !formData.phone || 
+        !formData.branch_id || !formData.batch_id || !formData.section_id) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -312,30 +260,23 @@ async function editStudent(id) {
         if (response.ok && result.data) {
             const student = result.data;
             
+            const fullName = `${student.first_name} ${student.last_name}`;
+            
             // Populate form
             document.getElementById('studentId').value = student.student_id;
-            document.getElementById('rollNumber').value = student.roll_number;
-            document.getElementById('firstName').value = student.first_name;
-            document.getElementById('lastName').value = student.last_name;
+            document.getElementById('studentName').value = fullName;
             document.getElementById('email').value = student.email || '';
             document.getElementById('phone').value = student.phone || '';
-            document.getElementById('dateOfBirth').value = student.date_of_birth ? student.date_of_birth.split('T')[0] : '';
-            document.getElementById('admissionYear').value = student.admission_year;
-            document.getElementById('programmeId').value = student.programme_id;
             document.getElementById('branchId').value = student.branch_id;
             document.getElementById('batchId').value = student.batch_id;
-            document.getElementById('regulationId').value = student.regulation_id;
             document.getElementById('sectionId').value = student.section_id;
-            document.getElementById('currentSemester').value = student.current_semester || 1;
-            document.getElementById('address').value = student.address || '';
-            document.getElementById('isActive').checked = student.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Student';
             document.getElementById('submitBtnText').textContent = 'Update Student';
             
-            // Disable roll number field during edit
-            document.getElementById('rollNumber').disabled = true;
+            // Disable name field during edit
+            document.getElementById('studentName').disabled = true;
             
             currentEditId = id;
             
@@ -379,7 +320,7 @@ async function deleteStudent(id, name) {
 function resetForm() {
     document.getElementById('studentForm').reset();
     document.getElementById('studentId').value = '';
-    document.getElementById('rollNumber').disabled = false;
+    document.getElementById('studentName').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Student';
     document.getElementById('submitBtnText').textContent = 'Add Student';
     currentEditId = null;

@@ -97,15 +97,14 @@ function displaySections(sections) {
 // Save section (Create or Update)
 async function saveSection() {
     const formData = {
-        section_code: document.getElementById('sectionCode').value.trim().toUpperCase(),
+        section_code: document.getElementById('sectionName').value.trim().replace(/\s+/g, '_').toUpperCase(),
         section_name: document.getElementById('sectionName').value.trim(),
         capacity: parseInt(document.getElementById('capacity').value) || 60,
-        description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: true
     };
     
     // Validation
-    if (!formData.section_code || !formData.section_name) {
+    if (!formData.section_name) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -158,18 +157,15 @@ async function editSection(id) {
             
             // Populate form
             document.getElementById('sectionId').value = section.section_id;
-            document.getElementById('sectionCode').value = section.section_code;
             document.getElementById('sectionName').value = section.section_name;
             document.getElementById('capacity').value = section.capacity || 60;
-            document.getElementById('description').value = section.description || '';
-            document.getElementById('isActive').checked = section.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Section';
             document.getElementById('submitBtnText').textContent = 'Update Section';
             
-            // Disable code field during edit
-            document.getElementById('sectionCode').disabled = true;
+            // Disable name field during edit
+            document.getElementById('sectionName').disabled = true;
             
             currentEditId = id;
             
@@ -213,7 +209,7 @@ async function deleteSection(id, name) {
 function resetForm() {
     document.getElementById('sectionForm').reset();
     document.getElementById('sectionId').value = '';
-    document.getElementById('sectionCode').disabled = false;
+    document.getElementById('sectionName').disabled = false;
     document.getElementById('formTitle').textContent = 'Add New Section';
     document.getElementById('submitBtnText').textContent = 'Add Section';
     currentEditId = null;
