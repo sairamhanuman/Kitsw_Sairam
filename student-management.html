@@ -960,6 +960,9 @@
             sections: []
         };
 
+        // Constants
+        const RELOAD_DELAY_MS = 1500; // Delay before reloading students after import (for UX - allows user to read results)
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadMasterData();
@@ -1460,7 +1463,7 @@
                         setTimeout(() => {
                             loadStudents();
                             showMessage(`Successfully imported ${result.data.imported} students`, 'success');
-                        }, 2000);
+                        }, RELOAD_DELAY_MS);
                     }
                 } else {
                     showMessage(result.message || 'Import failed', 'error');
@@ -1537,7 +1540,7 @@
                         setTimeout(() => {
                             loadStudents();
                             showMessage(`Successfully uploaded ${result.data.uploaded} photos`, 'success');
-                        }, 2000);
+                        }, RELOAD_DELAY_MS);
                     }
                 } else {
                     showMessage(result.message || 'Photo import failed', 'error');

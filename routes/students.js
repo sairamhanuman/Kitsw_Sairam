@@ -1212,7 +1212,11 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
         
         // Clean up file if it exists
         if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (cleanupError) {
+                console.error('Failed to cleanup temp file:', cleanupError);
+            }
         }
         
         res.status(500).json({
@@ -1337,7 +1341,11 @@ router.post('/import-photos', uploadZip.single('file'), async (req, res) => {
         }
         
         // Clean up ZIP file
-        fs.unlinkSync(zipPath);
+        try {
+            fs.unlinkSync(zipPath);
+        } catch (cleanupError) {
+            console.error('Failed to cleanup ZIP file:', cleanupError);
+        }
         
         console.log(`Photo import completed: ${results.uploaded}/${results.total} successful`);
         
