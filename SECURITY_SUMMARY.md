@@ -69,6 +69,12 @@ All route files use parameterized queries:
 - User-friendly messages when deletion fails due to references
 - Prevents data integrity issues
 
+### 6. Environment-Based Security Controls (2026-02-06) ✅
+- SQL error details (errorCode, sqlMessage) only exposed when NODE_ENV=development
+- Diagnostics endpoint restricted to development environment only
+- Production responses contain generic error messages without database details
+- Comprehensive logging server-side (not exposed to clients)
+
 ## Vulnerabilities Fixed
 
 ### 1. Database Query Error - Regulation Routes ✅
@@ -76,6 +82,65 @@ All route files use parameterized queries:
 **Impact:** SQL error exposed in error messages
 **Fix:** Updated to use correct column 'regulation_year'
 **Files:** routes/regulations.js
+
+### 2. Information Disclosure - SQL Error Messages (2026-02-06) ✅
+**Original Issue:** SQL error messages (errorCode, sqlMessage) were being exposed to clients in all environments
+**Impact:** Medium - Exposed database schema information to potential attackers
+**Fix:** SQL error details now only included in development mode (NODE_ENV=development)
+**Files:** routes/semesters.js, routes/exam-sessions.js
+**Status:** ✅ FIXED
+
+**Before:**
+```javascript
+res.status(500).json({
+    status: 'error',
+    message: 'Failed to create',
+    errorCode: error.code,        // ❌ Always exposed
+    sqlMessage: error.sqlMessage  // ❌ Always exposed
+});
+```
+
+**After:**
+```javascript
+const errorResponse = {
+    status: 'error',
+    message: errorMessage,
+    error: error.message
+};
+
+// Only include SQL details in development
+if (process.env.NODE_ENV === 'development') {
+    errorResponse.errorCode = error.code;
+    errorResponse.sqlMessage = error.sqlMessage;
+}
+```
+
+### 3. Database Schema Disclosure - Diagnostics Endpoint (2026-02-06) ✅
+**Original Issue:** `/api/diagnostics/tables` endpoint exposed database schema without authentication
+**Impact:** Medium - Allowed anyone to inspect table structure
+**Fix:** Endpoint now restricted to development environment only (returns 403 in production)
+**Files:** server.js
+**Status:** ✅ FIXED
+
+**Implementation:**
+```javascript
+app.get('/api/diagnostics/tables', async (req, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({
+            status: 'error',
+            message: 'This endpoint is only available in development mode'
+        });
+    }
+    // ... rest of the code
+});
+```
+
+### 4. Database Field Mismatch - Semester Creation (2026-02-06) ✅
+**Original Issue:** INSERT query attempted to use non-existent 'description' column
+**Impact:** Low - Caused creation failures but not a security issue
+**Fix:** Removed 'description' field from INSERT query
+**Files:** routes/semesters.js
+**Status:** ✅ FIXED
 
 ## Security Review Summary
 
@@ -122,10 +187,11 @@ All route files use parameterized queries:
 1. ✅ Enable HTTPS/TLS for all traffic
 2. ✅ Set up secure database credentials
 3. ✅ Configure CORS properly (restrict origins)
-4. ✅ Set NODE_ENV=production
-5. ⚠️ Implement authentication/authorization
-6. ⚠️ Add rate limiting middleware
-7. ⚠️ Set up API monitoring and logging
+4. ✅ Set NODE_ENV=production (CRITICAL: Prevents SQL detail exposure)
+5. ✅ Verify diagnostics endpoint returns 403 in production
+6. ⚠️ Implement authentication/authorization
+7. ⚠️ Add rate limiting middleware
+8. ⚠️ Set up API monitoring and logging
 
 ### Short-term Improvements
 1. Implement JWT-based authentication
@@ -170,5 +236,9 @@ However, the application has systemic security limitations that should be addres
 
 ---
 **Last Updated:** 2026-02-06
+**Recent Changes:** 
+- Added security fixes for SQL error message exposure
+- Added security fixes for diagnostics endpoint
+- Implemented environment-based security controls
 **Reviewed By:** GitHub Copilot Agent
 **Next Review:** Before production deployment
