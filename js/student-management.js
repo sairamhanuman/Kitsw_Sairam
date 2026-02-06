@@ -191,10 +191,10 @@ async function saveStudent() {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || nameParts[0];
     
-    // Generate roll number with timestamp and random suffix
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const rollNumber = `STU${timestamp}${random}`;
+    // Generate simpler roll number (e.g., STU2026001, STU2026002, etc.)
+    const year = new Date().getFullYear();
+    const random = Math.floor(Math.random() * 999) + 1;
+    const rollNumber = `STU${year}${random.toString().padStart(3, '0')}`;
     
     const formData = {
         roll_number: rollNumber,
@@ -203,10 +203,10 @@ async function saveStudent() {
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         admission_year: new Date().getFullYear(),
-        programme_id: parseInt(document.getElementById('branchId').value) || 1,
+        programme_id: 1, // Default programme ID - should be set based on business logic
         branch_id: parseInt(document.getElementById('branchId').value),
         batch_id: parseInt(document.getElementById('batchId').value),
-        regulation_id: parseInt(document.getElementById('batchId').value) || 1,
+        regulation_id: 1, // Default regulation ID - should be set based on business logic
         section_id: parseInt(document.getElementById('sectionId').value),
         current_semester: 1,
         is_active: true
