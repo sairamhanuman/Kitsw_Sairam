@@ -22,7 +22,6 @@ router.get('/', async (req, res) => {
             semester_id, 
             section_id, 
             student_status,
-            gender,
             search 
         } = req.query;
         
@@ -73,11 +72,6 @@ router.get('/', async (req, res) => {
         if (student_status) {
             query += ' AND s.student_status = ?';
             params.push(student_status);
-        }
-        
-        if (gender) {
-            query += ' AND s.gender = ?';
-            params.push(gender);
         }
         
         if (search) {
@@ -772,6 +766,126 @@ router.get('/export/excel', async (req, res) => {
     }
 });
 
+// GET generate sample Excel template
+router.get('/sample-excel', async (req, res) => {
+    try {
+        // Create workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Students');
+        
+        // Define columns with headers
+        worksheet.columns = [
+            { header: 'Admission Number*', key: 'admission_number', width: 15 },
+            { header: 'HT Number', key: 'ht_number', width: 15 },
+            { header: 'Roll Number', key: 'roll_number', width: 15 },
+            { header: 'Full Name*', key: 'full_name', width: 30 },
+            { header: 'Date of Birth (YYYY-MM-DD)', key: 'date_of_birth', width: 20 },
+            { header: 'Gender (Male/Female/Other)', key: 'gender', width: 25 },
+            { header: 'Father Name', key: 'father_name', width: 25 },
+            { header: 'Mother Name', key: 'mother_name', width: 25 },
+            { header: 'Aadhaar Number (12 digits)', key: 'aadhaar_number', width: 20 },
+            { header: 'Caste Category', key: 'caste_category', width: 15 },
+            { header: 'Programme ID*', key: 'programme_id', width: 15 },
+            { header: 'Branch ID*', key: 'branch_id', width: 15 },
+            { header: 'Batch ID*', key: 'batch_id', width: 15 },
+            { header: 'Semester ID', key: 'semester_id', width: 15 },
+            { header: 'Section ID', key: 'section_id', width: 15 },
+            { header: 'Student Mobile (10 digits)', key: 'student_mobile', width: 20 },
+            { header: 'Parent Mobile (10 digits)', key: 'parent_mobile', width: 20 },
+            { header: 'Email', key: 'email', width: 30 },
+            { header: 'Admission Date (YYYY-MM-DD)', key: 'admission_date', width: 20 },
+            { header: 'Completion Year', key: 'completion_year', width: 15 },
+            { header: 'Student Status', key: 'student_status', width: 15 },
+            { header: 'Detainee (Yes/No)', key: 'is_detainee', width: 15 },
+            { header: 'Lateral (Yes/No)', key: 'is_lateral', width: 15 },
+            { header: 'Handicapped (Yes/No)', key: 'is_handicapped', width: 15 },
+            { header: 'Transitory (Yes/No)', key: 'is_transitory', width: 15 }
+        ];
+        
+        // Add sample data rows
+        worksheet.addRow({
+            admission_number: 'B25AI001',
+            ht_number: 'HT001',
+            roll_number: 'R001',
+            full_name: 'John Doe',
+            date_of_birth: '2005-01-15',
+            gender: 'Male',
+            father_name: 'John Father',
+            mother_name: 'John Mother',
+            aadhaar_number: '123456789012',
+            caste_category: 'OC',
+            programme_id: '1',
+            branch_id: '1',
+            batch_id: '1',
+            semester_id: '1',
+            section_id: '1',
+            student_mobile: '9876543210',
+            parent_mobile: '9876543211',
+            email: 'john@example.com',
+            admission_date: '2025-07-01',
+            completion_year: '2029',
+            student_status: 'In Roll',
+            is_detainee: 'No',
+            is_lateral: 'No',
+            is_handicapped: 'No',
+            is_transitory: 'No'
+        });
+        
+        worksheet.addRow({
+            admission_number: 'B25AI002',
+            ht_number: 'HT002',
+            roll_number: 'R002',
+            full_name: 'Jane Smith',
+            date_of_birth: '2005-03-20',
+            gender: 'Female',
+            father_name: 'Jane Father',
+            mother_name: 'Jane Mother',
+            aadhaar_number: '123456789013',
+            caste_category: 'BC',
+            programme_id: '1',
+            branch_id: '1',
+            batch_id: '1',
+            semester_id: '1',
+            section_id: '1',
+            student_mobile: '9876543212',
+            parent_mobile: '9876543213',
+            email: 'jane@example.com',
+            admission_date: '2025-07-01',
+            completion_year: '2029',
+            student_status: 'In Roll',
+            is_detainee: 'No',
+            is_lateral: 'No',
+            is_handicapped: 'No',
+            is_transitory: 'No'
+        });
+        
+        // Style header row
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
+        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        
+        // Set response headers
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=student_import_sample.xlsx');
+        
+        // Write to response
+        await workbook.xlsx.write(res);
+        res.end();
+        
+    } catch (error) {
+        console.error('Error generating sample Excel:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to generate sample Excel',
+            error: error.message
+        });
+    }
+});
+
 // POST import students from Excel
 router.post('/import/excel', async (req, res) => {
     try {
@@ -786,6 +900,25 @@ router.post('/import/excel', async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to import from Excel',
+            error: error.message
+        });
+    }
+});
+
+// POST bulk import photos from ZIP
+router.post('/import-photos', async (req, res) => {
+    try {
+        // This would require file upload middleware for ZIP files
+        // For now, returning a placeholder
+        res.status(501).json({
+            status: 'info',
+            message: 'Bulk photo import functionality - to be implemented with file upload'
+        });
+    } catch (error) {
+        console.error('Error importing photos:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to import photos',
             error: error.message
         });
     }
