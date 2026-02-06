@@ -130,7 +130,7 @@ async function saveBranch() {
         branch_name: document.getElementById('branchName').value.trim(),
         programme_id: parseInt(document.getElementById('programmeId').value),
         description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: true
     };
     
     // Validation
@@ -191,7 +191,6 @@ async function editBranch(id) {
             document.getElementById('branchName').value = branch.branch_name;
             document.getElementById('programmeId').value = branch.programme_id;
             document.getElementById('description').value = branch.description || '';
-            document.getElementById('isActive').checked = branch.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Branch';

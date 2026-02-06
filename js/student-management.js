@@ -191,17 +191,22 @@ async function saveStudent() {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || nameParts[0];
     
+    // Generate roll number with timestamp and random suffix
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const rollNumber = `STU${timestamp}${random}`;
+    
     const formData = {
-        roll_number: `STU${Date.now()}`,
+        roll_number: rollNumber,
         first_name: firstName,
         last_name: lastName,
         email: document.getElementById('email').value.trim(),
         phone: document.getElementById('phone').value.trim(),
         admission_year: new Date().getFullYear(),
-        programme_id: 1,
+        programme_id: parseInt(document.getElementById('branchId').value) || 1,
         branch_id: parseInt(document.getElementById('branchId').value),
         batch_id: parseInt(document.getElementById('batchId').value),
-        regulation_id: 1,
+        regulation_id: parseInt(document.getElementById('batchId').value) || 1,
         section_id: parseInt(document.getElementById('sectionId').value),
         current_semester: 1,
         is_active: true
