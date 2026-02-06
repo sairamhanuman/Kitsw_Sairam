@@ -84,6 +84,7 @@ const tableSchemas = {
             session_name VARCHAR(100) NOT NULL,
             exam_date DATE,
             session_type VARCHAR(50),
+            timings VARCHAR(50),
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

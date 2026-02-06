@@ -66,22 +66,31 @@ router.get('/:id', async (req, res) => {
 // POST create new exam session
 router.post('/', async (req, res) => {
     try {
-        const { session_name, exam_date, session_type, is_active } = req.body;
+        console.log('Received exam session data:', req.body); // Debug log
+        
+        const { session_name, exam_date, session_type, start_time, end_time, is_active } = req.body;
         
         // Validation
         if (!session_name || !exam_date) {
+            console.error('Validation failed:', { session_name, exam_date });
             return res.status(400).json({
                 status: 'error',
                 message: 'Missing required fields: session_name, exam_date'
             });
         }
         
+        // Combine timings if provided
+        let timings = null;
+        if (start_time && end_time) {
+            timings = `${start_time} - ${end_time}`;
+        }
+        
         // Insert new exam session
         const [result] = await promisePool.query(
             `INSERT INTO exam_session_master 
-            (session_name, exam_date, session_type, is_active) 
-            VALUES (?, ?, ?, ?)`,
-            [session_name, exam_date, session_type || null, is_active !== false]
+            (session_name, exam_date, session_type, timings, is_active) 
+            VALUES (?, ?, ?, ?, ?)`,
+            [session_name, exam_date, session_type || null, timings, is_active !== false]
         );
         
         res.status(201).json({
@@ -92,6 +101,7 @@ router.post('/', async (req, res) => {
                 session_name,
                 exam_date,
                 session_type,
+                timings,
                 is_active: is_active !== false
             }
         });
@@ -108,7 +118,7 @@ router.post('/', async (req, res) => {
 // PUT update exam session
 router.put('/:id', async (req, res) => {
     try {
-        const { session_name, exam_date, session_type, is_active } = req.body;
+        const { session_name, exam_date, session_type, start_time, end_time, is_active } = req.body;
         
         // Check if exam session exists
         const [existing] = await promisePool.query(
@@ -123,12 +133,18 @@ router.put('/:id', async (req, res) => {
             });
         }
         
+        // Combine timings if provided
+        let timings = null;
+        if (start_time && end_time) {
+            timings = `${start_time} - ${end_time}`;
+        }
+        
         // Update exam session
         await promisePool.query(
             `UPDATE exam_session_master 
-            SET session_name = ?, exam_date = ?, session_type = ?, is_active = ?
+            SET session_name = ?, exam_date = ?, session_type = ?, timings = ?, is_active = ?
             WHERE session_id = ?`,
-            [session_name, exam_date, session_type || null, is_active !== false, req.params.id]
+            [session_name, exam_date, session_type || null, timings, is_active !== false, req.params.id]
         );
         
         res.json({

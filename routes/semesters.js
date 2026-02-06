@@ -66,10 +66,13 @@ router.get('/:id', async (req, res) => {
 // POST create new semester
 router.post('/', async (req, res) => {
     try {
+        console.log('Received semester data:', req.body); // Debug log
+        
         const { semester_number, semester_name, description, is_active } = req.body;
         
         // Validation
         if (!semester_number || !semester_name) {
+            console.error('Validation failed:', { semester_number, semester_name });
             return res.status(400).json({
                 status: 'error',
                 message: 'Missing required fields: semester_number, semester_name'
