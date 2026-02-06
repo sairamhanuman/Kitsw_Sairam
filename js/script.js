@@ -171,6 +171,15 @@ function initializeContentSwitching() {
     
     menuItems.forEach(item => {
         item.addEventListener('click', async function(e) {
+            const href = this.getAttribute('href');
+            
+            // If it's a real link (not # or empty), let it work naturally
+            if (href && href !== '#' && href.trim() !== '') {
+                // Don't prevent default - allow natural navigation
+                return;
+            }
+            
+            // Only prevent default and show content for items without real hrefs
             e.preventDefault();
             
             // Remove active class from all menu items
