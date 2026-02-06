@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM staff_master ORDER BY staff_name'
+            'SELECT * FROM staff_master WHERE is_active = 1 ORDER BY staff_name'
         );
         
         res.json({
@@ -180,40 +180,37 @@ router.put('/:id', async (req, res) => {
 // DELETE staff
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if staff exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting staff with ID: ${id}`);
+        
+        // Check if staff exists and is active
         const [existing] = await promisePool.query(
-            'SELECT staff_id, staff_name FROM staff_master WHERE staff_id = ?',
-            [req.params.id]
+            'SELECT * FROM staff_master WHERE staff_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Staff not found'
+                message: 'Staff not found or already deleted'
             });
         }
         
-        // Delete staff
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM staff_master WHERE staff_id = ?',
-            [req.params.id]
+            'UPDATE staff_master SET is_active = 0, deleted_at = NOW() WHERE staff_id = ?',
+            [id]
         );
+        
+        console.log(`Staff ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Staff ${existing[0].staff_name} deleted successfully`
+            message: 'Staff deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting staff:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete staff as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting staff:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete staff',

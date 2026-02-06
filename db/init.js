@@ -13,6 +13,7 @@ const tableSchemas = {
             duration_years DECIMAL(3,1) NOT NULL,
             description TEXT,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -26,6 +27,7 @@ const tableSchemas = {
             programme_id INT,
             description TEXT,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (programme_id) REFERENCES programme_master(programme_id)
@@ -39,6 +41,7 @@ const tableSchemas = {
             start_year INT NOT NULL,
             end_year INT NOT NULL,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -50,6 +53,7 @@ const tableSchemas = {
             semester_name VARCHAR(50) NOT NULL,
             semester_number INT NOT NULL,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT uk_semester_number UNIQUE (semester_number)
@@ -63,6 +67,7 @@ const tableSchemas = {
             regulation_year INT NOT NULL,
             description TEXT,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -74,6 +79,7 @@ const tableSchemas = {
             section_name VARCHAR(50) NOT NULL,
             capacity INT,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -87,6 +93,7 @@ const tableSchemas = {
             session_type VARCHAR(100),
             timings VARCHAR(50),
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_exam_date (exam_date)
@@ -103,6 +110,7 @@ const tableSchemas = {
             branch_id INT,
             section_id INT,
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (batch_id) REFERENCES batch_master(batch_id),
@@ -120,6 +128,7 @@ const tableSchemas = {
             department VARCHAR(100),
             designation VARCHAR(100),
             is_active BOOLEAN DEFAULT TRUE,
+            deleted_at TIMESTAMP NULL DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -138,6 +147,54 @@ async function createTable(pool, tableName, schema) {
         console.error(`✗ Error creating table '${tableName}':`, error.message);
         return false;
     }
+}
+
+/**
+ * Add deleted_at column to existing tables (migration)
+ */
+async function addDeletedAtColumn(pool) {
+    const tables = [
+        'programme_master',
+        'branch_master',
+        'batch_master',
+        'semester_master',
+        'regulation_master',
+        'section_master',
+        'exam_session_master',
+        'student_master',
+        'staff_master'
+    ];
+    
+    console.log('\nRunning migrations to add deleted_at column...');
+    
+    for (const tableName of tables) {
+        try {
+            // Check if column exists
+            const [columns] = await pool.query(
+                `SHOW COLUMNS FROM ${tableName} LIKE 'deleted_at'`
+            );
+            
+            if (columns.length === 0) {
+                // Column doesn't exist, add it
+                await pool.query(
+                    `ALTER TABLE ${tableName} 
+                     ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER is_active`
+                );
+                console.log(`✓ Added deleted_at column to ${tableName}`);
+            } else {
+                console.log(`  Column deleted_at already exists in ${tableName}`);
+            }
+        } catch (error) {
+            // Ignore error if column already exists
+            if (error.code === 'ER_DUP_FIELDNAME') {
+                console.log(`  Column deleted_at already exists in ${tableName}`);
+            } else {
+                console.error(`✗ Error adding deleted_at to ${tableName}:`, error.message);
+            }
+        }
+    }
+    
+    console.log('✓ Migration completed\n');
 }
 
 /**
@@ -246,6 +303,9 @@ async function initializeDatabase(pool) {
                 allTablesCreated = false;
             }
         }
+        
+        // Run migrations to add deleted_at column to existing tables
+        await addDeletedAtColumn(pool);
         
         // Insert sample data if tables were just created
         await insertSampleProgrammes(pool);

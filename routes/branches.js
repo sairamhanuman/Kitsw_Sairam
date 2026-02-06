@@ -18,6 +18,7 @@ router.get('/', async (req, res) => {
             `SELECT b.*, p.programme_name 
              FROM branch_master b 
              LEFT JOIN programme_master p ON b.programme_id = p.programme_id 
+             WHERE b.is_active = 1 AND (p.is_active = 1 OR p.is_active IS NULL)
              ORDER BY b.branch_code`
         );
         
@@ -196,40 +197,37 @@ router.put('/:id', async (req, res) => {
 // DELETE branch
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if branch exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting branch with ID: ${id}`);
+        
+        // Check if branch exists and is active
         const [existing] = await promisePool.query(
-            'SELECT branch_id, branch_code FROM branch_master WHERE branch_id = ?',
-            [req.params.id]
+            'SELECT * FROM branch_master WHERE branch_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Branch not found'
+                message: 'Branch not found or already deleted'
             });
         }
         
-        // Delete branch
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM branch_master WHERE branch_id = ?',
-            [req.params.id]
+            'UPDATE branch_master SET is_active = 0, deleted_at = NOW() WHERE branch_id = ?',
+            [id]
         );
+        
+        console.log(`Branch ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Branch ${existing[0].branch_code} deleted successfully`
+            message: 'Branch deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting branch:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete branch as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting branch:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete branch',

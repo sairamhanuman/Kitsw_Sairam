@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM exam_session_master ORDER BY exam_date DESC'
+            'SELECT * FROM exam_session_master WHERE is_active = 1 ORDER BY exam_date DESC'
         );
         
         res.json({
@@ -225,40 +225,37 @@ router.put('/:id', async (req, res) => {
 // DELETE exam session
 router.delete('/:id', async (req, res) => {
     try {
-        // Check if exam session exists
+        const { id } = req.params;
+        
+        console.log(`Soft deleting exam session with ID: ${id}`);
+        
+        // Check if exam session exists and is active
         const [existing] = await promisePool.query(
-            'SELECT session_id, session_name FROM exam_session_master WHERE session_id = ?',
-            [req.params.id]
+            'SELECT * FROM exam_session_master WHERE session_id = ? AND is_active = 1',
+            [id]
         );
         
         if (existing.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Exam session not found'
+                message: 'Exam session not found or already deleted'
             });
         }
         
-        // Delete exam session
+        // Soft delete: Set is_active = 0 and deleted_at = NOW()
         await promisePool.query(
-            'DELETE FROM exam_session_master WHERE session_id = ?',
-            [req.params.id]
+            'UPDATE exam_session_master SET is_active = 0, deleted_at = NOW() WHERE session_id = ?',
+            [id]
         );
+        
+        console.log(`Exam session ${id} soft deleted successfully`);
         
         res.json({
             status: 'success',
-            message: `Exam session ${existing[0].session_name} deleted successfully`
+            message: 'Exam session deleted successfully (can be restored)'
         });
     } catch (error) {
-        console.error('Error deleting exam session:', error);
-        
-        // Check if error is due to foreign key constraint
-        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Cannot delete exam session as it is referenced by other records'
-            });
-        }
-        
+        console.error('Error soft deleting exam session:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to delete exam session',
