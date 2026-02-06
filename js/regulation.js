@@ -100,7 +100,7 @@ async function saveRegulation() {
         regulation_name: document.getElementById('regulationName').value.trim(),
         regulation_year: parseInt(document.getElementById('regulationYear').value),
         description: document.getElementById('description').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: true
     };
     
     // Validation
@@ -160,7 +160,6 @@ async function editRegulation(id) {
             document.getElementById('regulationName').value = regulation.regulation_name;
             document.getElementById('regulationYear').value = regulation.regulation_year;
             document.getElementById('description').value = regulation.description || '';
-            document.getElementById('isActive').checked = regulation.is_active;
             
             // Update form title and button
             document.getElementById('formTitle').textContent = 'Edit Regulation';
