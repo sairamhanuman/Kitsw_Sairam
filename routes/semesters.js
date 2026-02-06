@@ -66,59 +66,117 @@ router.get('/:id', async (req, res) => {
 // POST create new semester
 router.post('/', async (req, res) => {
     try {
-        // Debug logging - consider removing in production or using environment-based logging
-        console.log('Received semester data:', req.body);
+        console.log('=== SEMESTER CREATE REQUEST ===');
+        console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+        console.log('Content-Type:', req.headers['content-type']);
         
-        const { semester_number, semester_name, description, is_active } = req.body;
+        const { semester_name, semester_number, is_active } = req.body;
+        
+        console.log('Parsed values:', {
+            semester_name,
+            semester_number,
+            is_active,
+            types: {
+                semester_name: typeof semester_name,
+                semester_number: typeof semester_number,
+                is_active: typeof is_active
+            }
+        });
         
         // Validation
-        if (!semester_number || !semester_name) {
-            console.error('Validation failed:', { semester_number, semester_name });
+        if (!semester_name || !semester_number) {
+            console.error('Validation failed - missing fields');
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields: semester_number, semester_name'
+                message: 'Missing required fields: semester_name, semester_number',
+                received: { semester_name, semester_number }
             });
         }
         
         // Check if semester number already exists
+        console.log('Checking for existing semester with number:', semester_number);
         const [existing] = await promisePool.query(
             'SELECT semester_id FROM semester_master WHERE semester_number = ?',
             [semester_number]
         );
         
+        console.log('Existing semesters found:', existing.length);
+        
         if (existing.length > 0) {
+            console.log('Duplicate semester number detected');
             return res.status(409).json({
                 status: 'error',
-                message: 'Semester number already exists'
+                message: `Semester ${semester_number} already exists. Please use a different number.`
             });
         }
         
         // Insert new semester
-        const [result] = await promisePool.query(
-            `INSERT INTO semester_master 
-            (semester_number, semester_name, description, is_active) 
-            VALUES (?, ?, ?, ?)`,
-            [semester_number, semester_name, description || null, is_active !== false]
-        );
+        console.log('Attempting to insert semester...');
+        const insertQuery = `INSERT INTO semester_master 
+            (semester_name, semester_number, is_active) 
+            VALUES (?, ?, ?)`;
+        const insertValues = [semester_name, parseInt(semester_number), is_active !== false];
         
-        res.status(201).json({
+        console.log('Insert query:', insertQuery);
+        console.log('Insert values:', insertValues);
+        
+        const [result] = await promisePool.query(insertQuery, insertValues);
+        
+        console.log('Insert successful! Result:', result);
+        
+        const responseData = {
             status: 'success',
             message: 'Semester created successfully',
             data: {
                 semester_id: result.insertId,
-                semester_number,
                 semester_name,
-                description,
+                semester_number: parseInt(semester_number),
                 is_active: is_active !== false
             }
-        });
+        };
+        
+        console.log('Sending success response:', responseData);
+        res.status(201).json(responseData);
+        
     } catch (error) {
-        console.error('Error creating semester:', error);
-        res.status(500).json({
+        console.error('=== SEMESTER CREATE ERROR ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
+        console.error('Error errno:', error.errno);
+        console.error('Error sqlMessage:', error.sqlMessage);
+        console.error('Error sql:', error.sql);
+        console.error('Full error:', error);
+        
+        // Parse specific error types
+        let errorMessage = 'Failed to create semester';
+        let statusCode = 500;
+        
+        if (error.code === 'ER_DUP_ENTRY') {
+            errorMessage = 'A semester with this number already exists';
+            statusCode = 409;
+        } else if (error.code === 'ER_NO_SUCH_TABLE') {
+            errorMessage = 'Database table not found. Please contact administrator.';
+            statusCode = 500;
+        } else if (error.code === 'ER_BAD_FIELD_ERROR') {
+            errorMessage = 'Database column mismatch. Please contact administrator.';
+            statusCode = 500;
+        }
+        
+        // Return response - include SQL details only in development
+        const errorResponse = {
             status: 'error',
-            message: 'Failed to create semester',
+            message: errorMessage,
             error: error.message
-        });
+        };
+        
+        // Only include SQL details in development for debugging
+        if (process.env.NODE_ENV === 'development') {
+            errorResponse.errorCode = error.code;
+            errorResponse.sqlMessage = error.sqlMessage;
+        }
+        
+        res.status(statusCode).json(errorResponse);
     }
 });
 

@@ -51,7 +51,8 @@ const tableSchemas = {
             semester_number INT NOT NULL,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            CONSTRAINT uk_semester_number UNIQUE (semester_number)
         )
     `,
     
@@ -81,13 +82,14 @@ const tableSchemas = {
     exam_session_master: `
         CREATE TABLE IF NOT EXISTS exam_session_master (
             session_id INT PRIMARY KEY AUTO_INCREMENT,
-            session_name VARCHAR(100) NOT NULL,
-            exam_date DATE,
-            session_type VARCHAR(50),
+            session_name VARCHAR(50) NOT NULL,
+            exam_date DATE NOT NULL,
+            session_type VARCHAR(100),
             timings VARCHAR(50),
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_exam_date (exam_date)
         )
     `,
     
