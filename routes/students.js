@@ -650,6 +650,7 @@ router.put('/:id', async (req, res) => {
             studentId
         ];
         
+        // Note: In production, consider redacting sensitive fields like Aadhaar, mobile numbers
         console.log('Update values prepared:', JSON.stringify(updateValues, null, 2));
         
         // Execute update query
@@ -696,14 +697,8 @@ router.put('/:id', async (req, res) => {
         console.log('Update result:', JSON.stringify(result, null, 2));
         console.log('Rows affected:', result.affectedRows);
         
-        if (result.affectedRows === 0) {
-            console.warn('⚠️ No rows updated (student may not exist)');
-            return res.status(404).json({
-                status: 'error',
-                message: 'Student not found or no changes made',
-                error: 'affectedRows = 0'
-            });
-        }
+        // Note: affectedRows can be 0 if no actual changes were made (all values same as before)
+        // This is still considered a successful operation since student exists
         
         console.log('✅ Student updated successfully');
         console.log('='.repeat(60));
@@ -730,13 +725,15 @@ router.put('/:id', async (req, res) => {
         console.error('Stack trace:', error.stack);
         console.error('='.repeat(60));
         
-        // Return detailed error to frontend
+        // Return appropriate error to frontend based on environment
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to update student',
-            error: error.sqlMessage || error.message,
-            errorCode: error.code,
-            errorType: error.constructor.name
+            error: isDevelopment ? (error.sqlMessage || error.message) : 'An error occurred while updating the student',
+            errorCode: isDevelopment ? error.code : undefined,
+            errorType: isDevelopment ? error.constructor.name : undefined
         });
     }
 });
