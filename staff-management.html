@@ -1027,7 +1027,7 @@
         let currentStaffId = null;
         let filtersApplied = false;
         
-        // Default empty statistics object - single source of truth
+        // Default statistics object with zero values - single source of truth
         const DEFAULT_STATS = {
             total: 0,
             teaching: 0,
@@ -1196,10 +1196,10 @@
             // Defensive check: Validate staffData is an array
             // This should never trigger if applyFilters() works correctly
             if (!Array.isArray(staffData)) {
-                console.error('BUG DETECTED: staffData is not an array at render time!');
+                console.error('Data validation failed: staffData is not an array');
                 console.error('  Type:', typeof staffData);
                 console.error('  Value:', staffData);
-                console.error('  This indicates a data flow bug in applyFilters() or initialization.');
+                console.error('  This indicates a data flow issue in applyFilters() or initialization.');
                 staffData = [];
             }
 
