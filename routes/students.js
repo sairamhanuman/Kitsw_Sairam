@@ -760,8 +760,15 @@ router.post('/bulk-lock', async (req, res) => {
 const photoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../uploads/students');
-        if (!fs.existsSync(uploadDir)) {
+        // Use mkdirSync with recursive option which is safe for concurrent calls
+        // The recursive option ensures directory creation is idempotent
+        try {
             fs.mkdirSync(uploadDir, { recursive: true });
+        } catch (err) {
+            // Ignore EEXIST errors as directory already exists
+            if (err.code !== 'EEXIST') {
+                return cb(err);
+            }
         }
         cb(null, uploadDir);
     },
@@ -824,13 +831,18 @@ router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) =
             [photoUrl, studentId]
         );
         
-        // Delete old photo file if exists
+        // Delete old photo file if exists (async to avoid blocking)
         if (oldPhotoUrl) {
             const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
-            if (fs.existsSync(oldPhotoPath)) {
-                fs.unlinkSync(oldPhotoPath);
-                console.log('Deleted old photo:', oldPhotoPath);
-            }
+            // Use async unlink to avoid blocking the event loop
+            fs.promises.unlink(oldPhotoPath)
+                .then(() => console.log('Deleted old photo:', oldPhotoPath))
+                .catch(err => {
+                    // Only log error if it's not "file not found"
+                    if (err.code !== 'ENOENT') {
+                        console.error('Error deleting old photo:', err);
+                    }
+                });
         }
         
         console.log('Photo uploaded successfully:', photoUrl);
@@ -882,13 +894,18 @@ router.delete('/:id/remove-photo', async (req, res) => {
             [studentId]
         );
         
-        // Delete physical file if exists
+        // Delete physical file if exists (async to avoid blocking)
         if (photoUrl) {
             const photoPath = path.join(__dirname, '..', photoUrl);
-            if (fs.existsSync(photoPath)) {
-                fs.unlinkSync(photoPath);
-                console.log('Deleted photo file:', photoPath);
-            }
+            // Use async unlink to avoid blocking the event loop
+            fs.promises.unlink(photoPath)
+                .then(() => console.log('Deleted photo file:', photoPath))
+                .catch(err => {
+                    // Only log error if it's not "file not found"
+                    if (err.code !== 'ENOENT') {
+                        console.error('Error deleting photo file:', err);
+                    }
+                });
         }
         
         console.log('Photo removed successfully');
