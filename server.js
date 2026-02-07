@@ -225,6 +225,7 @@ app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, r
 });
 
 // Departments API endpoint (used by staff management and other modules)
+// Note: Department data is stored in branch_master table in the database schema
 app.get('/api/departments', async (req, res) => {
     try {
         console.log('=== GET DEPARTMENTS ===');
