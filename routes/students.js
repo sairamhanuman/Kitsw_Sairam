@@ -756,6 +756,183 @@ router.post('/bulk-lock', async (req, res) => {
     }
 });
 
+// Configure multer for single photo upload
+const photoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../uploads/students');
+        // Use mkdirSync with recursive option which is safe for concurrent calls
+        // The recursive option ensures directory creation is idempotent
+        try {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        } catch (err) {
+            // Ignore EEXIST errors as directory already exists
+            if (err.code !== 'EEXIST') {
+                return cb(err);
+            }
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const studentId = req.params.id;
+        const ext = path.extname(file.originalname);
+        const filename = `${studentId}_${Date.now()}${ext}`;
+        cb(null, filename);
+    }
+});
+
+const uploadPhoto = multer({
+    storage: photoStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only JPG, JPEG, and PNG files are allowed'));
+        }
+    }
+});
+
+// POST /api/students/:id/upload-photo - Upload single photo
+router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) => {
+    try {
+        const studentId = req.params.id;
+        
+        console.log('=== UPLOAD PHOTO ===');
+        console.log('Student ID:', studentId);
+        console.log('File:', req.file);
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No photo file uploaded'
+            });
+        }
+        
+        // Get old photo URL to delete old file
+        const [student] = await promisePool.query(
+            'SELECT photo_url FROM student_master WHERE student_id = ?',
+            [studentId]
+        );
+        
+        if (student.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found'
+            });
+        }
+        
+        const oldPhotoUrl = student[0]?.photo_url;
+        
+        // Update photo_url in database
+        const photoUrl = `/uploads/students/${req.file.filename}`;
+        await promisePool.query(
+            'UPDATE student_master SET photo_url = ? WHERE student_id = ?',
+            [photoUrl, studentId]
+        );
+        
+        // Delete old photo file if exists
+        // Fire-and-forget cleanup: New photo is already uploaded and DB updated
+        // Old photo deletion is best-effort cleanup, doesn't block response
+        // Note: Consider implementing periodic cleanup job for orphaned files
+        if (oldPhotoUrl) {
+            const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
+            fs.promises.unlink(oldPhotoPath)
+                .then(() => console.log('Deleted old photo:', oldPhotoPath))
+                .catch(err => {
+                    // Only log error if it's not "file not found"
+                    if (err.code !== 'ENOENT') {
+                        console.error('Error deleting old photo:', err);
+                        // TODO: Log to monitoring system for cleanup tracking
+                    }
+                });
+        }
+        
+        console.log('Photo uploaded successfully:', photoUrl);
+        
+        res.json({
+            status: 'success',
+            message: 'Photo uploaded successfully',
+            data: { photo_url: photoUrl }
+        });
+        
+    } catch (error) {
+        console.error('=== UPLOAD PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to upload photo',
+            error: error.message
+        });
+    }
+});
+
+// DELETE /api/students/:id/remove-photo - Remove student photo
+router.delete('/:id/remove-photo', async (req, res) => {
+    try {
+        const studentId = req.params.id;
+        
+        console.log('=== REMOVE PHOTO ===');
+        console.log('Student ID:', studentId);
+        
+        // Get current photo URL
+        const [student] = await promisePool.query(
+            'SELECT photo_url FROM student_master WHERE student_id = ? AND is_active = 1',
+            [studentId]
+        );
+        
+        if (student.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found'
+            });
+        }
+        
+        const photoUrl = student[0].photo_url;
+        
+        // Clear photo_url in database
+        await promisePool.query(
+            'UPDATE student_master SET photo_url = NULL WHERE student_id = ?',
+            [studentId]
+        );
+        
+        // Delete physical file if exists
+        // Await deletion for remove operation as it's the primary action
+        if (photoUrl) {
+            const photoPath = path.join(__dirname, '..', photoUrl);
+            try {
+                await fs.promises.unlink(photoPath);
+                console.log('Deleted photo file:', photoPath);
+            } catch (err) {
+                // Only log error if it's not "file not found"
+                if (err.code !== 'ENOENT') {
+                    console.error('Error deleting photo file:', err);
+                    // Don't fail the request if file deletion fails
+                    // Database is already updated
+                }
+            }
+        }
+        
+        console.log('Photo removed successfully');
+        
+        res.json({
+            status: 'success',
+            message: 'Photo removed successfully'
+        });
+        
+    } catch (error) {
+        console.error('=== REMOVE PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to remove photo',
+            error: error.message
+        });
+    }
+});
+
 // GET export students to Excel
 router.get('/export/excel', async (req, res) => {
     try {

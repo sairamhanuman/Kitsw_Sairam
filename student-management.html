@@ -569,6 +569,57 @@
                 display: none;
             }
         }
+
+        /* Compact student list table rows */
+        .simple-table {
+            font-size: 14px;
+        }
+
+        .simple-table thead th {
+            padding: 10px 12px;
+            background-color: #5b73e8;
+            color: white;
+            font-weight: 600;
+        }
+
+        .simple-table tbody td {
+            padding: 8px 12px;
+            line-height: 1.3;
+            vertical-align: middle;
+        }
+
+        .simple-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .simple-table tbody tr:hover {
+            background-color: #f0f4ff;
+        }
+
+        .simple-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        /* No filter message styling */
+        .no-filter-message {
+            display: block;
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .no-filter-message h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+
+        .no-filter-message p {
+            margin: 0;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -640,6 +691,15 @@
                         <option value="">All Semesters</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="filter-status">Status:</label>
+                    <select id="filter-status">
+                        <option value="">All Status</option>
+                        <option value="In Roll">✅ In Roll</option>
+                        <option value="Detained">⚠️ Detained</option>
+                        <option value="Left out">❌ Left out</option>
+                    </select>
+                </div>
             </div>
             <div class="filter-actions">
                 <button class="btn btn-primary" onclick="applyFilters()">Apply Filter</button>
@@ -661,10 +721,16 @@
             <input type="file" id="photos-zip" accept=".zip" style="display: none;" onchange="handlePhotosZip()">
         </div>
 
+        <!-- No Filter Message -->
+        <div id="no-filter-message" class="no-filter-message">
+            <h3>📋 No Filters Applied</h3>
+            <p>Please select filters and click "Apply Filter" to view students</p>
+        </div>
+
         <!-- Student List - Simple Table (SNO + Admission Number) -->
-        <div class="table-section">
+        <div class="table-section" id="student-list-container" style="display: none;">
             <h3>Student List</h3>
-            <div id="student-list-container">
+            <div>
                 <table class="simple-table">
                     <thead>
                         <tr>
@@ -989,8 +1055,50 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadMasterData();
-            loadStudents();
+            // Don't load students on page load - hide list and reset statistics
+            hideStudentList();
+            resetStatistics();
         });
+
+        // Hide student list and show filter message
+        function hideStudentList() {
+            const studentListContainer = document.getElementById('student-list-container');
+            const noFilterMessage = document.getElementById('no-filter-message');
+            
+            if (studentListContainer) {
+                studentListContainer.style.display = 'none';
+            }
+            
+            if (noFilterMessage) {
+                noFilterMessage.style.display = 'block';
+            }
+        }
+
+        // Show student list and hide filter message
+        function showStudentList() {
+            const studentListContainer = document.getElementById('student-list-container');
+            const noFilterMessage = document.getElementById('no-filter-message');
+            
+            if (studentListContainer) {
+                studentListContainer.style.display = 'block';
+            }
+            
+            if (noFilterMessage) {
+                noFilterMessage.style.display = 'none';
+            }
+        }
+
+        // Reset statistics to 0
+        function resetStatistics() {
+            updateStatistics({
+                total: 0,
+                boys: 0,
+                girls: 0,
+                in_roll: 0,
+                detained: 0,
+                left_out: 0
+            });
+        }
 
         // Load master data for dropdowns
         async function loadMasterData() {
@@ -1077,22 +1185,29 @@
                 const branchId = getElementValue('filter-branch');
                 const batchId = getElementValue('filter-batch');
                 const semesterId = getElementValue('filter-semester');
+                const studentStatus = getElementValue('filter-status');
                 
                 if (programmeId) params.append('programme_id', programmeId);
                 if (branchId) params.append('branch_id', branchId);
                 if (batchId) params.append('batch_id', batchId);
                 if (semesterId) params.append('semester_id', semesterId);
+                if (studentStatus) params.append('student_status', studentStatus);
                 
                 const response = await fetch(`/api/students?${params.toString()}`);
                 const data = await response.json();
                 
                 if (data.status === 'success') {
                     currentStudents = data.data.students;
+                    
+                    // Show student list
+                    showStudentList();
+                    
+                    // Display students and update statistics
                     displayStudents(data.data.students);
                     updateStatistics(data.data.statistics);
                     
                     // Show action bar if filters are applied
-                    if (programmeId || branchId || batchId || semesterId) {
+                    if (programmeId || branchId || batchId || semesterId || studentStatus) {
                         document.getElementById('action-bar').classList.add('visible');
                     }
                 } else {
@@ -1148,15 +1263,19 @@
             const filterBranch = document.getElementById('filter-branch');
             const filterBatch = document.getElementById('filter-batch');
             const filterSemester = document.getElementById('filter-semester');
+            const filterStatus = document.getElementById('filter-status');
             const actionBar = document.getElementById('action-bar');
             
             if (filterProgramme) filterProgramme.value = '';
             if (filterBranch) filterBranch.value = '';
             if (filterBatch) filterBatch.value = '';
             if (filterSemester) filterSemester.value = '';
+            if (filterStatus) filterStatus.value = '';
             if (actionBar) actionBar.classList.remove('visible');
             
-            loadStudents();
+            // Hide student list and reset stats
+            hideStudentList();
+            resetStatistics();
         }
 
         // Show student details panel
@@ -1368,8 +1487,39 @@
                 return;
             }
             
-            // This would require an API endpoint to remove photos
-            alert('Remove photo functionality - to be implemented');
+            if (!currentStudentId) {
+                alert('No student selected');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/students/${currentStudentId}/remove-photo`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert('Photo removed successfully!');
+                    // Clear photo display
+                    const photoDisplay = document.getElementById('current-photo-display');
+                    if (photoDisplay) {
+                        photoDisplay.innerHTML = '<p>No photo uploaded</p>';
+                    }
+                    // Clear file input
+                    const fileInput = document.getElementById('photo-file');
+                    if (fileInput) {
+                        fileInput.value = '';
+                    }
+                    // Refresh student details
+                    showStudentDetails(currentStudentId);
+                } else {
+                    alert('Error removing photo: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error removing photo:', error);
+                alert('Error removing photo: ' + error.message);
+            }
         }
 
         // Export to Excel
