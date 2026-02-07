@@ -228,6 +228,81 @@ app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, r
 const staffRoutes = require('./routes/staff')(promisePool);
 app.use('/api/staff', staffRoutes);
 
+// Photo upload route for staff (must be after staff routes initialization)
+// Configure multer for staff photo uploads
+const staffStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/staff/')
+    },
+    filename: function (req, file, cb) {
+        const uniqueId = crypto.randomUUID();
+        cb(null, 'staff-' + uniqueId + path.extname(file.originalname));
+    }
+});
+
+const uploadStaff = multer({ 
+    storage: staffStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        const filetypes = /jpeg|jpg|png/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only JPEG, JPG, and PNG images are allowed!'));
+    }
+});
+
+app.post('/api/staff/:id/upload-photo', uploadStaff.single('photo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        // Check if staff exists
+        const [staff] = await promisePool.query(
+            'SELECT staff_id FROM staff_master WHERE staff_id = ?',
+            [id]
+        );
+        
+        if (staff.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        // Update staff photo URL
+        const photoUrl = `/uploads/staff/${req.file.filename}`;
+        await promisePool.query(
+            'UPDATE staff_master SET photo_url = ? WHERE staff_id = ?',
+            [photoUrl, id]
+        );
+        
+        res.json({
+            status: 'success',
+            message: 'Photo uploaded successfully',
+            data: {
+                photo_url: photoUrl
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading staff photo:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to upload photo',
+            error: error.message
+        });
+    }
+});
+
 // Course Management
 app.get('/api/courses', async (req, res) => {
     res.json({ message: 'Course list endpoint - To be implemented' });

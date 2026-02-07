@@ -178,15 +178,77 @@ const tableSchemas = {
     staff_master: `
         CREATE TABLE IF NOT EXISTS staff_master (
             staff_id INT PRIMARY KEY AUTO_INCREMENT,
-            staff_name VARCHAR(200) NOT NULL,
-            email VARCHAR(200) UNIQUE,
-            phone VARCHAR(20),
-            department VARCHAR(100),
-            designation VARCHAR(100),
+            
+            -- Basic Information
+            employee_id VARCHAR(50) UNIQUE NOT NULL,
+            title_prefix ENUM('Mr', 'Ms', 'Mrs', 'Dr', 'Prof') DEFAULT 'Mr',
+            full_name VARCHAR(255) NOT NULL,
+            
+            -- Department & Designation
+            department_id INT,
+            designation ENUM(
+                'Principal',
+                'Professor', 
+                'Associate Professor', 
+                'Assistant Professor', 
+                'Lecturer',
+                'Lab Assistant',
+                'Superintendent',
+                'Senior Assistant',
+                'Junior Assistant',
+                'Attender',
+                'Lab Technician',
+                'Librarian',
+                'Office Assistant'
+            ) NOT NULL,
+            
+            -- Personal Details
+            date_of_birth DATE,
+            gender ENUM('Male', 'Female', 'Other') NOT NULL,
+            qualification VARCHAR(255),
+            years_of_experience INT DEFAULT 0,
+            mobile_number VARCHAR(15),
+            email VARCHAR(255),
+            date_of_joining DATE,
+            emergency_contact VARCHAR(15),
+            address TEXT,
+            
+            -- Account Details
+            bank_name VARCHAR(255),
+            bank_account_number VARCHAR(50),
+            bank_ifsc_code VARCHAR(11),
+            pan_number VARCHAR(10),
+            aadhaar_number VARCHAR(12),
+            uan_number VARCHAR(50),
+            basic_salary DECIMAL(10, 2),
+            
+            -- Status & Flags
+            employment_status ENUM('Active', 'On Leave', 'Retired') DEFAULT 'Active',
+            is_hod BOOLEAN DEFAULT FALSE,
+            is_class_coordinator BOOLEAN DEFAULT FALSE,
+            is_exam_invigilator BOOLEAN DEFAULT FALSE,
+            is_locked BOOLEAN DEFAULT FALSE,
+            
+            -- Photo
+            photo_url VARCHAR(500),
+            
+            -- Soft Delete
             is_active BOOLEAN DEFAULT TRUE,
             deleted_at TIMESTAMP NULL DEFAULT NULL,
+            
+            -- Timestamps
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            
+            -- Foreign Keys
+            FOREIGN KEY (department_id) REFERENCES branch_master(branch_id),
+            
+            -- Indexes
+            INDEX idx_employee_id (employee_id),
+            INDEX idx_designation (designation),
+            INDEX idx_employment_status (employment_status),
+            INDEX idx_is_active (is_active),
+            INDEX idx_department (department_id)
         )
     `
 };
