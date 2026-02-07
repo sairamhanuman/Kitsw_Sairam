@@ -279,13 +279,19 @@ router.get('/:id', async (req, res) => {
                     b.branch_name, b.branch_code,
                     bat.batch_name, 
                     sem.semester_name,
-                    sec.section_name
+                    sec.section_name,
+                    jr.regulation_code as joining_regulation_code,
+                    jr.regulation_name as joining_regulation_name,
+                    cr.regulation_code as current_regulation_code,
+                    cr.regulation_name as current_regulation_name
              FROM student_master s
              LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
              LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
              LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
              LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
              LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
+             LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1
+             LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1
              WHERE s.student_id = ?`,
             [req.params.id]
         );
@@ -522,6 +528,8 @@ router.put('/:id', async (req, res) => {
             branch_id,
             batch_id,
             semester_id,
+            joining_regulation_id,
+            current_regulation_id,
             section_id,
             admission_date,
             completion_year,
@@ -595,6 +603,8 @@ router.put('/:id', async (req, res) => {
             toNull(branch_id),
             toNull(batch_id),
             toNull(semester_id),
+            toNull(joining_regulation_id),
+            toNull(current_regulation_id),
             toNull(section_id),
             toNull(admission_date),
             toNull(completion_year),
@@ -633,6 +643,8 @@ router.put('/:id', async (req, res) => {
                 branch_id = ?,
                 batch_id = ?,
                 semester_id = ?,
+                joining_regulation_id = ?,
+                current_regulation_id = ?,
                 section_id = ?,
                 admission_date = ?,
                 completion_year = ?,
@@ -1030,6 +1042,8 @@ router.get('/export/excel', async (req, res) => {
                 COALESCE(bat.batch_name, '-') as batch_name,
                 COALESCE(sem.semester_name, '-') as semester_name,
                 COALESCE(sec.section_name, '-') as section_name,
+                COALESCE(jr.regulation_code, '-') as joining_regulation,
+                COALESCE(cr.regulation_code, '-') as current_regulation,
                 s.is_detainee,
                 s.is_lateral,
                 s.is_handicapped,
@@ -1040,6 +1054,8 @@ router.get('/export/excel', async (req, res) => {
             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
             LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
             LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
+            LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1
+            LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1
             WHERE s.is_active = 1
         `;
         
@@ -1108,6 +1124,8 @@ router.get('/export/excel', async (req, res) => {
             { header: 'Batch', key: 'batch_name', width: 15 },
             { header: 'Semester', key: 'semester_name', width: 15 },
             { header: 'Section', key: 'section_name', width: 10 },
+            { header: 'Joining Regulation', key: 'joining_regulation', width: 18 },
+            { header: 'Current Regulation', key: 'current_regulation', width: 18 },
             { header: 'Student Mobile', key: 'student_mobile', width: 15 },
             { header: 'Parent Mobile', key: 'parent_mobile', width: 15 },
             { header: 'Email', key: 'email', width: 30 },
@@ -1206,6 +1224,18 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
                 message: 'No file uploaded'
             });
         }
+        
+        // Get regulation_id from request body
+        const regulation_id = req.body.regulation_id;
+        
+        if (!regulation_id) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Regulation must be selected for import'
+            });
+        }
+        
+        console.log('Importing with regulation_id:', regulation_id);
         
         const filePath = req.file.path;
         const students = [];
@@ -1409,8 +1439,9 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
                      father_name, mother_name, aadhaar_number, caste_category,
                      student_mobile, parent_mobile, email, admission_date, completion_year,
                      student_status, programme_id, branch_id, batch_id, semester_id,
+                     joining_regulation_id, current_regulation_id,
                      is_detainee, is_lateral, is_handicapped, is_transitory, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
                     [
                         student.admission_number, student.ht_number, student.roll_number,
                         student.full_name, student.date_of_birth, student.gender,
@@ -1418,7 +1449,9 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
                         student.caste_category, student.student_mobile, student.parent_mobile,
                         student.email, student.admission_date, student.completion_year,
                         student.student_status, student.programme_id, student.branch_id,
-                        student.batch_id, student.semester_id, student.is_detainee,
+                        student.batch_id, student.semester_id,
+                        regulation_id, regulation_id,  // Both joining and current set to selected regulation
+                        student.is_detainee,
                         student.is_lateral, student.is_handicapped, student.is_transitory
                     ]
                 );
