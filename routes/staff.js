@@ -63,7 +63,7 @@ router.get('/', async (req, res) => {
         
         let query = `
             SELECT s.*, 
-                   d.branch_name as department_name, d.branch_code as department_code
+                   d.branch_name as dept_name, d.branch_id as department_id
             FROM staff_master s
             LEFT JOIN branch_master d ON s.department_id = d.branch_id AND d.is_active = 1
             WHERE s.is_active = 1
@@ -300,7 +300,7 @@ router.get('/:id', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
             `SELECT s.*, 
-                    d.branch_name as department_name, d.branch_code as department_code
+                    d.branch_name as dept_name, d.branch_id as department_id
              FROM staff_master s
              LEFT JOIN branch_master d ON s.department_id = d.branch_id AND d.is_active = 1
              WHERE s.staff_id = ?`,
@@ -1006,7 +1006,7 @@ router.get('/export/excel', async (req, res) => {
                 s.uan_number,
                 s.basic_salary,
                 s.employment_status,
-                COALESCE(d.branch_name, '-') as department_name,
+                COALESCE(d.branch_name, '-') as dept_name,
                 s.is_hod,
                 s.is_class_coordinator,
                 s.is_exam_invigilator
@@ -1062,7 +1062,7 @@ router.get('/export/excel', async (req, res) => {
             { header: 'Employee ID', key: 'employee_id', width: 15 },
             { header: 'Title', key: 'title_prefix', width: 10 },
             { header: 'Full Name', key: 'full_name', width: 30 },
-            { header: 'Department', key: 'department_name', width: 20 },
+            { header: 'Department', key: 'dept_name', width: 20 },
             { header: 'Designation', key: 'designation', width: 25 },
             { header: 'Date of Birth', key: 'date_of_birth', width: 15 },
             { header: 'Gender', key: 'gender', width: 10 },
