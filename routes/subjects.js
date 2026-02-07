@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const ExcelJS = require('exceljs');
-const XLSX = require('xlsx');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -503,98 +502,67 @@ router.get('/sample-excel', async (req, res) => {
         
         console.log('Excel context:', context);
         
-        const workbook = XLSX.utils.book_new();
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Subjects');
         
-        // Create context metadata rows (first 4 rows)
-        const contextRows = [
-            { A: 'Programme', B: context.Programme },
-            { A: 'Branch', B: context.Branch },
-            { A: 'Semester', B: context.Semester },
-            { A: 'Regulation', B: context.Regulation },
-            { A: '', B: '' }  // Empty separator row
-        ];
+        // Add context metadata rows (first 4 rows)
+        worksheet.addRow(['Programme', context.Programme]);
+        worksheet.addRow(['Branch', context.Branch]);
+        worksheet.addRow(['Semester', context.Semester]);
+        worksheet.addRow(['Regulation', context.Regulation]);
+        worksheet.addRow([]); // Empty separator row
         
-        // Define column headers
-        const headers = {
-            A: 'subject_order',
-            B: 'syllabus_code',
-            C: 'ref_code',
-            D: 'internal_exam_code',
-            E: 'external_exam_code',
-            F: 'subject_name',
-            G: 'subject_type',
-            H: 'internal_max_marks',
-            I: 'external_max_marks',
-            J: 'ta_max_marks',
-            K: 'credits',
-            L: 'is_elective',
-            M: 'is_under_group',
-            N: 'is_exempt_exam_fee'
-        };
+        // Add column headers (row 6)
+        worksheet.addRow([
+            'subject_order', 'syllabus_code', 'ref_code', 'internal_exam_code',
+            'external_exam_code', 'subject_name', 'subject_type', 'internal_max_marks',
+            'external_max_marks', 'ta_max_marks', 'credits', 'is_elective',
+            'is_under_group', 'is_exempt_exam_fee'
+        ]);
         
-        // Sample subject data (without programme/branch/semester/regulation columns)
-        const sampleSubjects = [
-            headers,
-            {
-                A: 1,
-                B: 'U18MH101',
-                C: 'EM-I',
-                D: 'U18MH101',
-                E: 'U18MH101',
-                F: 'ENGINEERING MATHEMATICS - I',
-                G: 'Theory',
-                H: 30,
-                I: 60,
-                J: 0,
-                K: 4,
-                L: 'No',
-                M: 'No',
-                N: 'No'
-            },
-            {
-                A: 2,
-                B: 'U18CS102',
-                C: 'PPSC',
-                D: 'U18CS102',
-                E: 'U18CS102',
-                F: 'PROGRAMMING FOR PROBLEM SOLVING IN C',
-                G: 'Theory',
-                H: 30,
-                I: 60,
-                J: 0,
-                K: 3,
-                L: 'No',
-                M: 'No',
-                N: 'No'
-            }
-        ];
-        
-        // Combine context rows and sample data
-        const allRows = [...contextRows, ...sampleSubjects];
-        
-        const worksheet = XLSX.utils.json_to_sheet(allRows, { skipHeader: true });
+        // Add sample subject data
+        worksheet.addRow([
+            1, 'U18MH101', 'EM-I', 'U18MH101', 'U18MH101',
+            'ENGINEERING MATHEMATICS - I', 'Theory', 30, 60, 0, 4,
+            'No', 'No', 'No'
+        ]);
+        worksheet.addRow([
+            2, 'U18CS102', 'PPSC', 'U18CS102', 'U18CS102',
+            'PROGRAMMING FOR PROBLEM SOLVING IN C', 'Theory', 30, 60, 0, 3,
+            'No', 'No', 'No'
+        ]);
         
         // Set column widths for readability
-        worksheet['!cols'] = [
-            { wch: 20 },  // subject_order/Programme
-            { wch: 15 },  // syllabus_code/value
-            { wch: 15 },  // ref_code
-            { wch: 18 },  // internal_exam_code
-            { wch: 18 },  // external_exam_code
-            { wch: 40 },  // subject_name
-            { wch: 12 },  // subject_type
-            { wch: 12 },  // internal_max_marks
-            { wch: 12 },  // external_max_marks
-            { wch: 10 },  // ta_max_marks
-            { wch: 10 },  // credits
-            { wch: 12 },  // is_elective
-            { wch: 12 },  // is_under_group
-            { wch: 12 }   // is_exempt_exam_fee
+        worksheet.columns = [
+            { width: 20 },  // subject_order/Programme
+            { width: 15 },  // syllabus_code/value
+            { width: 15 },  // ref_code
+            { width: 18 },  // internal_exam_code
+            { width: 18 },  // external_exam_code
+            { width: 40 },  // subject_name
+            { width: 12 },  // subject_type
+            { width: 12 },  // internal_max_marks
+            { width: 12 },  // external_max_marks
+            { width: 10 },  // ta_max_marks
+            { width: 10 },  // credits
+            { width: 12 },  // is_elective
+            { width: 12 },  // is_under_group
+            { width: 12 }   // is_exempt_exam_fee
         ];
         
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
+        // Style the context rows (1-4) with bold labels
+        for (let i = 1; i <= 4; i++) {
+            worksheet.getRow(i).getCell(1).font = { bold: true };
+        }
         
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        // Style the header row (6) 
+        const headerRow = worksheet.getRow(6);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
         
         // Sanitize filename components to prevent path traversal
         const sanitize = (str) => str.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -602,7 +570,9 @@ router.get('/sample-excel', async (req, res) => {
         
         res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.send(buffer);
+        
+        await workbook.xlsx.write(res);
+        res.end();
         
         console.log('✅ Sample Excel generated with context in first 4 rows');
         
@@ -625,18 +595,16 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
             });
         }
         
-        const workbook = XLSX.readFile(req.file.path);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        
-        // Read all data including context rows
-        const allData = XLSX.utils.sheet_to_json(worksheet, { header: 'A', defval: '' });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(req.file.path);
+        const worksheet = workbook.worksheets[0];
         
         // Extract context from first 4 rows
         const context = {
-            programme: allData[0]?.B || '',     // Row 1: Programme | BTECH
-            branch: allData[1]?.B || '',        // Row 2: Branch    | CSE
-            semester: allData[2]?.B || '',      // Row 3: Semester  | I
-            regulation: allData[3]?.B || ''     // Row 4: Regulation| URR-22
+            programme: worksheet.getRow(1).getCell(2).value || '',     // Row 1: Programme | BTECH
+            branch: worksheet.getRow(2).getCell(2).value || '',        // Row 2: Branch    | CSE
+            semester: worksheet.getRow(3).getCell(2).value || '',      // Row 3: Semester  | I
+            regulation: worksheet.getRow(4).getCell(2).value || ''     // Row 4: Regulation| URR-22
         };
         
         console.log('Excel context:', context);
@@ -705,9 +673,33 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
         
         console.log('Resolved IDs:', { programme_id, branch_id, semester_id, regulation_id });
         
-        // Read subject data starting from row 6 (after context and header row)
+        // Read subject data starting from row 7 (after context, empty row, and header row)
         // Row 1-4: Context, Row 5: Empty, Row 6: Headers, Row 7+: Data
-        const subjectData = XLSX.utils.sheet_to_json(worksheet, { range: SUBJECT_DATA_START_ROW });
+        const subjectData = [];
+        
+        // Get header row (row 6) to map column names
+        const headerRow = worksheet.getRow(6);
+        const headers = [];
+        headerRow.eachCell((cell, colNumber) => {
+            headers[colNumber] = cell.value;
+        });
+        
+        // Read data rows starting from row 7
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 6) { // Skip context, empty, and header rows
+                const rowData = {};
+                row.eachCell((cell, colNumber) => {
+                    const header = headers[colNumber];
+                    if (header) {
+                        rowData[header] = cell.value;
+                    }
+                });
+                // Only add non-empty rows
+                if (Object.keys(rowData).length > 0 && rowData.syllabus_code) {
+                    subjectData.push(rowData);
+                }
+            }
+        });
         
         console.log(`Found ${subjectData.length} subject rows to import`);
         

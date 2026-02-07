@@ -7,7 +7,7 @@
  * 3. Context validation and error handling
  */
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -15,94 +15,51 @@ const os = require('os');
 console.log('=== EXCEL CONTEXT FORMAT TEST ===\n');
 
 // Test 1: Verify Excel generation structure
-function testExcelGeneration() {
+async function testExcelGeneration() {
     console.log('Test 1: Excel Generation with Context Rows');
     console.log('='.repeat(50));
     
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Subjects');
     
-    // Create context metadata rows (first 4 rows)
-    const contextRows = [
-        { A: 'Programme', B: 'BTECH' },
-        { A: 'Branch', B: 'CSE' },
-        { A: 'Semester', B: 'Semester I' },
-        { A: 'Regulation', B: 'URR-22' },
-        { A: '', B: '' }  // Empty separator row
-    ];
+    // Add context metadata rows (first 4 rows)
+    worksheet.addRow(['Programme', 'BTECH']);
+    worksheet.addRow(['Branch', 'CSE']);
+    worksheet.addRow(['Semester', 'Semester I']);
+    worksheet.addRow(['Regulation', 'URR-22']);
+    worksheet.addRow([]); // Empty separator row
     
-    // Define column headers
-    const headers = {
-        A: 'subject_order',
-        B: 'syllabus_code',
-        C: 'ref_code',
-        D: 'internal_exam_code',
-        E: 'external_exam_code',
-        F: 'subject_name',
-        G: 'subject_type',
-        H: 'internal_max_marks',
-        I: 'external_max_marks',
-        J: 'ta_max_marks',
-        K: 'credits',
-        L: 'is_elective',
-        M: 'is_under_group',
-        N: 'is_exempt_exam_fee'
-    };
+    // Add column headers (row 6)
+    worksheet.addRow([
+        'subject_order', 'syllabus_code', 'ref_code', 'internal_exam_code',
+        'external_exam_code', 'subject_name', 'subject_type', 'internal_max_marks',
+        'external_max_marks', 'ta_max_marks', 'credits', 'is_elective',
+        'is_under_group', 'is_exempt_exam_fee'
+    ]);
     
-    // Sample subject data
-    const sampleSubjects = [
-        headers,
-        {
-            A: 1,
-            B: 'U18MH101',
-            C: 'EM-I',
-            D: 'U18MH101',
-            E: 'U18MH101',
-            F: 'ENGINEERING MATHEMATICS - I',
-            G: 'Theory',
-            H: 30,
-            I: 60,
-            J: 0,
-            K: 4,
-            L: 'No',
-            M: 'No',
-            N: 'No'
-        },
-        {
-            A: 2,
-            B: 'U18CS102',
-            C: 'PPSC',
-            D: 'U18CS102',
-            E: 'U18CS102',
-            F: 'PROGRAMMING FOR PROBLEM SOLVING IN C',
-            G: 'Theory',
-            H: 30,
-            I: 60,
-            J: 0,
-            K: 3,
-            L: 'No',
-            M: 'No',
-            N: 'No'
-        }
-    ];
-    
-    // Combine context rows and sample data
-    const allRows = [...contextRows, ...sampleSubjects];
-    
-    const worksheet = XLSX.utils.json_to_sheet(allRows, { skipHeader: true });
+    // Add sample subject data
+    worksheet.addRow([
+        1, 'U18MH101', 'EM-I', 'U18MH101', 'U18MH101',
+        'ENGINEERING MATHEMATICS - I', 'Theory', 30, 60, 0, 4,
+        'No', 'No', 'No'
+    ]);
+    worksheet.addRow([
+        2, 'U18CS102', 'PPSC', 'U18CS102', 'U18CS102',
+        'PROGRAMMING FOR PROBLEM SOLVING IN C', 'Theory', 30, 60, 0, 3,
+        'No', 'No', 'No'
+    ]);
     
     // Set column widths
-    worksheet['!cols'] = [
-        { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
-        { wch: 18 }, { wch: 40 }, { wch: 12 }, { wch: 12 },
-        { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
-        { wch: 12 }, { wch: 12 }
+    worksheet.columns = [
+        { width: 20 }, { width: 15 }, { width: 15 }, { width: 18 },
+        { width: 18 }, { width: 40 }, { width: 12 }, { width: 12 },
+        { width: 12 }, { width: 10 }, { width: 10 }, { width: 12 },
+        { width: 12 }, { width: 12 }
     ];
-    
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
     
     // Write to test file
     const testFile = path.join(os.tmpdir(), 'test_excel_context.xlsx');
-    XLSX.writeFile(workbook, testFile);
+    await workbook.xlsx.writeFile(testFile);
     
     console.log('✅ Test file created:', testFile);
     
@@ -111,26 +68,26 @@ function testExcelGeneration() {
         console.log('✅ File exists');
         
         // Read and verify structure
-        const readWorkbook = XLSX.readFile(testFile);
-        const readWorksheet = readWorkbook.Sheets[readWorkbook.SheetNames[0]];
-        const allData = XLSX.utils.sheet_to_json(readWorksheet, { header: 'A', defval: '' });
+        const readWorkbook = new ExcelJS.Workbook();
+        await readWorkbook.xlsx.readFile(testFile);
+        const readWorksheet = readWorkbook.worksheets[0];
+        
+        // Extract context
+        const context = {
+            programme: readWorksheet.getRow(1).getCell(2).value,
+            branch: readWorksheet.getRow(2).getCell(2).value,
+            semester: readWorksheet.getRow(3).getCell(2).value,
+            regulation: readWorksheet.getRow(4).getCell(2).value
+        };
         
         console.log('\n📋 Excel Structure Verification:');
-        console.log('Row 1 (Programme):', allData[0]);
-        console.log('Row 2 (Branch):', allData[1]);
-        console.log('Row 3 (Semester):', allData[2]);
-        console.log('Row 4 (Regulation):', allData[3]);
-        console.log('Row 5 (Empty):', allData[4]);
-        console.log('Row 6 (Headers):', allData[5]);
-        console.log('Row 7 (First Subject):', allData[6]);
-        
-        // Validate context extraction
-        const context = {
-            programme: allData[0]?.B || '',
-            branch: allData[1]?.B || '',
-            semester: allData[2]?.B || '',
-            regulation: allData[3]?.B || ''
-        };
+        console.log('Row 1 (Programme):', readWorksheet.getRow(1).values);
+        console.log('Row 2 (Branch):', readWorksheet.getRow(2).values);
+        console.log('Row 3 (Semester):', readWorksheet.getRow(3).values);
+        console.log('Row 4 (Regulation):', readWorksheet.getRow(4).values);
+        console.log('Row 5 (Empty):', readWorksheet.getRow(5).values);
+        console.log('Row 6 (Headers):', readWorksheet.getRow(6).values);
+        console.log('Row 7 (First Subject):', readWorksheet.getRow(7).values);
         
         console.log('\n📝 Extracted Context:', context);
         
@@ -144,15 +101,10 @@ function testExcelGeneration() {
             return false;
         }
         
-        // Verify subject data starts at row 6 (index 5)
-        const subjectData = XLSX.utils.sheet_to_json(readWorksheet, { range: 5 });
-        console.log('\n📊 Subject Data (starting from row 6):');
-        console.log(`Found ${subjectData.length} subject rows`);
-        console.log('First subject:', subjectData[0]);
-        
-        if (subjectData.length === 2 && 
-            subjectData[0].syllabus_code === 'U18MH101' &&
-            subjectData[1].syllabus_code === 'U18CS102') {
+        // Verify subject data
+        const subject1 = readWorksheet.getRow(7);
+        if (subject1.getCell(2).value === 'U18MH101' &&
+            subject1.getCell(6).value === 'ENGINEERING MATHEMATICS - I') {
             console.log('✅ Subject data parsed correctly!');
             console.log('\n✅ Test 1 PASSED: Excel structure is correct\n');
             return true;
@@ -167,37 +119,33 @@ function testExcelGeneration() {
 }
 
 // Test 2: Verify context validation
-function testContextValidation() {
+async function testContextValidation() {
     console.log('\nTest 2: Context Validation');
     console.log('='.repeat(50));
     
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Subjects');
     
     // Create invalid context (missing regulation)
-    const invalidContextRows = [
-        { A: 'Programme', B: 'BTECH' },
-        { A: 'Branch', B: 'CSE' },
-        { A: 'Semester', B: 'Semester I' },
-        { A: 'Regulation', B: '' },  // Missing regulation
-        { A: '', B: '' }
-    ];
-    
-    const worksheet = XLSX.utils.json_to_sheet(invalidContextRows, { skipHeader: true });
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
+    worksheet.addRow(['Programme', 'BTECH']);
+    worksheet.addRow(['Branch', 'CSE']);
+    worksheet.addRow(['Semester', 'Semester I']);
+    worksheet.addRow(['Regulation', '']);  // Missing regulation
+    worksheet.addRow([]);
     
     const testFile = path.join(os.tmpdir(), 'test_excel_invalid.xlsx');
-    XLSX.writeFile(workbook, testFile);
+    await workbook.xlsx.writeFile(testFile);
     
     // Read and validate
-    const readWorkbook = XLSX.readFile(testFile);
-    const readWorksheet = readWorkbook.Sheets[readWorkbook.SheetNames[0]];
-    const allData = XLSX.utils.sheet_to_json(readWorksheet, { header: 'A', defval: '' });
+    const readWorkbook = new ExcelJS.Workbook();
+    await readWorkbook.xlsx.readFile(testFile);
+    const readWorksheet = readWorkbook.worksheets[0];
     
     const context = {
-        programme: allData[0]?.B || '',
-        branch: allData[1]?.B || '',
-        semester: allData[2]?.B || '',
-        regulation: allData[3]?.B || ''
+        programme: readWorksheet.getRow(1).getCell(2).value || '',
+        branch: readWorksheet.getRow(2).getCell(2).value || '',
+        semester: readWorksheet.getRow(3).getCell(2).value || '',
+        regulation: readWorksheet.getRow(4).getCell(2).value || ''
     };
     
     console.log('Invalid context:', context);
@@ -272,12 +220,12 @@ function testDataMapping() {
 }
 
 // Run all tests
-function runAllTests() {
+async function runAllTests() {
     console.log('Starting Excel Context Format Tests...\n');
     
     const results = {
-        test1: testExcelGeneration(),
-        test2: testContextValidation(),
+        test1: await testExcelGeneration(),
+        test2: await testContextValidation(),
         test3: testDataMapping()
     };
     
@@ -304,5 +252,9 @@ function runAllTests() {
 }
 
 // Run tests
-const success = runAllTests();
-process.exit(success ? 0 : 1);
+runAllTests().then(success => {
+    process.exit(success ? 0 : 1);
+}).catch(error => {
+    console.error('Test execution failed:', error);
+    process.exit(1);
+});
