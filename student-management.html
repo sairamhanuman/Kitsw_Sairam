@@ -1268,7 +1268,10 @@
             try {
                 console.log('Loading regulations...');
                 const response = await fetch('/api/regulations');
-                if (!response.ok) throw new Error('Failed to fetch regulations');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
                 const data = await response.json();
                 let regulations;
@@ -1283,6 +1286,7 @@
                 }
                 
                 console.log(`Loaded ${regulations.length} regulations`);
+                console.log('Regulations data:', regulations);
                 
                 // Populate joining regulation dropdown
                 const joiningRegSelect = document.getElementById('joining-regulation-id');
@@ -1291,7 +1295,7 @@
                     regulations.forEach(reg => {
                         const option = document.createElement('option');
                         option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_code} - ${reg.regulation_name}`;
+                        option.textContent = `${reg.regulation_name}`;  // ✅ Just use regulation_name (URR-19, URR-22)
                         joiningRegSelect.appendChild(option);
                     });
                 }
@@ -1303,7 +1307,7 @@
                     regulations.forEach(reg => {
                         const option = document.createElement('option');
                         option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_code} - ${reg.regulation_name}`;
+                        option.textContent = `${reg.regulation_name}`;  // ✅ Just use regulation_name
                         currentRegSelect.appendChild(option);
                     });
                 }
@@ -1315,12 +1319,12 @@
                     regulations.forEach(reg => {
                         const option = document.createElement('option');
                         option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_code}`;
+                        option.textContent = `${reg.regulation_name}`;  // ✅ Just use regulation_name
                         filterRegSelect.appendChild(option);
                     });
                 }
                 
-                console.log('Regulation dropdowns populated');
+                console.log('Regulation dropdowns populated successfully');
                 
             } catch (error) {
                 console.error('Error loading regulations:', error);

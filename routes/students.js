@@ -167,10 +167,10 @@ router.get('/sample-excel', async (req, res) => {
         // Fetch regulation if provided
         if (regulation_id) {
             const [regulations] = await promisePool.query(
-                'SELECT regulation_code FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                'SELECT regulation_name FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
                 [regulation_id]
             );
-            if (regulations.length > 0) regulationCode = regulations[0].regulation_code;
+            if (regulations.length > 0) regulationCode = regulations[0].regulation_name;
         }
         
         // Build CSV content
@@ -389,26 +389,26 @@ router.get('/:id', async (req, res) => {
         if (student.joining_regulation_id) {
             try {
                 const [joiningReg] = await promisePool.query(
-                    'SELECT regulation_code, regulation_name FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                    'SELECT regulation_name, regulation_year, description FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
                     [student.joining_regulation_id]
                 );
                 if (joiningReg.length > 0) {
-                    student.joining_regulation = joiningReg[0].regulation_code;
+                    student.joining_regulation = joiningReg[0].regulation_name;  // ✅ Changed from regulation_code
                     student.joining_regulation_name = joiningReg[0].regulation_name;
-                    student.joining_regulation_code = joiningReg[0].regulation_code;
+                    student.joining_regulation_year = joiningReg[0].regulation_year;
                     console.log('Joining regulation:', student.joining_regulation);
                 } else {
                     console.log('Joining regulation ID exists but not found in regulation_master');
-                    student.joining_regulation_code = 'Not Set';
+                    student.joining_regulation = 'Not Set';
                     student.joining_regulation_name = '';
                 }
             } catch (err) {
                 console.log('Could not fetch joining regulation:', err.message);
-                student.joining_regulation_code = 'Not Set';
+                student.joining_regulation = 'Not Set';
                 student.joining_regulation_name = '';
             }
         } else {
-            student.joining_regulation_code = 'Not Set';
+            student.joining_regulation = 'Not Set';
             student.joining_regulation_name = '';
         }
         
@@ -416,26 +416,26 @@ router.get('/:id', async (req, res) => {
         if (student.current_regulation_id) {
             try {
                 const [currentReg] = await promisePool.query(
-                    'SELECT regulation_code, regulation_name FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                    'SELECT regulation_name, regulation_year, description FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
                     [student.current_regulation_id]
                 );
                 if (currentReg.length > 0) {
-                    student.current_regulation = currentReg[0].regulation_code;
+                    student.current_regulation = currentReg[0].regulation_name;  // ✅ Changed from regulation_code
                     student.current_regulation_name = currentReg[0].regulation_name;
-                    student.current_regulation_code = currentReg[0].regulation_code;
+                    student.current_regulation_year = currentReg[0].regulation_year;
                     console.log('Current regulation:', student.current_regulation);
                 } else {
                     console.log('Current regulation ID exists but not found in regulation_master');
-                    student.current_regulation_code = 'Not Set';
+                    student.current_regulation = 'Not Set';
                     student.current_regulation_name = '';
                 }
             } catch (err) {
                 console.log('Could not fetch current regulation:', err.message);
-                student.current_regulation_code = 'Not Set';
+                student.current_regulation = 'Not Set';
                 student.current_regulation_name = '';
             }
         } else {
-            student.current_regulation_code = 'Not Set';
+            student.current_regulation = 'Not Set';
             student.current_regulation_name = '';
         }
         
@@ -1186,8 +1186,8 @@ router.get('/export/excel', async (req, res) => {
                 COALESCE(bat.batch_name, '-') as batch_name,
                 COALESCE(sem.semester_name, '-') as semester_name,
                 COALESCE(sec.section_name, '-') as section_name,
-                COALESCE(jr.regulation_code, '-') as joining_regulation,
-                COALESCE(cr.regulation_code, '-') as current_regulation,
+                COALESCE(jr.regulation_name, '-') as joining_regulation,  -- ✅ Use regulation_name
+                COALESCE(cr.regulation_name, '-') as current_regulation,  -- ✅ Use regulation_name
                 s.is_detainee,
                 s.is_lateral,
                 s.is_handicapped,
@@ -1198,8 +1198,8 @@ router.get('/export/excel', async (req, res) => {
             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
             LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
             LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
-            LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1
-            LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1
+            LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1  -- ✅ Correct JOIN
+            LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1  -- ✅ Correct JOIN
             WHERE s.is_active = 1
         `;
         
