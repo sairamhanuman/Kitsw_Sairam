@@ -1078,18 +1078,24 @@
                 updateStatistics(result.data.statistics);
             } catch (error) {
                 console.error('Error loading statistics:', error);
-                updateStatistics({total:0,teaching:0,nonTeaching:0,active:0,onLeave:0,retired:0});
+                updateStatistics({total:0,teaching:0,non_teaching:0,active:0,on_leave:0,retired:0});
             }
         }
 
         function updateStatistics(stats) {
+            // Validate stats object
+            if (!stats) {
+                console.error('updateStatistics received null/undefined');
+                stats = { total: 0, teaching: 0, non_teaching: 0, active: 0, on_leave: 0, retired: 0 };
+            }
+            
             document.getElementById('stat-total').textContent = stats.total || 0;
             document.getElementById('stat-teaching').textContent = stats.teaching || 0;
-            document.getElementById('stat-nonteaching').textContent = stats.nonTeaching || 0;
+            document.getElementById('stat-nonteaching').textContent = stats.non_teaching || 0;
             document.getElementById('stat-active').textContent = stats.active || 0;
-            document.getElementById('stat-leave').textContent = stats.onLeave || 0;
+            document.getElementById('stat-leave').textContent = stats.on_leave || 0;
             document.getElementById('stat-retired').textContent = stats.retired || 0;
-            console.log('Statistics updated');
+            console.log('Statistics updated:', stats);
         }
 
         async function applyFilters() {
@@ -1111,8 +1117,22 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to fetch staff data');
 
-                staffData = await response.json();
-                console.log('Staff data loaded:', staffData.length, 'records');
+                const result = await response.json();
+                console.log('API Response:', result);
+                
+                // Extract staff array from response
+                if (result.status === 'success' && result.data) {
+                    staffData = result.data.staff || [];
+                    console.log('Staff data loaded:', staffData.length, 'records');
+                    
+                    // Update statistics if available
+                    if (result.data.statistics) {
+                        updateStatistics(result.data.statistics);
+                    }
+                } else {
+                    staffData = [];
+                    console.error('Invalid response format:', result);
+                }
 
                 filtersApplied = true;
                 renderStaffTable();
@@ -1154,6 +1174,12 @@
             console.log('Rendering staff table...');
             const tbody = document.getElementById('staff-table-body');
             tbody.innerHTML = '';
+
+            // Validate staffData is an array
+            if (!Array.isArray(staffData)) {
+                console.error('staffData is not an array:', typeof staffData);
+                staffData = [];
+            }
 
             if (staffData.length === 0) {
                 document.getElementById('no-filters-message').style.display = 'block';
