@@ -910,7 +910,7 @@ async function loadRegulations() {
                     if (reg.is_active) {
                         const option = document.createElement('option');
                         option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_code} - ${reg.regulation_year}`;
+                        option.textContent = `${reg.regulation_name}`;  // ✅ Use regulation_name
                         formSelect.appendChild(option);
                     }
                 });
@@ -924,7 +924,7 @@ async function loadRegulations() {
                     if (reg.is_active) {
                         const option = document.createElement('option');
                         option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_code} - ${reg.regulation_year}`;
+                        option.textContent = `${reg.regulation_name}`;  // ✅ Use regulation_name
                         filterSelect.appendChild(option);
                     }
                 });

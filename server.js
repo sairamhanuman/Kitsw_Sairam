@@ -170,32 +170,35 @@ app.get('/api/regulations', async (req, res) => {
         const query = `
             SELECT 
                 regulation_id,
-                regulation_code,
                 regulation_name,
+                regulation_year,
                 description,
                 is_active
             FROM regulation_master
             WHERE is_active = 1
-            ORDER BY regulation_code DESC
+            ORDER BY regulation_name DESC
         `;
+        
+        console.log('Executing query:', query);
         
         const [regulations] = await promisePool.query(query);
         
-        console.log(`Successfully fetched ${regulations.length} regulations`);
-        console.log('Regulations:', regulations.map(r => r.regulation_code).join(', '));
+        console.log(`✅ Found ${regulations.length} regulations`);
+        if (regulations.length > 0) {
+            console.log('Regulations:', regulations.map(r => r.regulation_name).join(', '));
+        }
         
         res.json(regulations);
         
     } catch (error) {
         console.error('=== GET REGULATIONS ERROR ===');
         console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
         console.error('Error code:', error.code);
+        console.error('SQL:', error.sql);
         
         res.status(500).json({ 
             status: 'error',
-            message: 'Failed to fetch regulations',
-            error: error.message,
+            message: error.message,
             code: error.code
         });
     }

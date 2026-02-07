@@ -15,7 +15,7 @@ function initializeRouter(pool) {
 router.get('/', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
-            'SELECT * FROM regulation_master WHERE is_active = 1 ORDER BY regulation_code DESC'
+            'SELECT * FROM regulation_master WHERE is_active = 1 ORDER BY regulation_name DESC'
         );
         
         res.json({
