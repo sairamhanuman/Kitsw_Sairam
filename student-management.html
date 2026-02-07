@@ -641,6 +641,36 @@
             margin: 0;
             color: #666;
         }
+
+        /* Back to Dashboard Button */
+        .back-to-dashboard {
+            padding: 15px 30px;
+            background: #f8f9fa;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            color: #495057;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-back:hover {
+            background: #4a90e2;
+            color: white;
+            border-color: #4a90e2;
+            transform: translateX(-5px);
+        }
+
+        .btn-back span {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -649,6 +679,13 @@
         <div class="student-header">
             <h1>👨‍🎓 Student Management</h1>
             <p>Manage student records, enrollment, and information</p>
+        </div>
+
+        <!-- Back to Dashboard Button -->
+        <div class="back-to-dashboard">
+            <a href="index.html" class="btn-back">
+                <span>← Back to Dashboard</span>
+            </a>
         </div>
 
         <!-- Statistics Bar - Compact Single Line -->
