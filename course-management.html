@@ -502,7 +502,7 @@
                 <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
                 <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
                 <button class="btn btn-success" onclick="exportToExcel()">📥 Export to Excel</button>
-                <button class="btn btn-info" onclick="downloadSample()">📄 Download Sample</button>
+                <button class="btn btn-info" onclick="generateSampleExcel()">📄 Download Sample Excel</button>
                 <button class="btn btn-warning" onclick="showImportModal()">📤 Import from Excel</button>
             </div>
         </div>
@@ -1040,9 +1040,42 @@
             }
         }
 
-        // Download sample
-        function downloadSample() {
-            window.location.href = '/api/subjects/export/sample';
+        // Generate sample Excel with context
+        async function generateSampleExcel() {
+            try {
+                console.log('=== GENERATE SAMPLE EXCEL ===');
+                
+                // Get filter values
+                const programmeId = document.getElementById('filter-programme').value;
+                const branchId = document.getElementById('filter-branch').value;
+                const semesterId = document.getElementById('filter-semester').value;
+                const regulationId = document.getElementById('filter-regulation').value;
+                
+                // Validate filters
+                if (!programmeId || !branchId || !semesterId || !regulationId) {
+                    alert('⚠️ Please select Programme, Branch, Semester, and Regulation first.\n\nThis information will be pre-filled in the Excel template.');
+                    return;
+                }
+                
+                // Build query string with filter context
+                const params = new URLSearchParams({
+                    programme_id: programmeId,
+                    branch_id: branchId,
+                    semester_id: semesterId,
+                    regulation_id: regulationId
+                });
+                
+                console.log('Requesting sample Excel with context:', params.toString());
+                
+                // Download sample Excel
+                window.location.href = `/api/subjects/sample-excel?${params.toString()}`;
+                
+                console.log('✅ Sample Excel download initiated');
+                
+            } catch (error) {
+                console.error('Error generating sample Excel:', error);
+                alert('Failed to generate sample Excel: ' + error.message);
+            }
         }
 
         // Show import modal
@@ -1061,7 +1094,7 @@
             document.getElementById('excelFile').value = '';
         }
 
-        // Import from Excel
+        // Import from Excel with context
         async function importFromExcel() {
             const fileInput = document.getElementById('excelFile');
             
@@ -1071,40 +1104,14 @@
             }
 
             try {
-                const file = fileInput.files[0];
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                // Transform data
-                const subjects = jsonData.map(row => ({
-                    programme_id: row['Programme ID*'] || currentFilters.programme_id,
-                    branch_id: row['Branch ID*'] || currentFilters.branch_id,
-                    semester_id: row['Semester ID*'] || currentFilters.semester_id,
-                    regulation_id: row['Regulation ID*'] || currentFilters.regulation_id,
-                    subject_order: row['Subject Order'] || 1,
-                    syllabus_code: row['Syllabus Code*'],
-                    ref_code: row['Ref Code'],
-                    internal_exam_code: row['Internal Exam Code'],
-                    external_exam_code: row['External Exam Code'],
-                    subject_name: row['Subject Name*'],
-                    subject_type: row['Subject Type'] || 'Theory',
-                    internal_max_marks: row['Internal Max Marks'] || 0,
-                    external_max_marks: row['External Max Marks'] || 0,
-                    ta_max_marks: row['TA Max Marks'] || 0,
-                    credits: row['Credits'] || 0,
-                    is_elective: row['Is Elective (0/1)'] || 0,
-                    is_under_group: row['Is Under Group (0/1)'] || 0,
-                    is_exempt_exam_fee: row['Exempt Exam Fee (0/1)'] || 0,
-                    replacement_group_order: row['Replacement Group'] || null
-                }));
+                // Create FormData for file upload
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
 
                 // Send to server
-                const response = await fetch('/api/subjects/import', {
+                const response = await fetch('/api/subjects/import/excel', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ subjects })
+                    body: formData
                 });
 
                 const result = await response.json();
@@ -1118,7 +1125,7 @@
                 }
             } catch (error) {
                 console.error('Error importing:', error);
-                showAlert('Failed to import Excel file', 'error');
+                showAlert('Failed to import Excel file: ' + error.message, 'error');
             }
         }
 
