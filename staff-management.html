@@ -1131,7 +1131,7 @@
                     }
                 } else {
                     staffData = [];
-                    console.error('Invalid response format:', result);
+                    console.error('Expected response with status=success and data object, received:', result);
                 }
 
                 filtersApplied = true;
@@ -1177,7 +1177,7 @@
 
             // Validate staffData is an array
             if (!Array.isArray(staffData)) {
-                console.error('staffData is not an array:', typeof staffData);
+                console.error('staffData is not an array. Type:', typeof staffData, 'Value:', staffData);
                 staffData = [];
             }
 
