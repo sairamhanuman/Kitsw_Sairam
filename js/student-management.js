@@ -700,7 +700,7 @@ async function loadProgrammes() {
                     if (prog.is_active) {
                         const option = document.createElement('option');
                         option.value = prog.programme_id;
-                        option.textContent = `${prog.programme_code} - ${prog.programme_name}`;
+                        option.textContent = prog.programme_code;
                         formSelect.appendChild(option);
                     }
                 });
@@ -714,7 +714,7 @@ async function loadProgrammes() {
                     if (prog.is_active) {
                         const option = document.createElement('option');
                         option.value = prog.programme_id;
-                        option.textContent = `${prog.programme_code} - ${prog.programme_name}`;
+                        option.textContent = prog.programme_code;
                         filterSelect.appendChild(option);
                     }
                 });
@@ -742,7 +742,7 @@ async function loadBranches() {
                     if (branch.is_active) {
                         const option = document.createElement('option');
                         option.value = branch.branch_id;
-                        option.textContent = `${branch.branch_code} - ${branch.branch_name}`;
+                        option.textContent = branch.branch_code;
                         formSelect.appendChild(option);
                     }
                 });
@@ -756,7 +756,7 @@ async function loadBranches() {
                     if (branch.is_active) {
                         const option = document.createElement('option');
                         option.value = branch.branch_id;
-                        option.textContent = `${branch.branch_code} - ${branch.branch_name}`;
+                        option.textContent = branch.branch_code;
                         filterSelect.appendChild(option);
                     }
                 });

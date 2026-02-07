@@ -34,7 +34,7 @@ async function loadProgrammes() {
                     if (programme.is_active) {
                         const option = document.createElement('option');
                         option.value = programme.programme_id;
-                        option.textContent = `${programme.programme_code} - ${programme.programme_name}`;
+                        option.textContent = programme.programme_code;
                         select.appendChild(option);
                     }
                 });

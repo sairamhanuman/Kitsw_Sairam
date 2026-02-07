@@ -1109,8 +1109,8 @@
             const filterDept = document.getElementById('filter-department');
             const formDept = document.getElementById('department');
             departments.forEach(dept => {
-                filterDept.add(new Option(dept.dept_name, dept.dept_id));
-                formDept.add(new Option(dept.dept_name, dept.dept_id));
+                filterDept.add(new Option(dept.dept_code, dept.dept_id));
+                formDept.add(new Option(dept.dept_code, dept.dept_id));
             });
             console.log('Department dropdowns populated');
         }
