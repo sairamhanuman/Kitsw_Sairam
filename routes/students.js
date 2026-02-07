@@ -581,7 +581,7 @@ router.put('/:id', async (req, res) => {
         
         // Helper to convert empty strings to null
         const toNullIfEmpty = (value) => {
-            if (value === '' || value === undefined) return null;
+            if (value === '' || value === undefined || value === null) return null;
             return value;
         };
         
@@ -595,9 +595,9 @@ router.put('/:id', async (req, res) => {
                 ht_number = ?,
                 roll_number = ?,
                 full_name = COALESCE(?, full_name),
-                programme_id = ?,
-                branch_id = ?,
-                batch_id = ?,
+                programme_id = COALESCE(?, programme_id),
+                branch_id = COALESCE(?, branch_id),
+                batch_id = COALESCE(?, batch_id),
                 semester_id = ?,
                 section_id = ?,
                 regulation_id = ?,

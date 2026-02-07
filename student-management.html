@@ -1039,7 +1039,7 @@
         // Global variables
         let currentStudents = [];
         let currentStudentId = null;
-        let selectedRow = null; // Track selected row for highlighting
+        let selectedRow = null; // Track selected row for highlighting (persists after panel close)
         let masterData = {
             programmes: [],
             branches: [],
@@ -1050,6 +1050,11 @@
 
         // Constants
         const RELOAD_DELAY_MS = 1500; // Delay before reloading students after import (for UX - allows user to read results)
+        
+        // Validation regex patterns
+        const MOBILE_REGEX = /^\d{10}$/;
+        const AADHAAR_REGEX = /^\d{12}$/;
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         // Helper utility functions for safe DOM element access
         // Helper function to safely get element value
@@ -1324,7 +1329,11 @@
             }
         }
 
-        // Show student details panel
+        /**
+         * Show student details panel
+         * @param {number} studentId - The ID of the student to display
+         * @param {Event} [event] - Optional click event (used to find the row element for highlighting)
+         */
         async function showStudentDetails(studentId, event) {
             try {
                 console.log('=== SHOW STUDENT DETAILS ===');
@@ -1472,24 +1481,24 @@
                 }
                 
                 // Validate mobile numbers (10 digits)
-                if (studentMobile && !/^\d{10}$/.test(studentMobile)) {
+                if (studentMobile && !MOBILE_REGEX.test(studentMobile)) {
                     alert('❌ Student Mobile must be exactly 10 digits');
                     return;
                 }
                 
-                if (parentMobile && !/^\d{10}$/.test(parentMobile)) {
+                if (parentMobile && !MOBILE_REGEX.test(parentMobile)) {
                     alert('❌ Parent Mobile must be exactly 10 digits');
                     return;
                 }
                 
                 // Validate Aadhaar (12 digits)
-                if (aadhaarNumber && !/^\d{12}$/.test(aadhaarNumber)) {
+                if (aadhaarNumber && !AADHAAR_REGEX.test(aadhaarNumber)) {
                     alert('❌ Aadhaar Number must be exactly 12 digits');
                     return;
                 }
                 
                 // Validate email
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                if (email && !EMAIL_REGEX.test(email)) {
                     alert('❌ Invalid email format');
                     return;
                 }
@@ -2021,8 +2030,8 @@
             const isClickOnActionButton = event.target.closest('.filter-actions, .action-buttons');
             const isClickOnStudentLink = event.target.closest('.admission-link');
             
-            // Don't close if clicking on modals, action buttons, or student links
-            return !isClickOnModal && !isClickOnActionButton && !isClickOnStudentLink;
+            // Close panel unless clicking on modals, action buttons, or student links
+            return !(isClickOnModal || isClickOnActionButton || isClickOnStudentLink);
         }
         
         // Click outside to close details panel
