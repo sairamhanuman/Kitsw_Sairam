@@ -172,10 +172,31 @@
 
         .simple-table tbody tr {
             border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
 
         .simple-table tbody tr:hover {
             background: #f8f9fa;
+        }
+        
+        .simple-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        /* Selected row highlight */
+        .simple-table tbody tr.selected {
+            background-color: #5b73e8 !important;
+            color: white !important;
+            font-weight: 600;
+        }
+        
+        .simple-table tbody tr.selected td {
+            color: white !important;
+        }
+        
+        .simple-table tbody tr.selected .admission-link {
+            color: white !important;
         }
 
         .simple-table td {
@@ -1018,6 +1039,7 @@
         // Global variables
         let currentStudents = [];
         let currentStudentId = null;
+        let selectedRow = null; // Track selected row for highlighting (persists after panel close)
         let masterData = {
             programmes: [],
             branches: [],
@@ -1028,6 +1050,11 @@
 
         // Constants
         const RELOAD_DELAY_MS = 1500; // Delay before reloading students after import (for UX - allows user to read results)
+        
+        // Validation regex patterns
+        const MOBILE_REGEX = /^\d{10}$/;
+        const AADHAAR_REGEX = /^\d{12}$/;
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         // Helper utility functions for safe DOM element access
         // Helper function to safely get element value
@@ -1230,10 +1257,10 @@
             }
             
             tbody.innerHTML = students.map((student, index) => `
-                <tr>
+                <tr data-student-id="${student.student_id}">
                     <td>${index + 1}</td>
                     <td>
-                        <a href="javascript:void(0)" class="admission-link" onclick="showStudentDetails(${student.student_id})">
+                        <a href="javascript:void(0)" class="admission-link" onclick="showStudentDetails(${student.student_id}, event)">
                             ${student.admission_number}
                         </a>
                     </td>
@@ -1277,10 +1304,56 @@
             hideStudentList();
             resetStatistics();
         }
+        
+        // Highlight selected row
+        function selectStudentRow(rowElement) {
+            console.log('Selecting student row');
+            
+            // Remove previous selection
+            if (selectedRow) {
+                selectedRow.classList.remove('selected');
+            }
+            
+            // Add selection to clicked row
+            if (rowElement) {
+                rowElement.classList.add('selected');
+                selectedRow = rowElement;
+            }
+        }
+        
+        // Clear row selection
+        function clearRowSelection() {
+            if (selectedRow) {
+                selectedRow.classList.remove('selected');
+                selectedRow = null;
+            }
+        }
 
-        // Show student details panel
-        async function showStudentDetails(studentId) {
+        /**
+         * Show student details panel
+         * @param {number} studentId - The ID of the student to display
+         * @param {Event} [event] - Optional click event (used to find the row element for highlighting)
+         */
+        async function showStudentDetails(studentId, event) {
             try {
+                console.log('=== SHOW STUDENT DETAILS ===');
+                console.log('Student ID:', studentId);
+                
+                // Find the clicked row
+                let rowElement = null;
+                if (event && event.currentTarget) {
+                    rowElement = event.currentTarget.closest('tr');
+                } else {
+                    // Fallback: find row by data-student-id attribute
+                    const tbody = document.getElementById('student-table-body');
+                    if (tbody) {
+                        rowElement = tbody.querySelector(`tr[data-student-id="${studentId}"]`);
+                    }
+                }
+                
+                // Highlight selected row
+                selectStudentRow(rowElement);
+                
                 const response = await fetch(`/api/students/${studentId}`);
                 const data = await response.json();
                 
@@ -1347,52 +1420,125 @@
 
         // Close details panel
         function closeDetailsPanel() {
+            console.log('Closing details panel');
             document.getElementById('details-panel').classList.remove('open');
             document.getElementById('details-overlay').classList.remove('visible');
             currentStudentId = null;
+            
+            // Optionally clear row selection when closing
+            // Uncomment next line if you want selection to clear on close:
+            // clearRowSelection();
         }
 
         // Save student
         async function saveStudent() {
             try {
-                const studentData = {
-                    admission_number: document.getElementById('admission-number').value,
-                    ht_number: document.getElementById('ht-number').value,
-                    roll_number: document.getElementById('roll-number').value,
-                    full_name: document.getElementById('full-name').value,
-                    date_of_birth: document.getElementById('date-of-birth').value,
-                    gender: document.getElementById('gender').value,
-                    caste_category: document.getElementById('caste-category').value,
-                    father_name: document.getElementById('father-name').value,
-                    mother_name: document.getElementById('mother-name').value,
-                    aadhaar_number: document.getElementById('aadhaar-number').value,
-                    student_mobile: document.getElementById('student-mobile').value,
-                    parent_mobile: document.getElementById('parent-mobile').value,
-                    email: document.getElementById('email').value,
-                    programme_id: document.getElementById('programme-id').value,
-                    branch_id: document.getElementById('branch-id').value,
-                    batch_id: document.getElementById('batch-id').value,
-                    semester_id: document.getElementById('semester-id').value,
-                    section_id: document.getElementById('section-id').value,
-                    student_status: document.getElementById('student-status').value,
-                    admission_date: document.getElementById('admission-date').value,
-                    completion_year: document.getElementById('completion-year').value,
-                    date_of_leaving: document.getElementById('date-of-leaving').value,
-                    discontinue_date: document.getElementById('discontinue-date').value,
-                    is_detainee: document.getElementById('is-detainee').checked,
-                    is_transitory: document.getElementById('is-transitory').checked,
-                    is_handicapped: document.getElementById('is-handicapped').checked,
-                    is_lateral: document.getElementById('is-lateral').checked,
-                    join_curriculum: document.getElementById('join-curriculum').checked,
-                    is_locked: document.getElementById('is-locked').checked
-                };
+                console.log('=== SAVE STUDENT DETAILS ===');
+                console.log('Student ID:', currentStudentId);
                 
-                // Validation
-                if (!studentData.admission_number || !studentData.full_name) {
-                    alert('Please fill in all required fields');
+                // Get all form values with .trim() where appropriate
+                const admissionNumber = document.getElementById('admission-number')?.value.trim();
+                const htNumber = document.getElementById('ht-number')?.value.trim();
+                const rollNumber = document.getElementById('roll-number')?.value.trim();
+                const fullName = document.getElementById('full-name')?.value.trim();
+                const dateOfBirth = document.getElementById('date-of-birth')?.value;
+                const gender = document.getElementById('gender')?.value;
+                const casteCategory = document.getElementById('caste-category')?.value.trim();
+                const fatherName = document.getElementById('father-name')?.value.trim();
+                const motherName = document.getElementById('mother-name')?.value.trim();
+                const aadhaarNumber = document.getElementById('aadhaar-number')?.value.trim();
+                const studentMobile = document.getElementById('student-mobile')?.value.trim();
+                const parentMobile = document.getElementById('parent-mobile')?.value.trim();
+                const email = document.getElementById('email')?.value.trim();
+                const programmeId = document.getElementById('programme-id')?.value;
+                const branchId = document.getElementById('branch-id')?.value;
+                const batchId = document.getElementById('batch-id')?.value;
+                const semesterId = document.getElementById('semester-id')?.value;
+                const sectionId = document.getElementById('section-id')?.value;
+                const studentStatus = document.getElementById('student-status')?.value || 'In Roll';
+                const admissionDate = document.getElementById('admission-date')?.value;
+                const completionYear = document.getElementById('completion-year')?.value.trim();
+                const dateOfLeaving = document.getElementById('date-of-leaving')?.value;
+                const discontinueDate = document.getElementById('discontinue-date')?.value;
+                
+                // Get checkboxes
+                const isDetainee = document.getElementById('is-detainee')?.checked || false;
+                const isTransitory = document.getElementById('is-transitory')?.checked || false;
+                const isHandicapped = document.getElementById('is-handicapped')?.checked || false;
+                const isLateral = document.getElementById('is-lateral')?.checked || false;
+                const joinCurriculum = document.getElementById('join-curriculum')?.checked || false;
+                const isLocked = document.getElementById('is-locked')?.checked || false;
+                
+                // Validate required fields
+                if (!admissionNumber) {
+                    alert('❌ Admission Number is required');
                     return;
                 }
                 
+                if (!fullName) {
+                    alert('❌ Full Name is required');
+                    return;
+                }
+                
+                // Validate mobile numbers (10 digits)
+                if (studentMobile && !MOBILE_REGEX.test(studentMobile)) {
+                    alert('❌ Student Mobile must be exactly 10 digits');
+                    return;
+                }
+                
+                if (parentMobile && !MOBILE_REGEX.test(parentMobile)) {
+                    alert('❌ Parent Mobile must be exactly 10 digits');
+                    return;
+                }
+                
+                // Validate Aadhaar (12 digits)
+                if (aadhaarNumber && !AADHAAR_REGEX.test(aadhaarNumber)) {
+                    alert('❌ Aadhaar Number must be exactly 12 digits');
+                    return;
+                }
+                
+                // Validate email
+                if (email && !EMAIL_REGEX.test(email)) {
+                    alert('❌ Invalid email format');
+                    return;
+                }
+                
+                // Build data object with proper NULL handling
+                const studentData = {
+                    admission_number: admissionNumber,
+                    ht_number: htNumber || null,
+                    roll_number: rollNumber || null,
+                    full_name: fullName,
+                    date_of_birth: dateOfBirth || null,
+                    gender: gender || null,
+                    caste_category: casteCategory || null,
+                    father_name: fatherName || null,
+                    mother_name: motherName || null,
+                    aadhaar_number: aadhaarNumber || null,
+                    student_mobile: studentMobile || null,
+                    parent_mobile: parentMobile || null,
+                    email: email || null,
+                    programme_id: programmeId || null,
+                    branch_id: branchId || null,
+                    batch_id: batchId || null,
+                    semester_id: semesterId || null,
+                    section_id: sectionId || null,
+                    student_status: studentStatus,
+                    admission_date: admissionDate || null,
+                    completion_year: completionYear || null,
+                    date_of_leaving: dateOfLeaving || null,
+                    discontinue_date: discontinueDate || null,
+                    is_detainee: isDetainee,
+                    is_transitory: isTransitory,
+                    is_handicapped: isHandicapped,
+                    is_lateral: isLateral,
+                    join_curriculum: joinCurriculum,
+                    is_locked: isLocked
+                };
+                
+                console.log('Data to save:', studentData);
+                
+                // Send PUT request
                 const url = `/api/students/${currentStudentId}`;
                 const response = await fetch(url, {
                     method: 'PUT',
@@ -1403,17 +1549,25 @@
                 });
                 
                 const data = await response.json();
+                console.log('Save response:', data);
                 
-                if (data.status === 'success') {
-                    alert('Student updated successfully!');
+                if (response.ok && data.status === 'success') {
+                    alert('✅ Student updated successfully!');
+                    
+                    // Reload student list to reflect changes
+                    await loadStudents();
+                    
+                    // Close panel after successful save
                     closeDetailsPanel();
-                    loadStudents();
                 } else {
-                    alert('Error updating student: ' + data.message);
+                    console.error('Save failed:', data);
+                    alert('❌ Error: ' + (data.message || 'Failed to update student'));
                 }
+                
             } catch (error) {
-                console.error('Error saving student:', error);
-                alert('Error saving student: ' + error.message);
+                console.error('=== SAVE ERROR ===');
+                console.error('Error:', error);
+                alert('❌ Error updating student: ' + error.message);
             }
         }
 
@@ -1856,6 +2010,51 @@
                 closePhotoModal();
             }
         }
+        
+        // ESC key listener to close details panel
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                const panel = document.getElementById('details-panel');
+                const overlay = document.getElementById('details-overlay');
+                
+                // Check if panel is open
+                if (panel && panel.classList.contains('open')) {
+                    closeDetailsPanel();
+                }
+            }
+        });
+        
+        // Helper function to determine if click should close the panel
+        function shouldCloseOnClick(event) {
+            const isClickOnModal = event.target.closest('#importExcelModal, #importPhotosModal');
+            const isClickOnActionButton = event.target.closest('.filter-actions, .action-buttons');
+            const isClickOnStudentLink = event.target.closest('.admission-link');
+            
+            // Close panel unless clicking on modals, action buttons, or student links
+            return !(isClickOnModal || isClickOnActionButton || isClickOnStudentLink);
+        }
+        
+        // Click outside to close details panel
+        document.addEventListener('click', (event) => {
+            const panel = document.getElementById('details-panel');
+            const overlay = document.getElementById('details-overlay');
+            
+            // If clicking on overlay, close panel
+            if (event.target === overlay) {
+                closeDetailsPanel();
+                return;
+            }
+            
+            // Check if panel is open and click is outside
+            if (panel && panel.classList.contains('open')) {
+                const isClickInside = panel.contains(event.target);
+                
+                // If click is outside panel and appropriate, close it
+                if (!isClickInside && shouldCloseOnClick(event)) {
+                    closeDetailsPanel();
+                }
+            }
+        });
     </script>
 </body>
 </html>
