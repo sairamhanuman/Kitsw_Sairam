@@ -38,586 +38,9 @@ const upload = multer({
     }
 });
 
-// GET /api/staff - List all staff with filters and statistics
-router.get('/', async (req, res) => {
-    try {
-        console.log('=== GET STAFF REQUEST ===');
-        console.log('Query params:', req.query);
-        
-        const { department_id, designation, employment_status } = req.query;
-        
-        // Build WHERE clause for filters
-        let whereConditions = ['s.is_active = 1'];
-        let queryParams = [];
-        
-        if (department_id) {
-            whereConditions.push('s.department_id = ?');
-            queryParams.push(department_id);
-        }
-        
-        if (designation) {
-            whereConditions.push('s.designation = ?');
-            queryParams.push(designation);
-        }
-        
-        if (employment_status) {
-            whereConditions.push('s.employment_status = ?');
-            queryParams.push(employment_status);
-        }
-        
-        const whereClause = whereConditions.join(' AND ');
-        
-        // Fetch staff list
-        const staffQuery = `
-            SELECT 
-                s.staff_id,
-                s.employee_id,
-                s.title_prefix,
-                s.full_name,
-                s.designation,
-                s.employment_status,
-                s.photo_url,
-                b.branch_name as dept_name,
-                b.branch_id as department_id
-            FROM staff_master s
-            LEFT JOIN branch_master b ON s.department_id = b.branch_id
-            WHERE ${whereClause}
-            ORDER BY s.employee_id
-        `;
-        
-        console.log('Staff query:', staffQuery);
-        console.log('Query params:', queryParams);
-        
-        const [staff] = await promisePool.query(staffQuery, queryParams);
-        
-        console.log(`Found ${staff.length} staff members`);
-        
-        // Calculate statistics
-        const statsQuery = `
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN designation IN ('Principal', 'Professor', 'Associate Professor', 'Assistant Professor', 'Lecturer', 'Lab Assistant') THEN 1 ELSE 0 END) as teaching,
-                SUM(CASE WHEN designation IN ('Superintendent', 'Senior Assistant', 'Junior Assistant', 'Attender', 'Lab Technician', 'Librarian', 'Office Assistant') THEN 1 ELSE 0 END) as non_teaching,
-                SUM(CASE WHEN employment_status = 'Active' THEN 1 ELSE 0 END) as active,
-                SUM(CASE WHEN employment_status = 'On Leave' THEN 1 ELSE 0 END) as on_leave,
-                SUM(CASE WHEN employment_status = 'Retired' THEN 1 ELSE 0 END) as retired,
-                SUM(CASE WHEN employment_status = 'Resigned' THEN 1 ELSE 0 END) as resigned
-            FROM staff_master s
-            WHERE ${whereClause}
-        `;
-        
-        const [stats] = await promisePool.query(statsQuery, queryParams);
-        
-        console.log('Statistics:', stats[0]);
-        
-        res.json({
-            status: 'success',
-            data: {
-                staff: staff,
-                statistics: stats[0]
-            }
-        });
-        
-    } catch (error) {
-        console.error('=== GET STAFF ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to fetch staff',
-            error: error.message
-        });
-    }
-});
 
-// GET /api/staff/:id - Get single staff member details
-router.get('/:id', async (req, res) => {
-    try {
-        const staffId = req.params.id;
-        
-        console.log('=== GET STAFF DETAILS ===');
-        console.log('Staff ID:', staffId);
-        
-        const query = `
-            SELECT 
-                s.*,
-                b.branch_name as dept_name
-            FROM staff_master s
-            LEFT JOIN branch_master b ON s.department_id = b.branch_id
-            WHERE s.staff_id = ? AND s.is_active = 1
-        `;
-        
-        const [staff] = await promisePool.query(query, [staffId]);
-        
-        if (staff.length === 0) {
-            console.error('Staff not found:', staffId);
-            return res.status(404).json({
-                status: 'error',
-                message: 'Staff not found'
-            });
-        }
-        
-        console.log('Staff details loaded:', staff[0].employee_id);
-        
-        res.json({
-            status: 'success',
-            data: staff[0]
-        });
-        
-    } catch (error) {
-        console.error('=== GET STAFF DETAILS ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to fetch staff details',
-            error: error.message
-        });
-    }
-});
+// ===== SPECIFIC GET ROUTES (must come before /:id) =====
 
-// POST /api/staff - Create new staff member
-router.post('/', async (req, res) => {
-    try {
-        console.log('=== CREATE STAFF ===');
-        console.log('Request body:', req.body);
-        
-        const {
-            employee_id,
-            title_prefix,
-            full_name,
-            department_id,
-            designation,
-            date_of_birth,
-            gender,
-            qualification,
-            years_of_experience,
-            mobile_number,
-            email,
-            address,
-            emergency_contact,
-            date_of_joining,
-            bank_name,
-            bank_branch,
-            ifsc_code,
-            account_number,
-            pan_card,
-            aadhaar_number,
-            uan_number,
-            salary,
-            employment_status,
-            is_hod,
-            is_class_coordinator,
-            is_exam_invigilator,
-            is_locked
-        } = req.body;
-        
-        // Validate required fields
-        if (!employee_id || !full_name || !designation) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Employee ID, Full Name, and Designation are required'
-            });
-        }
-        
-        // Check if employee_id already exists
-        const [existing] = await promisePool.query(
-            'SELECT employee_id FROM staff_master WHERE employee_id = ?',
-            [employee_id]
-        );
-        
-        if (existing.length > 0) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Employee ID already exists'
-            });
-        }
-        
-        const insertQuery = `
-            INSERT INTO staff_master (
-                employee_id, title_prefix, full_name, department_id, designation,
-                date_of_birth, gender, qualification, years_of_experience,
-                mobile_number, email, address, emergency_contact, date_of_joining,
-                bank_name, bank_branch, ifsc_code, account_number,
-                pan_card, aadhaar_number, uan_number, salary,
-                employment_status, is_hod, is_class_coordinator,
-                is_exam_invigilator, is_locked
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        
-        const values = [
-            employee_id,
-            title_prefix || null,
-            full_name,
-            department_id || null,
-            designation,
-            date_of_birth || null,
-            gender || null,
-            qualification || null,
-            years_of_experience || null,
-            mobile_number || null,
-            email || null,
-            address || null,
-            emergency_contact || null,
-            date_of_joining || null,
-            bank_name || null,
-            bank_branch || null,
-            ifsc_code || null,
-            account_number || null,
-            pan_card || null,
-            aadhaar_number || null,
-            uan_number || null,
-            salary || null,
-            employment_status || 'Active',
-            is_hod ? 1 : 0,
-            is_class_coordinator ? 1 : 0,
-            is_exam_invigilator ? 1 : 0,
-            is_locked ? 1 : 0
-        ];
-        
-        const [result] = await promisePool.query(insertQuery, values);
-        
-        console.log('Staff created successfully:', result.insertId);
-        
-        res.status(201).json({
-            status: 'success',
-            message: 'Staff created successfully',
-            data: {
-                staff_id: result.insertId,
-                employee_id: employee_id
-            }
-        });
-        
-    } catch (error) {
-        console.error('=== CREATE STAFF ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to create staff',
-            error: error.message
-        });
-    }
-});
-
-// PUT /api/staff/:id - Update staff member
-router.put('/:id', async (req, res) => {
-    try {
-        const staffId = req.params.id;
-        
-        console.log('=== UPDATE STAFF ===');
-        console.log('Staff ID:', staffId);
-        console.log('Request body:', req.body);
-        
-        // Check if staff exists
-        const [existing] = await promisePool.query(
-            'SELECT staff_id FROM staff_master WHERE staff_id = ? AND is_active = 1',
-            [staffId]
-        );
-        
-        if (existing.length === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Staff not found'
-            });
-        }
-        
-        const {
-            title_prefix,
-            full_name,
-            department_id,
-            designation,
-            date_of_birth,
-            gender,
-            qualification,
-            years_of_experience,
-            mobile_number,
-            email,
-            address,
-            emergency_contact,
-            date_of_joining,
-            bank_name,
-            bank_branch,
-            ifsc_code,
-            account_number,
-            pan_card,
-            aadhaar_number,
-            uan_number,
-            salary,
-            employment_status,
-            is_hod,
-            is_class_coordinator,
-            is_exam_invigilator,
-            is_locked
-        } = req.body;
-        
-        const updateQuery = `
-            UPDATE staff_master SET
-                title_prefix = ?,
-                full_name = ?,
-                department_id = ?,
-                designation = ?,
-                date_of_birth = ?,
-                gender = ?,
-                qualification = ?,
-                years_of_experience = ?,
-                mobile_number = ?,
-                email = ?,
-                address = ?,
-                emergency_contact = ?,
-                date_of_joining = ?,
-                bank_name = ?,
-                bank_branch = ?,
-                ifsc_code = ?,
-                account_number = ?,
-                pan_card = ?,
-                aadhaar_number = ?,
-                uan_number = ?,
-                salary = ?,
-                employment_status = ?,
-                is_hod = ?,
-                is_class_coordinator = ?,
-                is_exam_invigilator = ?,
-                is_locked = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE staff_id = ?
-        `;
-        
-        const values = [
-            title_prefix || null,
-            full_name,
-            department_id || null,
-            designation,
-            date_of_birth || null,
-            gender || null,
-            qualification || null,
-            years_of_experience || null,
-            mobile_number || null,
-            email || null,
-            address || null,
-            emergency_contact || null,
-            date_of_joining || null,
-            bank_name || null,
-            bank_branch || null,
-            ifsc_code || null,
-            account_number || null,
-            pan_card || null,
-            aadhaar_number || null,
-            uan_number || null,
-            salary || null,
-            employment_status || 'Active',
-            is_hod ? 1 : 0,
-            is_class_coordinator ? 1 : 0,
-            is_exam_invigilator ? 1 : 0,
-            is_locked ? 1 : 0,
-            staffId
-        ];
-        
-        const [result] = await promisePool.query(updateQuery, values);
-        
-        console.log('Staff updated successfully, affected rows:', result.affectedRows);
-        
-        res.json({
-            status: 'success',
-            message: 'Staff updated successfully',
-            data: {
-                staff_id: staffId,
-                affected_rows: result.affectedRows
-            }
-        });
-        
-    } catch (error) {
-        console.error('=== UPDATE STAFF ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to update staff',
-            error: error.message
-        });
-    }
-});
-
-// DELETE /api/staff/:id - Soft delete staff member
-router.delete('/:id', async (req, res) => {
-    try {
-        const staffId = req.params.id;
-        
-        console.log('=== DELETE STAFF ===');
-        console.log('Staff ID:', staffId);
-        
-        const [result] = await promisePool.query(
-            'UPDATE staff_master SET is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE staff_id = ?',
-            [staffId]
-        );
-        
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Staff not found'
-            });
-        }
-        
-        console.log('Staff deleted successfully');
-        
-        res.json({
-            status: 'success',
-            message: 'Staff deleted successfully'
-        });
-        
-    } catch (error) {
-        console.error('=== DELETE STAFF ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to delete staff',
-            error: error.message
-        });
-    }
-});
-
-// POST /api/staff/:id/upload-photo - Upload staff photo
-router.post('/:id/upload-photo', upload.single('photo'), async (req, res) => {
-    try {
-        const staffId = req.params.id;
-        
-        console.log('=== UPLOAD STAFF PHOTO ===');
-        console.log('Staff ID:', staffId);
-        console.log('File:', req.file);
-        
-        if (!req.file) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'No file uploaded'
-            });
-        }
-        
-        const photoUrl = `/uploads/staff/${req.file.filename}`;
-        
-        // Update photo_url in database
-        const [result] = await promisePool.query(
-            'UPDATE staff_master SET photo_url = ? WHERE staff_id = ?',
-            [photoUrl, staffId]
-        );
-        
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Staff not found'
-            });
-        }
-        
-        console.log('Photo uploaded successfully:', photoUrl);
-        
-        res.json({
-            status: 'success',
-            message: 'Photo uploaded successfully',
-            data: {
-                photo_url: photoUrl
-            }
-        });
-        
-    } catch (error) {
-        console.error('=== UPLOAD PHOTO ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to upload photo',
-            error: error.message
-        });
-    }
-});
-
-// DELETE /api/staff/:id/remove-photo - Remove staff photo
-router.delete('/:id/remove-photo', async (req, res) => {
-    try {
-        const staffId = req.params.id;
-        
-        console.log('=== REMOVE STAFF PHOTO ===');
-        console.log('Staff ID:', staffId);
-        
-        // Get current photo URL
-        const [staff] = await promisePool.query(
-            'SELECT photo_url FROM staff_master WHERE staff_id = ?',
-            [staffId]
-        );
-        
-        if (staff.length === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Staff not found'
-            });
-        }
-        
-        // Delete photo file if exists
-        if (staff[0].photo_url) {
-            const photoPath = path.join(__dirname, '..', staff[0].photo_url);
-            try {
-                await fs.promises.unlink(photoPath);
-                console.log('Photo file deleted:', photoPath);
-            } catch (err) {
-                if (err.code !== 'ENOENT') {
-                    console.error('Error deleting photo file:', err);
-                }
-            }
-        }
-        
-        // Update database
-        await promisePool.query(
-            'UPDATE staff_master SET photo_url = NULL WHERE staff_id = ?',
-            [staffId]
-        );
-        
-        console.log('Photo removed successfully');
-        
-        res.json({
-            status: 'success',
-            message: 'Photo removed successfully'
-        });
-        
-    } catch (error) {
-        console.error('=== REMOVE PHOTO ERROR ===');
-        console.error('Error:', error);
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to remove photo',
-            error: error.message
-        });
-    }
-});
-
-// Configure multer for Excel upload
-const uploadExcel = multer({
-    dest: 'uploads/temp/',
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-    fileFilter: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
-            cb(null, true);
-        } else {
-            cb(new Error('Only CSV and Excel files are allowed'));
-        }
-    }
-});
-
-// Configure multer for ZIP upload
-const uploadZip = multer({
-    dest: 'uploads/temp/',
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
-    fileFilter: (req, file, cb) => {
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (ext === '.zip') {
-            cb(null, true);
-        } else {
-            cb(new Error('Only ZIP files are allowed'));
-        }
-    }
-});
-
-// GET /api/staff/sample-excel - Generate sample Excel template
 router.get('/sample-excel', async (req, res) => {
     try {
         console.log('=== GENERATE SAMPLE EXCEL TEMPLATE ===');
@@ -759,7 +182,6 @@ router.get('/sample-excel', async (req, res) => {
     }
 });
 
-// GET /api/staff/export/excel - Export staff to Excel
 router.get('/export/excel', async (req, res) => {
     try {
         console.log('=== EXCEL EXPORT REQUEST ===');
@@ -909,7 +331,299 @@ router.get('/export/excel', async (req, res) => {
     }
 });
 
-// POST /api/staff/import/excel - Import staff from Excel
+// ===== GENERAL GET ROUTES =====
+
+router.get('/', async (req, res) => {
+    try {
+        console.log('=== GET STAFF REQUEST ===');
+        console.log('Query params:', req.query);
+        
+        const { department_id, designation, employment_status } = req.query;
+        
+        // Build WHERE clause for filters
+        let whereConditions = ['s.is_active = 1'];
+        let queryParams = [];
+        
+        if (department_id) {
+            whereConditions.push('s.department_id = ?');
+            queryParams.push(department_id);
+        }
+        
+        if (designation) {
+            whereConditions.push('s.designation = ?');
+            queryParams.push(designation);
+        }
+        
+        if (employment_status) {
+            whereConditions.push('s.employment_status = ?');
+            queryParams.push(employment_status);
+        }
+        
+        const whereClause = whereConditions.join(' AND ');
+        
+        // Fetch staff list
+        const staffQuery = `
+            SELECT 
+                s.staff_id,
+                s.employee_id,
+                s.title_prefix,
+                s.full_name,
+                s.designation,
+                s.employment_status,
+                s.photo_url,
+                b.branch_name as dept_name,
+                b.branch_id as department_id
+            FROM staff_master s
+            LEFT JOIN branch_master b ON s.department_id = b.branch_id
+            WHERE ${whereClause}
+            ORDER BY s.employee_id
+        `;
+        
+        console.log('Staff query:', staffQuery);
+        console.log('Query params:', queryParams);
+        
+        const [staff] = await promisePool.query(staffQuery, queryParams);
+        
+        console.log(`Found ${staff.length} staff members`);
+        
+        // Calculate statistics
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN designation IN ('Principal', 'Professor', 'Associate Professor', 'Assistant Professor', 'Lecturer', 'Lab Assistant') THEN 1 ELSE 0 END) as teaching,
+                SUM(CASE WHEN designation IN ('Superintendent', 'Senior Assistant', 'Junior Assistant', 'Attender', 'Lab Technician', 'Librarian', 'Office Assistant') THEN 1 ELSE 0 END) as non_teaching,
+                SUM(CASE WHEN employment_status = 'Active' THEN 1 ELSE 0 END) as active,
+                SUM(CASE WHEN employment_status = 'On Leave' THEN 1 ELSE 0 END) as on_leave,
+                SUM(CASE WHEN employment_status = 'Retired' THEN 1 ELSE 0 END) as retired,
+                SUM(CASE WHEN employment_status = 'Resigned' THEN 1 ELSE 0 END) as resigned
+            FROM staff_master s
+            WHERE ${whereClause}
+        `;
+        
+        const [stats] = await promisePool.query(statsQuery, queryParams);
+        
+        console.log('Statistics:', stats[0]);
+        
+        res.json({
+            status: 'success',
+            data: {
+                staff: staff,
+                statistics: stats[0]
+            }
+        });
+        
+    } catch (error) {
+        console.error('=== GET STAFF ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch staff',
+            error: error.message
+        });
+    }
+});
+
+// ===== DYNAMIC GET ROUTES (must come after specific routes) =====
+
+router.get('/:id', async (req, res) => {
+    try {
+        const staffId = req.params.id;
+        
+        console.log('=== GET STAFF DETAILS ===');
+        console.log('Staff ID:', staffId);
+        
+        const query = `
+            SELECT 
+                s.*,
+                b.branch_name as dept_name
+            FROM staff_master s
+            LEFT JOIN branch_master b ON s.department_id = b.branch_id
+            WHERE s.staff_id = ? AND s.is_active = 1
+        `;
+        
+        const [staff] = await promisePool.query(query, [staffId]);
+        
+        if (staff.length === 0) {
+            console.error('Staff not found:', staffId);
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        console.log('Staff details loaded:', staff[0].employee_id);
+        
+        res.json({
+            status: 'success',
+            data: staff[0]
+        });
+        
+    } catch (error) {
+        console.error('=== GET STAFF DETAILS ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch staff details',
+            error: error.message
+        });
+    }
+});
+
+// ===== POST ROUTES =====
+
+router.post('/', async (req, res) => {
+    try {
+        console.log('=== CREATE STAFF ===');
+        console.log('Request body:', req.body);
+        
+        const {
+            employee_id,
+            title_prefix,
+            full_name,
+            department_id,
+            designation,
+            date_of_birth,
+            gender,
+            qualification,
+            years_of_experience,
+            mobile_number,
+            email,
+            address,
+            emergency_contact,
+            date_of_joining,
+            bank_name,
+            bank_branch,
+            ifsc_code,
+            account_number,
+            pan_card,
+            aadhaar_number,
+            uan_number,
+            salary,
+            employment_status,
+            is_hod,
+            is_class_coordinator,
+            is_exam_invigilator,
+            is_locked
+        } = req.body;
+        
+        // Validate required fields
+        if (!employee_id || !full_name || !designation) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Employee ID, Full Name, and Designation are required'
+            });
+        }
+        
+        // Check if employee_id already exists
+        const [existing] = await promisePool.query(
+            'SELECT employee_id FROM staff_master WHERE employee_id = ?',
+            [employee_id]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Employee ID already exists'
+            });
+        }
+        
+        const insertQuery = `
+            INSERT INTO staff_master (
+                employee_id, title_prefix, full_name, department_id, designation,
+                date_of_birth, gender, qualification, years_of_experience,
+                mobile_number, email, address, emergency_contact, date_of_joining,
+                bank_name, bank_branch, ifsc_code, account_number,
+                pan_card, aadhaar_number, uan_number, salary,
+                employment_status, is_hod, is_class_coordinator,
+                is_exam_invigilator, is_locked
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const values = [
+            employee_id,
+            title_prefix || null,
+            full_name,
+            department_id || null,
+            designation,
+            date_of_birth || null,
+            gender || null,
+            qualification || null,
+            years_of_experience || null,
+            mobile_number || null,
+            email || null,
+            address || null,
+            emergency_contact || null,
+            date_of_joining || null,
+            bank_name || null,
+            bank_branch || null,
+            ifsc_code || null,
+            account_number || null,
+            pan_card || null,
+            aadhaar_number || null,
+            uan_number || null,
+            salary || null,
+            employment_status || 'Active',
+            is_hod ? 1 : 0,
+            is_class_coordinator ? 1 : 0,
+            is_exam_invigilator ? 1 : 0,
+            is_locked ? 1 : 0
+        ];
+        
+        const [result] = await promisePool.query(insertQuery, values);
+        
+        console.log('Staff created successfully:', result.insertId);
+        
+        res.status(201).json({
+            status: 'success',
+            message: 'Staff created successfully',
+            data: {
+                staff_id: result.insertId,
+                employee_id: employee_id
+            }
+        });
+        
+    } catch (error) {
+        console.error('=== CREATE STAFF ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to create staff',
+            error: error.message
+        });
+    }
+});
+
+// Configure multer for Excel upload
+const uploadExcel = multer({
+    dest: 'uploads/temp/',
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only CSV and Excel files are allowed'));
+        }
+    }
+});
+
+// Configure multer for ZIP upload
+const uploadZip = multer({
+    dest: 'uploads/temp/',
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.zip') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only ZIP files are allowed'));
+        }
+    }
+});
+
 router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
     try {
         console.log('=== EXCEL IMPORT REQUEST ===');
@@ -1142,7 +856,6 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
     }
 });
 
-// POST /api/staff/import-photos - Bulk import photos from ZIP
 router.post('/import-photos', uploadZip.single('file'), async (req, res) => {
     try {
         console.log('=== PHOTO IMPORT REQUEST ===');
@@ -1263,6 +976,295 @@ router.post('/import-photos', uploadZip.single('file'), async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Failed to import photos',
+            error: error.message
+        });
+    }
+});
+
+router.post('/:id/upload-photo', upload.single('photo'), async (req, res) => {
+    try {
+        const staffId = req.params.id;
+        
+        console.log('=== UPLOAD STAFF PHOTO ===');
+        console.log('Staff ID:', staffId);
+        console.log('File:', req.file);
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        const photoUrl = `/uploads/staff/${req.file.filename}`;
+        
+        // Update photo_url in database
+        const [result] = await promisePool.query(
+            'UPDATE staff_master SET photo_url = ? WHERE staff_id = ?',
+            [photoUrl, staffId]
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        console.log('Photo uploaded successfully:', photoUrl);
+        
+        res.json({
+            status: 'success',
+            message: 'Photo uploaded successfully',
+            data: {
+                photo_url: photoUrl
+            }
+        });
+        
+    } catch (error) {
+        console.error('=== UPLOAD PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to upload photo',
+            error: error.message
+        });
+    }
+});
+
+// ===== PUT ROUTES =====
+
+router.put('/:id', async (req, res) => {
+    try {
+        const staffId = req.params.id;
+        
+        console.log('=== UPDATE STAFF ===');
+        console.log('Staff ID:', staffId);
+        console.log('Request body:', req.body);
+        
+        // Check if staff exists
+        const [existing] = await promisePool.query(
+            'SELECT staff_id FROM staff_master WHERE staff_id = ? AND is_active = 1',
+            [staffId]
+        );
+        
+        if (existing.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        const {
+            title_prefix,
+            full_name,
+            department_id,
+            designation,
+            date_of_birth,
+            gender,
+            qualification,
+            years_of_experience,
+            mobile_number,
+            email,
+            address,
+            emergency_contact,
+            date_of_joining,
+            bank_name,
+            bank_branch,
+            ifsc_code,
+            account_number,
+            pan_card,
+            aadhaar_number,
+            uan_number,
+            salary,
+            employment_status,
+            is_hod,
+            is_class_coordinator,
+            is_exam_invigilator,
+            is_locked
+        } = req.body;
+        
+        const updateQuery = `
+            UPDATE staff_master SET
+                title_prefix = ?,
+                full_name = ?,
+                department_id = ?,
+                designation = ?,
+                date_of_birth = ?,
+                gender = ?,
+                qualification = ?,
+                years_of_experience = ?,
+                mobile_number = ?,
+                email = ?,
+                address = ?,
+                emergency_contact = ?,
+                date_of_joining = ?,
+                bank_name = ?,
+                bank_branch = ?,
+                ifsc_code = ?,
+                account_number = ?,
+                pan_card = ?,
+                aadhaar_number = ?,
+                uan_number = ?,
+                salary = ?,
+                employment_status = ?,
+                is_hod = ?,
+                is_class_coordinator = ?,
+                is_exam_invigilator = ?,
+                is_locked = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE staff_id = ?
+        `;
+        
+        const values = [
+            title_prefix || null,
+            full_name,
+            department_id || null,
+            designation,
+            date_of_birth || null,
+            gender || null,
+            qualification || null,
+            years_of_experience || null,
+            mobile_number || null,
+            email || null,
+            address || null,
+            emergency_contact || null,
+            date_of_joining || null,
+            bank_name || null,
+            bank_branch || null,
+            ifsc_code || null,
+            account_number || null,
+            pan_card || null,
+            aadhaar_number || null,
+            uan_number || null,
+            salary || null,
+            employment_status || 'Active',
+            is_hod ? 1 : 0,
+            is_class_coordinator ? 1 : 0,
+            is_exam_invigilator ? 1 : 0,
+            is_locked ? 1 : 0,
+            staffId
+        ];
+        
+        const [result] = await promisePool.query(updateQuery, values);
+        
+        console.log('Staff updated successfully, affected rows:', result.affectedRows);
+        
+        res.json({
+            status: 'success',
+            message: 'Staff updated successfully',
+            data: {
+                staff_id: staffId,
+                affected_rows: result.affectedRows
+            }
+        });
+        
+    } catch (error) {
+        console.error('=== UPDATE STAFF ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update staff',
+            error: error.message
+        });
+    }
+});
+
+// ===== DELETE ROUTES =====
+
+router.delete('/:id', async (req, res) => {
+    try {
+        const staffId = req.params.id;
+        
+        console.log('=== DELETE STAFF ===');
+        console.log('Staff ID:', staffId);
+        
+        const [result] = await promisePool.query(
+            'UPDATE staff_master SET is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE staff_id = ?',
+            [staffId]
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        console.log('Staff deleted successfully');
+        
+        res.json({
+            status: 'success',
+            message: 'Staff deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('=== DELETE STAFF ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to delete staff',
+            error: error.message
+        });
+    }
+});
+
+router.delete('/:id/remove-photo', async (req, res) => {
+    try {
+        const staffId = req.params.id;
+        
+        console.log('=== REMOVE STAFF PHOTO ===');
+        console.log('Staff ID:', staffId);
+        
+        // Get current photo URL
+        const [staff] = await promisePool.query(
+            'SELECT photo_url FROM staff_master WHERE staff_id = ?',
+            [staffId]
+        );
+        
+        if (staff.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Staff not found'
+            });
+        }
+        
+        // Delete photo file if exists
+        if (staff[0].photo_url) {
+            const photoPath = path.join(__dirname, '..', staff[0].photo_url);
+            try {
+                await fs.promises.unlink(photoPath);
+                console.log('Photo file deleted:', photoPath);
+            } catch (err) {
+                if (err.code !== 'ENOENT') {
+                    console.error('Error deleting photo file:', err);
+                }
+            }
+        }
+        
+        // Update database
+        await promisePool.query(
+            'UPDATE staff_master SET photo_url = NULL WHERE staff_id = ?',
+            [staffId]
+        );
+        
+        console.log('Photo removed successfully');
+        
+        res.json({
+            status: 'success',
+            message: 'Photo removed successfully'
+        });
+        
+    } catch (error) {
+        console.error('=== REMOVE PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to remove photo',
             error: error.message
         });
     }
