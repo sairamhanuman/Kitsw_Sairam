@@ -5,11 +5,23 @@ const ExcelJS = require('exceljs');
 const XLSX = require('xlsx');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Constants for Excel structure
+const CONTEXT_ROWS = 4;  // First 4 rows contain Programme, Branch, Semester, Regulation
+const EMPTY_ROW = 1;     // Row 5 is empty separator
+const HEADER_ROW = 1;    // Row 6 contains headers
+const SUBJECT_DATA_START_ROW = CONTEXT_ROWS + EMPTY_ROW; // Row 6 (index 5) - start reading subject data from here
 
 // Configure multer for Excel uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/excel/')
+        const uploadDir = 'uploads/excel/';
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -584,7 +596,9 @@ router.get('/sample-excel', async (req, res) => {
         
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         
-        const filename = `subjects_template_${context.Programme}_${context.Branch}_${context.Semester}.xlsx`;
+        // Sanitize filename components to prevent path traversal
+        const sanitize = (str) => str.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `subjects_template_${sanitize(context.Programme)}_${sanitize(context.Branch)}_${sanitize(context.Semester)}.xlsx`;
         
         res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -693,7 +707,7 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
         
         // Read subject data starting from row 6 (after context and header row)
         // Row 1-4: Context, Row 5: Empty, Row 6: Headers, Row 7+: Data
-        const subjectData = XLSX.utils.sheet_to_json(worksheet, { range: 5 });
+        const subjectData = XLSX.utils.sheet_to_json(worksheet, { range: SUBJECT_DATA_START_ROW });
         
         console.log(`Found ${subjectData.length} subject rows to import`);
         
@@ -755,6 +769,16 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
         
         console.log(`✅ Import complete: ${imported} imported, ${skipped} skipped`);
         
+        // Clean up uploaded file
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('✅ Temporary file cleaned up');
+            }
+        } catch (cleanupError) {
+            console.error('Warning: Failed to clean up temporary file:', cleanupError.message);
+        }
+        
         res.json({
             status: 'success',
             message: `Successfully imported ${imported} subjects for ${context.programme} ${context.branch} ${context.semester} ${context.regulation}`,
@@ -768,6 +792,17 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
     } catch (error) {
         console.error('=== IMPORT EXCEL ERROR ===');
         console.error('Error:', error);
+        
+        // Clean up uploaded file on error
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('✅ Temporary file cleaned up after error');
+            }
+        } catch (cleanupError) {
+            console.error('Warning: Failed to clean up temporary file:', cleanupError.message);
+        }
+        
         res.status(500).json({ status: 'error', message: error.message });
     }
 });

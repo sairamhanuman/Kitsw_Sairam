@@ -10,6 +10,7 @@
 const XLSX = require('xlsx');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 console.log('=== EXCEL CONTEXT FORMAT TEST ===\n');
 
@@ -100,7 +101,7 @@ function testExcelGeneration() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
     
     // Write to test file
-    const testFile = '/tmp/test_excel_context.xlsx';
+    const testFile = path.join(os.tmpdir(), 'test_excel_context.xlsx');
     XLSX.writeFile(workbook, testFile);
     
     console.log('✅ Test file created:', testFile);
@@ -184,7 +185,7 @@ function testContextValidation() {
     const worksheet = XLSX.utils.json_to_sheet(invalidContextRows, { skipHeader: true });
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Subjects');
     
-    const testFile = '/tmp/test_excel_invalid.xlsx';
+    const testFile = path.join(os.tmpdir(), 'test_excel_invalid.xlsx');
     XLSX.writeFile(workbook, testFile);
     
     // Read and validate
