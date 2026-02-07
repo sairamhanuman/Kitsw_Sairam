@@ -1490,7 +1490,23 @@
                 }
                 const result = await response.json();
                 console.log('Excel import result:', result);
-                alert(`Successfully imported ${result.imported} staff records!`);
+                
+                // Show detailed results
+                let message = `✅ Successfully imported ${result.data.imported} staff members`;
+                if (result.data.skipped > 0) {
+                    message += `\n⚠️ ${result.data.skipped} rows skipped`;
+                    if (result.data.errors && result.data.errors.length > 0) {
+                        message += '\n\nErrors:';
+                        result.data.errors.slice(0, 5).forEach(err => {
+                            message += `\n- Row ${err.row}: ${err.error}`;
+                        });
+                        if (result.data.errors.length > 5) {
+                            message += `\n... and ${result.data.errors.length - 5} more errors`;
+                        }
+                    }
+                }
+                
+                alert(message);
                 closeImportExcelModal();
                 applyFilters();
                 loadStatistics();
@@ -1507,9 +1523,9 @@
                 const department = document.getElementById('filter-department').value;
                 const designation = document.getElementById('filter-designation').value;
                 const status = document.getElementById('filter-status').value;
-                if (department) params.append('department', department);
+                if (department) params.append('department_id', department);
                 if (designation) params.append('designation', designation);
-                if (status) params.append('status', status);
+                if (status) params.append('employment_status', status);
 
                 const url = `/api/staff/export/excel?${params.toString()}`;
                 console.log('Downloading from:', url);
@@ -1555,8 +1571,25 @@
                 }
                 const result = await response.json();
                 console.log('Photos import result:', result);
-                alert(`Successfully imported ${result.imported} photos!`);
+                
+                // Show detailed results
+                let message = `✅ Successfully imported ${result.data.uploaded} photos`;
+                if (result.data.failed > 0) {
+                    message += `\n⚠️ ${result.data.failed} photos skipped`;
+                    if (result.data.errors && result.data.errors.length > 0) {
+                        message += '\n\nErrors:';
+                        result.data.errors.slice(0, 5).forEach(err => {
+                            message += `\n- ${err.filename}: ${err.error}`;
+                        });
+                        if (result.data.errors.length > 5) {
+                            message += `\n... and ${result.data.errors.length - 5} more errors`;
+                        }
+                    }
+                }
+                
+                alert(message);
                 closeImportPhotosModal();
+                applyFilters(); // Refresh to show updated photos
             } catch (error) {
                 console.error('Error importing photos:', error);
                 alert('Failed to import photos: ' + error.message);
