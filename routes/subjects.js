@@ -2,6 +2,46 @@
 const express = require('express');
 const router = express.Router();
 const ExcelJS = require('exceljs');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Constants for Excel structure
+const CONTEXT_ROWS = 4;  // First 4 rows contain Programme, Branch, Semester, Regulation
+const EMPTY_ROW = 1;     // Row 5 is empty separator
+const HEADER_ROW = 1;    // Row 6 contains headers
+const SUBJECT_DATA_START_ROW = CONTEXT_ROWS + EMPTY_ROW; // Row 6 (index 5) - start reading subject data from here
+
+// Configure multer for Excel uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = 'uploads/excel/';
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'subjects-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: function (req, file, cb) {
+        const filetypes = /xlsx|xls/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype || extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only Excel files (.xlsx, .xls) are allowed!'));
+    }
+});
 
 // Create a promise pool for database operations
 let promisePool;
@@ -380,6 +420,382 @@ router.post('/:id/toggle-running', async (req, res) => {
             message: 'Failed to toggle running curriculum status',
             error: error.message
         });
+    }
+});
+
+// GET Generate sample Excel template with context pre-filled
+router.get('/sample-excel', async (req, res) => {
+    try {
+        console.log('=== GENERATE SAMPLE EXCEL WITH CONTEXT ===');
+        
+        const { programme_id, branch_id, semester_id, regulation_id } = req.query;
+        
+        console.log('Filter context:', { programme_id, branch_id, semester_id, regulation_id });
+        
+        // Fetch context data based on selected filters
+        let context = {
+            Programme: '',
+            Branch: '',
+            Semester: '',
+            Regulation: ''
+        };
+        
+        // Fetch programme code
+        if (programme_id) {
+            try {
+                const [prog] = await promisePool.query(
+                    'SELECT programme_code FROM programme_master WHERE programme_id = ?',
+                    [programme_id]
+                );
+                if (prog.length > 0) {
+                    context.Programme = prog[0].programme_code;
+                }
+            } catch (err) {
+                console.log('Could not fetch programme:', err.message);
+            }
+        }
+        
+        // Fetch branch code
+        if (branch_id) {
+            try {
+                const [branch] = await promisePool.query(
+                    'SELECT branch_code FROM branch_master WHERE branch_id = ?',
+                    [branch_id]
+                );
+                if (branch.length > 0) {
+                    context.Branch = branch[0].branch_code;
+                }
+            } catch (err) {
+                console.log('Could not fetch branch:', err.message);
+            }
+        }
+        
+        // Fetch semester name
+        if (semester_id) {
+            try {
+                const [sem] = await promisePool.query(
+                    'SELECT semester_name FROM semester_master WHERE semester_id = ?',
+                    [semester_id]
+                );
+                if (sem.length > 0) {
+                    context.Semester = sem[0].semester_name;
+                }
+            } catch (err) {
+                console.log('Could not fetch semester:', err.message);
+            }
+        }
+        
+        // Fetch regulation name
+        if (regulation_id) {
+            try {
+                const [reg] = await promisePool.query(
+                    'SELECT regulation_name FROM regulation_master WHERE regulation_id = ?',
+                    [regulation_id]
+                );
+                if (reg.length > 0) {
+                    context.Regulation = reg[0].regulation_name;
+                }
+            } catch (err) {
+                console.log('Could not fetch regulation:', err.message);
+            }
+        }
+        
+        console.log('Excel context:', context);
+        
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Subjects');
+        
+        // Add context metadata rows (first 4 rows)
+        worksheet.addRow(['Programme', context.Programme]);
+        worksheet.addRow(['Branch', context.Branch]);
+        worksheet.addRow(['Semester', context.Semester]);
+        worksheet.addRow(['Regulation', context.Regulation]);
+        worksheet.addRow([]); // Empty separator row
+        
+        // Add column headers (row 6)
+        worksheet.addRow([
+            'subject_order', 'syllabus_code', 'ref_code', 'internal_exam_code',
+            'external_exam_code', 'subject_name', 'subject_type', 'internal_max_marks',
+            'external_max_marks', 'ta_max_marks', 'credits', 'is_elective',
+            'is_under_group', 'is_exempt_exam_fee'
+        ]);
+        
+        // Add sample subject data
+        worksheet.addRow([
+            1, 'U18MH101', 'EM-I', 'U18MH101', 'U18MH101',
+            'ENGINEERING MATHEMATICS - I', 'Theory', 30, 60, 0, 4,
+            'No', 'No', 'No'
+        ]);
+        worksheet.addRow([
+            2, 'U18CS102', 'PPSC', 'U18CS102', 'U18CS102',
+            'PROGRAMMING FOR PROBLEM SOLVING IN C', 'Theory', 30, 60, 0, 3,
+            'No', 'No', 'No'
+        ]);
+        
+        // Set column widths for readability
+        worksheet.columns = [
+            { width: 20 },  // subject_order/Programme
+            { width: 15 },  // syllabus_code/value
+            { width: 15 },  // ref_code
+            { width: 18 },  // internal_exam_code
+            { width: 18 },  // external_exam_code
+            { width: 40 },  // subject_name
+            { width: 12 },  // subject_type
+            { width: 12 },  // internal_max_marks
+            { width: 12 },  // external_max_marks
+            { width: 10 },  // ta_max_marks
+            { width: 10 },  // credits
+            { width: 12 },  // is_elective
+            { width: 12 },  // is_under_group
+            { width: 12 }   // is_exempt_exam_fee
+        ];
+        
+        // Style the context rows (1-4) with bold labels
+        for (let i = 1; i <= 4; i++) {
+            worksheet.getRow(i).getCell(1).font = { bold: true };
+        }
+        
+        // Style the header row (6) 
+        const headerRow = worksheet.getRow(6);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
+        
+        // Sanitize filename components to prevent path traversal
+        const sanitize = (str) => str.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `subjects_template_${sanitize(context.Programme)}_${sanitize(context.Branch)}_${sanitize(context.Semester)}.xlsx`;
+        
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        
+        await workbook.xlsx.write(res);
+        res.end();
+        
+        console.log('✅ Sample Excel generated with context in first 4 rows');
+        
+    } catch (error) {
+        console.error('=== SAMPLE EXCEL ERROR ===');
+        console.error('Error:', error);
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+});
+
+// POST Import subjects from Excel with context
+router.post('/import/excel', upload.single('file'), async (req, res) => {
+    try {
+        console.log('=== IMPORT SUBJECTS FROM EXCEL WITH CONTEXT ===');
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(req.file.path);
+        const worksheet = workbook.worksheets[0];
+        
+        // Extract context from first 4 rows
+        const context = {
+            programme: worksheet.getRow(1).getCell(2).value || '',     // Row 1: Programme | BTECH
+            branch: worksheet.getRow(2).getCell(2).value || '',        // Row 2: Branch    | CSE
+            semester: worksheet.getRow(3).getCell(2).value || '',      // Row 3: Semester  | I
+            regulation: worksheet.getRow(4).getCell(2).value || ''     // Row 4: Regulation| URR-22
+        };
+        
+        console.log('Excel context:', context);
+        
+        // Validate context
+        if (!context.programme || !context.branch || !context.semester || !context.regulation) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Missing context in Excel. First 4 rows must contain Programme, Branch, Semester, and Regulation.'
+            });
+        }
+        
+        // Convert codes to IDs
+        const [programme] = await promisePool.query(
+            'SELECT programme_id FROM programme_master WHERE programme_code = ?',
+            [context.programme]
+        );
+        
+        if (!programme.length) {
+            return res.status(400).json({
+                status: 'error',
+                message: `Programme not found: ${context.programme}`
+            });
+        }
+        
+        const [branch] = await promisePool.query(
+            'SELECT branch_id FROM branch_master WHERE branch_code = ?',
+            [context.branch]
+        );
+        
+        if (!branch.length) {
+            return res.status(400).json({
+                status: 'error',
+                message: `Branch not found: ${context.branch}`
+            });
+        }
+        
+        const [semester] = await promisePool.query(
+            'SELECT semester_id FROM semester_master WHERE semester_name = ?',
+            [context.semester]
+        );
+        
+        if (!semester.length) {
+            return res.status(400).json({
+                status: 'error',
+                message: `Semester not found: ${context.semester}`
+            });
+        }
+        
+        const [regulation] = await promisePool.query(
+            'SELECT regulation_id FROM regulation_master WHERE regulation_name = ?',
+            [context.regulation]
+        );
+        
+        if (!regulation.length) {
+            return res.status(400).json({
+                status: 'error',
+                message: `Regulation not found: ${context.regulation}`
+            });
+        }
+        
+        const programme_id = programme[0].programme_id;
+        const branch_id = branch[0].branch_id;
+        const semester_id = semester[0].semester_id;
+        const regulation_id = regulation[0].regulation_id;
+        
+        console.log('Resolved IDs:', { programme_id, branch_id, semester_id, regulation_id });
+        
+        // Read subject data starting from row 7 (after context, empty row, and header row)
+        // Row 1-4: Context, Row 5: Empty, Row 6: Headers, Row 7+: Data
+        const subjectData = [];
+        
+        // Get header row (row 6) to map column names
+        const headerRow = worksheet.getRow(6);
+        const headers = [];
+        headerRow.eachCell((cell, colNumber) => {
+            headers[colNumber] = cell.value;
+        });
+        
+        // Read data rows starting from row 7
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 6) { // Skip context, empty, and header rows
+                const rowData = {};
+                row.eachCell((cell, colNumber) => {
+                    const header = headers[colNumber];
+                    if (header) {
+                        rowData[header] = cell.value;
+                    }
+                });
+                // Only add non-empty rows
+                if (Object.keys(rowData).length > 0 && rowData.syllabus_code) {
+                    subjectData.push(rowData);
+                }
+            }
+        });
+        
+        console.log(`Found ${subjectData.length} subject rows to import`);
+        
+        let imported = 0;
+        let skipped = 0;
+        const errors = [];
+        
+        for (let i = 0; i < subjectData.length; i++) {
+            const row = subjectData[i];
+            const rowNum = i + 7;  // Actual row in Excel (6 header + data starts at 7)
+            
+            try {
+                // Validate required fields
+                if (!row.syllabus_code || !row.subject_name) {
+                    errors.push(`Row ${rowNum}: Missing required fields (syllabus_code or subject_name)`);
+                    skipped++;
+                    continue;
+                }
+                
+                const insertQuery = `
+                    INSERT INTO subject_master (
+                        programme_id, branch_id, semester_id, regulation_id,
+                        subject_order, syllabus_code, ref_code,
+                        internal_exam_code, external_exam_code, subject_name,
+                        subject_type, internal_max_marks, external_max_marks, ta_max_marks,
+                        credits, is_elective, is_under_group, is_exempt_exam_fee
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+                
+                await promisePool.query(insertQuery, [
+                    programme_id,   // From context (top of Excel)
+                    branch_id,      // From context (top of Excel)
+                    semester_id,    // From context (top of Excel)
+                    regulation_id,  // From context (top of Excel)
+                    row.subject_order || (i + 1),
+                    row.syllabus_code,
+                    row.ref_code || null,
+                    row.internal_exam_code || null,
+                    row.external_exam_code || null,
+                    row.subject_name,
+                    row.subject_type || 'Theory',
+                    row.internal_max_marks || 0,
+                    row.external_max_marks || 0,
+                    row.ta_max_marks || 0,
+                    row.credits || 0,
+                    row.is_elective === 'Yes' ? 1 : 0,
+                    row.is_under_group === 'Yes' ? 1 : 0,
+                    row.is_exempt_exam_fee === 'Yes' ? 1 : 0
+                ]);
+                
+                imported++;
+                
+            } catch (error) {
+                console.error(`Error importing row ${rowNum}:`, error.message);
+                errors.push(`Row ${rowNum}: ${error.message}`);
+                skipped++;
+            }
+        }
+        
+        console.log(`✅ Import complete: ${imported} imported, ${skipped} skipped`);
+        
+        // Clean up uploaded file
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('✅ Temporary file cleaned up');
+            }
+        } catch (cleanupError) {
+            console.error('Warning: Failed to clean up temporary file:', cleanupError.message);
+        }
+        
+        res.json({
+            status: 'success',
+            message: `Successfully imported ${imported} subjects for ${context.programme} ${context.branch} ${context.semester} ${context.regulation}`,
+            context: context,
+            imported,
+            skipped,
+            total: subjectData.length,
+            errors: errors.length > 0 ? errors : undefined
+        });
+        
+    } catch (error) {
+        console.error('=== IMPORT EXCEL ERROR ===');
+        console.error('Error:', error);
+        
+        // Clean up uploaded file on error
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('✅ Temporary file cleaned up after error');
+            }
+        } catch (cleanupError) {
+            console.error('Warning: Failed to clean up temporary file:', cleanupError.message);
+        }
+        
+        res.status(500).json({ status: 'error', message: error.message });
     }
 });
 
