@@ -224,6 +224,40 @@ app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, r
     }
 });
 
+// Departments API endpoint (used by staff management and other modules)
+// Note: Department data is stored in branch_master table in the database schema
+app.get('/api/departments', async (req, res) => {
+    try {
+        console.log('=== GET DEPARTMENTS ===');
+        
+        const query = `
+            SELECT 
+                branch_id as dept_id,
+                branch_name as dept_name,
+                branch_code as dept_code
+            FROM branch_master
+            WHERE is_active = 1
+            ORDER BY branch_name
+        `;
+        
+        const [departments] = await promisePool.query(query);
+        
+        console.log(`Found ${departments.length} departments`);
+        
+        res.json(departments);
+        
+    } catch (error) {
+        console.error('=== GET DEPARTMENTS ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch departments',
+            error: error.message
+        });
+    }
+});
+
 // Staff Management Routes
 const staffRoutes = require('./routes/staff');
 app.use('/api/staff', staffRoutes);
