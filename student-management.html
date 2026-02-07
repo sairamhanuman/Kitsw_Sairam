@@ -1482,9 +1482,9 @@
                 if (data.status === 'success') {
                     alert('Photo removed successfully!');
                     // Clear photo display
-                    const photoPreview = document.getElementById('photo-preview');
-                    if (photoPreview) {
-                        photoPreview.src = '/images/no-photo.png';
+                    const photoDisplay = document.getElementById('current-photo-display');
+                    if (photoDisplay) {
+                        photoDisplay.innerHTML = '<p>No photo uploaded</p>';
                     }
                     // Clear file input
                     const fileInput = document.getElementById('photo-file');
