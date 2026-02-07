@@ -473,9 +473,10 @@ router.post('/', async (req, res) => {
 // PUT update student
 // PUT /api/students/:id - Update student (COMPLETE WORKING VERSION)
 router.put('/:id', async (req, res) => {
-    const connection = await promisePool.getConnection();
+    let connection;
     
     try {
+        connection = await promisePool.getConnection();
         const studentId = req.params.id;
         
         console.log('='.repeat(80));
@@ -683,7 +684,9 @@ router.put('/:id', async (req, res) => {
         });
         
     } catch (error) {
-        connection.release();
+        if (connection) {
+            connection.release();
+        }
         
         console.error('='.repeat(80));
         console.error('=== UPDATE STUDENT ERROR ===');
