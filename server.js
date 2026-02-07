@@ -307,10 +307,9 @@ app.get('/api/departments', async (req, res) => {
 const staffRoutes = require('./routes/staff');
 app.use('/api/staff', staffRoutes);
 
-// Course Management
-app.get('/api/courses', async (req, res) => {
-    res.json({ message: 'Course list endpoint - To be implemented' });
-});
+// Subject/Course Management Routes
+const subjectRoutes = require('./routes/subjects')(promisePool);
+app.use('/api/subjects', subjectRoutes);
 
 // Handle 404 for API routes
 app.use('/api', (req, res) => {
