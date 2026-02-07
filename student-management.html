@@ -758,7 +758,16 @@
                         <option value="Left out">❌ Left out</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="filter-regulation">Regulation:</label>
+                    <select id="filter-regulation">
+                        <option value="">All Regulations</option>
+                    </select>
+                </div>
             </div>
+            <p class="filter-note" style="margin-top: 10px; color: #666; font-size: 12px;">
+                <small>* Regulation filter is used for Excel generation and import to set student regulations</small>
+            </p>
             <div class="filter-actions">
                 <button class="btn btn-primary" onclick="applyFilters()">Apply Filter</button>
                 <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
@@ -929,6 +938,21 @@
                         <label>Semester</label>
                         <select id="semester-id">
                             <option value="">Select Semester</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Joining Regulation <span class="required">*</span></label>
+                        <select id="joining-regulation-id" required>
+                            <option value="">Select Regulation</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Current Regulation <span class="required">*</span></label>
+                        <select id="current-regulation-id" required>
+                            <option value="">Select Regulation</option>
                         </select>
                     </div>
                 </div>
@@ -1119,6 +1143,7 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadMasterData();
+            loadRegulations();  // Add this to load regulations
             // Don't load students on page load - hide list and reset statistics
             hideStudentList();
             resetStatistics();
@@ -1235,6 +1260,70 @@
             
             if (currentValue) {
                 select.value = currentValue;
+            }
+        }
+
+        // Load regulations for dropdowns
+        async function loadRegulations() {
+            try {
+                console.log('Loading regulations...');
+                const response = await fetch('/api/regulations');
+                if (!response.ok) throw new Error('Failed to fetch regulations');
+                
+                const data = await response.json();
+                let regulations;
+                
+                // Handle both response formats
+                if (data.status === 'success' && data.data) {
+                    regulations = data.data;
+                } else if (Array.isArray(data)) {
+                    regulations = data;
+                } else {
+                    throw new Error('Invalid regulations data format');
+                }
+                
+                console.log(`Loaded ${regulations.length} regulations`);
+                
+                // Populate joining regulation dropdown
+                const joiningRegSelect = document.getElementById('joining-regulation-id');
+                if (joiningRegSelect) {
+                    joiningRegSelect.innerHTML = '<option value="">Select Regulation</option>';
+                    regulations.forEach(reg => {
+                        const option = document.createElement('option');
+                        option.value = reg.regulation_id;
+                        option.textContent = `${reg.regulation_code} - ${reg.regulation_name}`;
+                        joiningRegSelect.appendChild(option);
+                    });
+                }
+                
+                // Populate current regulation dropdown
+                const currentRegSelect = document.getElementById('current-regulation-id');
+                if (currentRegSelect) {
+                    currentRegSelect.innerHTML = '<option value="">Select Regulation</option>';
+                    regulations.forEach(reg => {
+                        const option = document.createElement('option');
+                        option.value = reg.regulation_id;
+                        option.textContent = `${reg.regulation_code} - ${reg.regulation_name}`;
+                        currentRegSelect.appendChild(option);
+                    });
+                }
+                
+                // Populate filter regulation dropdown
+                const filterRegSelect = document.getElementById('filter-regulation');
+                if (filterRegSelect) {
+                    filterRegSelect.innerHTML = '<option value="">All Regulations</option>';
+                    regulations.forEach(reg => {
+                        const option = document.createElement('option');
+                        option.value = reg.regulation_id;
+                        option.textContent = `${reg.regulation_code}`;
+                        filterRegSelect.appendChild(option);
+                    });
+                }
+                
+                console.log('Regulation dropdowns populated');
+                
+            } catch (error) {
+                console.error('Error loading regulations:', error);
             }
         }
 
@@ -1417,6 +1506,8 @@
                     document.getElementById('branch-id').value = student.branch_id || '';
                     document.getElementById('batch-id').value = student.batch_id || '';
                     document.getElementById('semester-id').value = student.semester_id || '';
+                    document.getElementById('joining-regulation-id').value = student.joining_regulation_id || '';
+                    document.getElementById('current-regulation-id').value = student.current_regulation_id || '';
                     document.getElementById('section-id').value = student.section_id || '';
                     document.getElementById('student-status').value = student.student_status || 'In Roll';
                     document.getElementById('admission-date').value = student.admission_date ? student.admission_date.split('T')[0] : '';
@@ -1496,6 +1587,8 @@
                 const branchId = document.getElementById('branch-id')?.value;
                 const batchId = document.getElementById('batch-id')?.value;
                 const semesterId = document.getElementById('semester-id')?.value;
+                const joiningRegulationId = document.getElementById('joining-regulation-id')?.value;
+                const currentRegulationId = document.getElementById('current-regulation-id')?.value;
                 const sectionId = document.getElementById('section-id')?.value;
                 const studentStatus = document.getElementById('student-status')?.value || 'In Roll';
                 const admissionDate = document.getElementById('admission-date')?.value;
@@ -1530,6 +1623,8 @@
                     branch_id: branchId || null,
                     batch_id: batchId || null,
                     semester_id: semesterId || null,
+                    joining_regulation_id: joiningRegulationId || null,
+                    current_regulation_id: currentRegulationId || null,
                     section_id: sectionId || null,
                     student_status: studentStatus,
                     admission_date: admissionDate || null,
@@ -1773,11 +1868,13 @@
             const branchId = document.getElementById('filter-branch').value;
             const batchId = document.getElementById('filter-batch').value;
             const semesterId = document.getElementById('filter-semester').value;
+            const regulationId = document.getElementById('filter-regulation').value;
             
             if (programmeId) params.append('programme_id', programmeId);
             if (branchId) params.append('branch_id', branchId);
             if (batchId) params.append('batch_id', batchId);
             if (semesterId) params.append('semester_id', semesterId);
+            if (regulationId) params.append('regulation_id', regulationId);
             
             // Download file
             window.location.href = `/api/students/sample-excel?${params.toString()}`;
@@ -1825,18 +1922,28 @@
             const branchId = getElementValue('filter-branch');
             const batchId = getElementValue('filter-batch');
             const semesterId = getElementValue('filter-semester');
+            const regulationId = getElementValue('filter-regulation');
+            
+            // Check if regulation is selected (required for import)
+            if (!regulationId) {
+                showMessage('Please select a Regulation from the filter before importing', 'error');
+                toggleElement('importProgress', false);
+                return;
+            }
             
             // Only append if values exist
             if (programmeId) formData.append('programme_id', programmeId);
             if (branchId) formData.append('branch_id', branchId);
             if (batchId) formData.append('batch_id', batchId);
             if (semesterId) formData.append('semester_id', semesterId);
+            formData.append('regulation_id', regulationId);  // Always append regulation
             
             console.log('Import Excel with filters:', {
                 programme_id: programmeId,
                 branch_id: branchId,
                 batch_id: batchId,
-                semester_id: semesterId
+                semester_id: semesterId,
+                regulation_id: regulationId
             });
             
             // Show progress with safe element access
