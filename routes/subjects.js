@@ -549,7 +549,6 @@ router.get('/export/excel', async (req, res) => {
         ];
         
         // Style header row
-        worksheet.getRow(1).font = { bold: true };
         worksheet.getRow(1).fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -631,7 +630,6 @@ router.get('/export/sample', async (req, res) => {
         ];
         
         // Style header row
-        worksheet.getRow(1).font = { bold: true };
         worksheet.getRow(1).fill = {
             type: 'pattern',
             pattern: 'solid',
