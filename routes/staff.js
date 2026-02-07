@@ -300,7 +300,7 @@ router.get('/:id', async (req, res) => {
     try {
         const [rows] = await promisePool.query(
             `SELECT s.*, 
-                    d.branch_name as dept_name
+                    d.branch_name as dept_name, d.branch_id as department_id
              FROM staff_master s
              LEFT JOIN branch_master d ON s.department_id = d.branch_id AND d.is_active = 1
              WHERE s.staff_id = ?`,
