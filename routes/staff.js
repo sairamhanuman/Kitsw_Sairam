@@ -245,14 +245,14 @@ router.post('/', async (req, res) => {
         
         const values = [
             employee_id,
-            title_prefix || 'Mr',
+            title_prefix || null,
             full_name,
             department_id || null,
             designation,
             date_of_birth || null,
             gender || null,
             qualification || null,
-            years_of_experience || 0,
+            years_of_experience || null,
             mobile_number || null,
             email || null,
             address || null,
@@ -382,14 +382,14 @@ router.put('/:id', async (req, res) => {
         `;
         
         const values = [
-            title_prefix || 'Mr',
+            title_prefix || null,
             full_name,
             department_id || null,
             designation,
             date_of_birth || null,
             gender || null,
             qualification || null,
-            years_of_experience || 0,
+            years_of_experience || null,
             mobile_number || null,
             email || null,
             address || null,
@@ -552,9 +552,13 @@ router.delete('/:id/remove-photo', async (req, res) => {
         // Delete photo file if exists
         if (staff[0].photo_url) {
             const photoPath = path.join(__dirname, '..', staff[0].photo_url);
-            if (fs.existsSync(photoPath)) {
-                fs.unlinkSync(photoPath);
+            try {
+                await fs.promises.unlink(photoPath);
                 console.log('Photo file deleted:', photoPath);
+            } catch (err) {
+                if (err.code !== 'ENOENT') {
+                    console.error('Error deleting photo file:', err);
+                }
             }
         }
         
