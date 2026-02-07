@@ -834,6 +834,7 @@ router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) =
         // Delete old photo file if exists
         // Fire-and-forget cleanup: New photo is already uploaded and DB updated
         // Old photo deletion is best-effort cleanup, doesn't block response
+        // Note: Consider implementing periodic cleanup job for orphaned files
         if (oldPhotoUrl) {
             const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
             fs.promises.unlink(oldPhotoPath)
@@ -842,6 +843,7 @@ router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) =
                     // Only log error if it's not "file not found"
                     if (err.code !== 'ENOENT') {
                         console.error('Error deleting old photo:', err);
+                        // TODO: Log to monitoring system for cleanup tracking
                     }
                 });
         }

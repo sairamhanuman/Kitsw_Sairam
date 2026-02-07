@@ -600,6 +600,26 @@
         .simple-table tbody tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+
+        /* No filter message styling */
+        .no-filter-message {
+            display: block;
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .no-filter-message h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+
+        .no-filter-message p {
+            margin: 0;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -702,9 +722,9 @@
         </div>
 
         <!-- No Filter Message -->
-        <div id="no-filter-message" class="alert alert-info" style="display: block; text-align: center; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 10px 0; color: #667eea;">📋 No Filters Applied</h3>
-            <p style="margin: 0; color: #666;">Please select filters and click "Apply Filter" to view students</p>
+        <div id="no-filter-message" class="no-filter-message">
+            <h3>📋 No Filters Applied</h3>
+            <p>Please select filters and click "Apply Filter" to view students</p>
         </div>
 
         <!-- Student List - Simple Table (SNO + Admission Number) -->
