@@ -24,8 +24,10 @@ async function loadStaff() {
         const response = await fetch(`${API_BASE_URL}/api/staff`);
         const result = await response.json();
         
-        if (response.ok) {
-            displayStaff(result.data || []);
+        if (response.ok && result.status === 'success' && result.data) {
+            // Extract staff array from result.data.staff
+            const staffArray = result.data.staff || [];
+            displayStaff(staffArray);
         } else {
             showAlert(result.message || 'Failed to load staff', 'danger');
             displayStaff([]);
@@ -40,6 +42,12 @@ async function loadStaff() {
 // Display staff in table
 function displayStaff(staff) {
     const tableContainer = document.getElementById('tableContainer');
+    
+    // Validate staff is an array
+    if (!Array.isArray(staff)) {
+        console.error('displayStaff expects an array, got:', typeof staff);
+        staff = [];
+    }
     
     if (staff.length === 0) {
         tableContainer.innerHTML = `
