@@ -756,6 +756,160 @@ router.post('/bulk-lock', async (req, res) => {
     }
 });
 
+// Configure multer for single photo upload
+const photoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../uploads/students');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const studentId = req.params.id;
+        const ext = path.extname(file.originalname);
+        const filename = `${studentId}_${Date.now()}${ext}`;
+        cb(null, filename);
+    }
+});
+
+const uploadPhoto = multer({
+    storage: photoStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only JPG, JPEG, and PNG files are allowed'));
+        }
+    }
+});
+
+// POST /api/students/:id/upload-photo - Upload single photo
+router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) => {
+    try {
+        const studentId = req.params.id;
+        
+        console.log('=== UPLOAD PHOTO ===');
+        console.log('Student ID:', studentId);
+        console.log('File:', req.file);
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No photo file uploaded'
+            });
+        }
+        
+        // Get old photo URL to delete old file
+        const [student] = await promisePool.query(
+            'SELECT photo_url FROM student_master WHERE student_id = ?',
+            [studentId]
+        );
+        
+        if (student.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found'
+            });
+        }
+        
+        const oldPhotoUrl = student[0]?.photo_url;
+        
+        // Update photo_url in database
+        const photoUrl = `/uploads/students/${req.file.filename}`;
+        await promisePool.query(
+            'UPDATE student_master SET photo_url = ? WHERE student_id = ?',
+            [photoUrl, studentId]
+        );
+        
+        // Delete old photo file if exists
+        if (oldPhotoUrl) {
+            const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
+            if (fs.existsSync(oldPhotoPath)) {
+                fs.unlinkSync(oldPhotoPath);
+                console.log('Deleted old photo:', oldPhotoPath);
+            }
+        }
+        
+        console.log('Photo uploaded successfully:', photoUrl);
+        
+        res.json({
+            status: 'success',
+            message: 'Photo uploaded successfully',
+            data: { photo_url: photoUrl }
+        });
+        
+    } catch (error) {
+        console.error('=== UPLOAD PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to upload photo',
+            error: error.message
+        });
+    }
+});
+
+// DELETE /api/students/:id/remove-photo - Remove student photo
+router.delete('/:id/remove-photo', async (req, res) => {
+    try {
+        const studentId = req.params.id;
+        
+        console.log('=== REMOVE PHOTO ===');
+        console.log('Student ID:', studentId);
+        
+        // Get current photo URL
+        const [student] = await promisePool.query(
+            'SELECT photo_url FROM student_master WHERE student_id = ? AND is_active = 1',
+            [studentId]
+        );
+        
+        if (student.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found'
+            });
+        }
+        
+        const photoUrl = student[0].photo_url;
+        
+        // Clear photo_url in database
+        await promisePool.query(
+            'UPDATE student_master SET photo_url = NULL WHERE student_id = ?',
+            [studentId]
+        );
+        
+        // Delete physical file if exists
+        if (photoUrl) {
+            const photoPath = path.join(__dirname, '..', photoUrl);
+            if (fs.existsSync(photoPath)) {
+                fs.unlinkSync(photoPath);
+                console.log('Deleted photo file:', photoPath);
+            }
+        }
+        
+        console.log('Photo removed successfully');
+        
+        res.json({
+            status: 'success',
+            message: 'Photo removed successfully'
+        });
+        
+    } catch (error) {
+        console.error('=== REMOVE PHOTO ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to remove photo',
+            error: error.message
+        });
+    }
+});
+
 // GET export students to Excel
 router.get('/export/excel', async (req, res) => {
     try {
