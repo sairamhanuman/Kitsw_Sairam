@@ -1245,9 +1245,15 @@
                 console.log('Loading staff details for ID:', staffId);
                 const response = await fetch(`/api/staff/${staffId}`);
                 if (!response.ok) throw new Error('Failed to fetch staff details');
-                const staff = await response.json();
-                console.log('Staff details loaded:', staff);
-                populateStaffForm(staff);
+                const result = await response.json();
+                console.log('Staff details loaded:', result);
+                
+                // Extract the actual staff data from result.data
+                if (result.status === 'success' && result.data) {
+                    populateStaffForm(result.data);
+                } else {
+                    throw new Error('Invalid response format');
+                }
             } catch (error) {
                 console.error('Error loading staff details:', error);
                 alert('Failed to load staff details. Please try again.');
