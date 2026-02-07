@@ -831,10 +831,11 @@ router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) =
             [photoUrl, studentId]
         );
         
-        // Delete old photo file if exists (async to avoid blocking)
+        // Delete old photo file if exists
+        // Fire-and-forget cleanup: New photo is already uploaded and DB updated
+        // Old photo deletion is best-effort cleanup, doesn't block response
         if (oldPhotoUrl) {
             const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
-            // Use async unlink to avoid blocking the event loop
             fs.promises.unlink(oldPhotoPath)
                 .then(() => console.log('Deleted old photo:', oldPhotoPath))
                 .catch(err => {
@@ -894,18 +895,21 @@ router.delete('/:id/remove-photo', async (req, res) => {
             [studentId]
         );
         
-        // Delete physical file if exists (async to avoid blocking)
+        // Delete physical file if exists
+        // Await deletion for remove operation as it's the primary action
         if (photoUrl) {
             const photoPath = path.join(__dirname, '..', photoUrl);
-            // Use async unlink to avoid blocking the event loop
-            fs.promises.unlink(photoPath)
-                .then(() => console.log('Deleted photo file:', photoPath))
-                .catch(err => {
-                    // Only log error if it's not "file not found"
-                    if (err.code !== 'ENOENT') {
-                        console.error('Error deleting photo file:', err);
-                    }
-                });
+            try {
+                await fs.promises.unlink(photoPath);
+                console.log('Deleted photo file:', photoPath);
+            } catch (err) {
+                // Only log error if it's not "file not found"
+                if (err.code !== 'ENOENT') {
+                    console.error('Error deleting photo file:', err);
+                    // Don't fail the request if file deletion fails
+                    // Database is already updated
+                }
+            }
         }
         
         console.log('Photo removed successfully');
