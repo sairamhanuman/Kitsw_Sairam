@@ -282,56 +282,180 @@ router.get('/sample-excel', async (req, res) => {
 });
 
 // GET single student by ID
+// GET /api/students/:id - Get single student details
 router.get('/:id', async (req, res) => {
     try {
         console.log('=== GET STUDENT DETAILS ===');
         console.log('Student ID:', req.params.id);
         
-        const [rows] = await promisePool.query(
-            `SELECT s.*, 
-                    p.programme_name, p.programme_code,
-                    b.branch_name, b.branch_code,
-                    bat.batch_name, 
-                    sem.semester_name,
-                    sec.section_name,
-                    COALESCE(jr.regulation_code, 'Not Set') as joining_regulation_code,
-                    COALESCE(jr.regulation_name, '') as joining_regulation_name,
-                    COALESCE(cr.regulation_code, 'Not Set') as current_regulation_code,
-                    COALESCE(cr.regulation_name, '') as current_regulation_name
-             FROM student_master s
-             LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
-             LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
-             LEFT JOIN batch_master bat ON s.batch_id = bat.batch_id AND bat.is_active = 1
-             LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id AND sem.is_active = 1
-             LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
-             LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1
-             LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1
-             WHERE s.student_id = ? AND s.is_active = 1`,
-            [req.params.id]
-        );
+        // Step 1: Get base student data without JOINs (safer)
+        const studentQuery = `
+            SELECT * 
+            FROM student_master 
+            WHERE student_id = ? AND is_active = 1
+        `;
         
-        if (rows.length === 0) {
-            console.log('Student not found');
+        const [students] = await promisePool.query(studentQuery, [req.params.id]);
+        
+        if (students.length === 0) {
+            console.log('Student not found with ID:', req.params.id);
             return res.status(404).json({
                 status: 'error',
                 message: 'Student not found'
             });
         }
         
-        console.log('Student found:', rows[0].admission_number);
+        const student = students[0];
+        console.log('Student found:', student.admission_number);
         
+        // Step 2: Fetch programme details (if exists)
+        if (student.programme_id) {
+            try {
+                const [programme] = await promisePool.query(
+                    'SELECT programme_code, programme_name FROM programme_master WHERE programme_id = ?',
+                    [student.programme_id]
+                );
+                if (programme.length > 0) {
+                    student.programme_name = programme[0].programme_name;
+                    student.programme_code = programme[0].programme_code;
+                }
+            } catch (err) {
+                console.log('Could not fetch programme:', err.message);
+            }
+        }
+        
+        // Step 3: Fetch branch details (if exists)
+        if (student.branch_id) {
+            try {
+                const [branch] = await promisePool.query(
+                    'SELECT branch_code, branch_name FROM branch_master WHERE branch_id = ?',
+                    [student.branch_id]
+                );
+                if (branch.length > 0) {
+                    student.branch_name = branch[0].branch_name;
+                    student.branch_code = branch[0].branch_code;
+                }
+            } catch (err) {
+                console.log('Could not fetch branch:', err.message);
+            }
+        }
+        
+        // Step 4: Fetch batch details (if exists)
+        if (student.batch_id) {
+            try {
+                const [batch] = await promisePool.query(
+                    'SELECT batch_name FROM batch_master WHERE batch_id = ?',
+                    [student.batch_id]
+                );
+                if (batch.length > 0) {
+                    student.batch_name = batch[0].batch_name;
+                }
+            } catch (err) {
+                console.log('Could not fetch batch:', err.message);
+            }
+        }
+        
+        // Step 5: Fetch semester details (if exists)
+        if (student.semester_id) {
+            try {
+                const [semester] = await promisePool.query(
+                    'SELECT semester_name FROM semester_master WHERE semester_id = ?',
+                    [student.semester_id]
+                );
+                if (semester.length > 0) {
+                    student.semester_name = semester[0].semester_name;
+                }
+            } catch (err) {
+                console.log('Could not fetch semester:', err.message);
+            }
+        }
+        
+        // Step 6: Fetch section details (if exists)
+        if (student.section_id) {
+            try {
+                const [section] = await promisePool.query(
+                    'SELECT section_name FROM section_master WHERE section_id = ?',
+                    [student.section_id]
+                );
+                if (section.length > 0) {
+                    student.section_name = section[0].section_name;
+                }
+            } catch (err) {
+                console.log('Could not fetch section:', err.message);
+            }
+        }
+        
+        // Step 7: Fetch joining regulation (if exists)
+        if (student.joining_regulation_id) {
+            try {
+                const [joiningReg] = await promisePool.query(
+                    'SELECT regulation_code, regulation_name FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                    [student.joining_regulation_id]
+                );
+                if (joiningReg.length > 0) {
+                    student.joining_regulation = joiningReg[0].regulation_code;
+                    student.joining_regulation_name = joiningReg[0].regulation_name;
+                    student.joining_regulation_code = joiningReg[0].regulation_code;
+                    console.log('Joining regulation:', student.joining_regulation);
+                } else {
+                    console.log('Joining regulation ID exists but not found in regulation_master');
+                    student.joining_regulation_code = 'Not Set';
+                    student.joining_regulation_name = '';
+                }
+            } catch (err) {
+                console.log('Could not fetch joining regulation:', err.message);
+                student.joining_regulation_code = 'Not Set';
+                student.joining_regulation_name = '';
+            }
+        } else {
+            student.joining_regulation_code = 'Not Set';
+            student.joining_regulation_name = '';
+        }
+        
+        // Step 8: Fetch current regulation (if exists)
+        if (student.current_regulation_id) {
+            try {
+                const [currentReg] = await promisePool.query(
+                    'SELECT regulation_code, regulation_name FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                    [student.current_regulation_id]
+                );
+                if (currentReg.length > 0) {
+                    student.current_regulation = currentReg[0].regulation_code;
+                    student.current_regulation_name = currentReg[0].regulation_name;
+                    student.current_regulation_code = currentReg[0].regulation_code;
+                    console.log('Current regulation:', student.current_regulation);
+                } else {
+                    console.log('Current regulation ID exists but not found in regulation_master');
+                    student.current_regulation_code = 'Not Set';
+                    student.current_regulation_name = '';
+                }
+            } catch (err) {
+                console.log('Could not fetch current regulation:', err.message);
+                student.current_regulation_code = 'Not Set';
+                student.current_regulation_name = '';
+            }
+        } else {
+            student.current_regulation_code = 'Not Set';
+            student.current_regulation_name = '';
+        }
+        
+        console.log('Student details prepared successfully');
+        
+        // Return in expected format
         res.json({
             status: 'success',
-            message: 'Student retrieved successfully',
-            data: rows[0]
+            data: student
         });
+        
     } catch (error) {
-        console.error('=== GET STUDENT ERROR ===');
-        console.error('Error:', error);
-        console.error('Stack:', error.stack);
+        console.error('=== GET STUDENT DETAILS ERROR ===');
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('SQL:', error.sql);
+        
         res.status(500).json({
             status: 'error',
-            message: 'Failed to fetch student',
+            message: 'Failed to fetch student details',
             error: error.message
         });
     }
