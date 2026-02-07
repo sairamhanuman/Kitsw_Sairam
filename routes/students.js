@@ -123,12 +123,13 @@ router.get('/sample-excel', async (req, res) => {
         console.log('=== GENERATE SAMPLE EXCEL TEMPLATE ===');
         
         // Get current filter values to populate header
-        const { programme_id, branch_id, batch_id, semester_id } = req.query;
+        const { programme_id, branch_id, batch_id, semester_id, regulation_id } = req.query;
         
         let batchName = '2025-2026';
         let programmeName = 'B.Tech';
         let branchName = 'CSE';
         let semesterName = 'I';
+        let regulationCode = '';
         
         // Fetch actual values if provided
         if (batch_id) {
@@ -163,17 +164,27 @@ router.get('/sample-excel', async (req, res) => {
             if (semesters.length > 0) semesterName = semesters[0].semester_name;
         }
         
+        // Fetch regulation if provided
+        if (regulation_id) {
+            const [regulations] = await promisePool.query(
+                'SELECT regulation_code FROM regulation_master WHERE regulation_id = ? AND is_active = 1',
+                [regulation_id]
+            );
+            if (regulations.length > 0) regulationCode = regulations[0].regulation_code;
+        }
+        
         // Build CSV content
         let csv = '';
         
-        // Header Section (Rows 1-5)
+        // Metadata Section (Rows 1-5, Row 6 is empty)
         csv += `Batch,${batchName}\n`;
         csv += `Programme,${programmeName}\n`;
         csv += `Branch,${branchName}\n`;
         csv += `Semester,${semesterName}\n`;
-        csv += '\n'; // Empty line
+        csv += `Regulation,${regulationCode}\n`;
+        csv += '\n'; // Empty line (Row 6)
         
-        // Column Headers (Row 6)
+        // Column Headers (Row 7)
         const headers = [
             'Admission Number',
             'HT Number',
@@ -199,7 +210,7 @@ router.get('/sample-excel', async (req, res) => {
         ];
         csv += headers.join(',') + '\n';
         
-        // Sample Data (Row 7)
+        // Sample Data (Row 8)
         const sampleRow = [
             'B25AI001',
             'HT12345',
@@ -273,6 +284,9 @@ router.get('/sample-excel', async (req, res) => {
 // GET single student by ID
 router.get('/:id', async (req, res) => {
     try {
+        console.log('=== GET STUDENT DETAILS ===');
+        console.log('Student ID:', req.params.id);
+        
         const [rows] = await promisePool.query(
             `SELECT s.*, 
                     p.programme_name, p.programme_code,
@@ -280,10 +294,10 @@ router.get('/:id', async (req, res) => {
                     bat.batch_name, 
                     sem.semester_name,
                     sec.section_name,
-                    jr.regulation_code as joining_regulation_code,
-                    jr.regulation_name as joining_regulation_name,
-                    cr.regulation_code as current_regulation_code,
-                    cr.regulation_name as current_regulation_name
+                    COALESCE(jr.regulation_code, 'Not Set') as joining_regulation_code,
+                    COALESCE(jr.regulation_name, '') as joining_regulation_name,
+                    COALESCE(cr.regulation_code, 'Not Set') as current_regulation_code,
+                    COALESCE(cr.regulation_name, '') as current_regulation_name
              FROM student_master s
              LEFT JOIN programme_master p ON s.programme_id = p.programme_id AND p.is_active = 1
              LEFT JOIN branch_master b ON s.branch_id = b.branch_id AND b.is_active = 1
@@ -292,16 +306,19 @@ router.get('/:id', async (req, res) => {
              LEFT JOIN section_master sec ON s.section_id = sec.section_id AND sec.is_active = 1
              LEFT JOIN regulation_master jr ON s.joining_regulation_id = jr.regulation_id AND jr.is_active = 1
              LEFT JOIN regulation_master cr ON s.current_regulation_id = cr.regulation_id AND cr.is_active = 1
-             WHERE s.student_id = ?`,
+             WHERE s.student_id = ? AND s.is_active = 1`,
             [req.params.id]
         );
         
         if (rows.length === 0) {
+            console.log('Student not found');
             return res.status(404).json({
                 status: 'error',
                 message: 'Student not found'
             });
         }
+        
+        console.log('Student found:', rows[0].admission_number);
         
         res.json({
             status: 'success',
@@ -309,7 +326,9 @@ router.get('/:id', async (req, res) => {
             data: rows[0]
         });
     } catch (error) {
-        console.error('Error fetching student:', error);
+        console.error('=== GET STUDENT ERROR ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch student',
