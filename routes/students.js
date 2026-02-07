@@ -475,9 +475,28 @@ router.put('/:id', async (req, res) => {
     try {
         const studentId = req.params.id;
         
-        console.log('=== UPDATE STUDENT ===');
+        console.log('='.repeat(60));
+        console.log('=== UPDATE STUDENT REQUEST ===');
+        console.log('='.repeat(60));
         console.log('Student ID:', studentId);
-        console.log('Request body:', req.body);
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        
+        // Check if student exists
+        const [existing] = await promisePool.query(
+            'SELECT student_id, admission_number FROM student_master WHERE student_id = ? AND is_active = 1',
+            [studentId]
+        );
+        
+        if (existing.length === 0) {
+            console.error('❌ Student not found:', studentId);
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found',
+                error: 'No student exists with ID: ' + studentId
+            });
+        }
+        
+        console.log('✅ Student found:', existing[0].admission_number);
         
         const { 
             admission_number,
@@ -513,54 +532,60 @@ router.put('/:id', async (req, res) => {
         } = req.body;
         
         // Validate required fields
-        if (!admission_number || !full_name) {
+        if (!admission_number) {
+            console.error('❌ Validation failed: admission_number is required');
             return res.status(400).json({
                 status: 'error',
-                message: 'Admission Number and Full Name are required'
+                message: 'Admission Number is required',
+                error: 'admission_number cannot be empty'
             });
         }
         
-        // Check if student exists
-        const [existing] = await promisePool.query(
-            'SELECT student_id FROM student_master WHERE student_id = ?',
-            [studentId]
-        );
-        
-        if (existing.length === 0) {
-            return res.status(404).json({
+        if (!full_name) {
+            console.error('❌ Validation failed: full_name is required');
+            return res.status(400).json({
                 status: 'error',
-                message: 'Student not found'
+                message: 'Full Name is required',
+                error: 'full_name cannot be empty'
             });
         }
         
         // Validate mobile numbers (10 digits)
         if (student_mobile && !/^\d{10}$/.test(student_mobile)) {
+            console.error('❌ Validation failed: invalid student_mobile');
             return res.status(400).json({
                 status: 'error',
-                message: 'Student mobile must be 10 digits'
+                message: 'Student mobile must be 10 digits',
+                error: 'student_mobile validation failed'
             });
         }
         
         if (parent_mobile && !/^\d{10}$/.test(parent_mobile)) {
+            console.error('❌ Validation failed: invalid parent_mobile');
             return res.status(400).json({
                 status: 'error',
-                message: 'Parent mobile must be 10 digits'
+                message: 'Parent mobile must be 10 digits',
+                error: 'parent_mobile validation failed'
             });
         }
         
         // Validate Aadhaar (12 digits)
         if (aadhaar_number && !/^\d{12}$/.test(aadhaar_number)) {
+            console.error('❌ Validation failed: invalid aadhaar_number');
             return res.status(400).json({
                 status: 'error',
-                message: 'Aadhaar number must be 12 digits'
+                message: 'Aadhaar number must be 12 digits',
+                error: 'aadhaar_number validation failed'
             });
         }
         
         // Validate email format
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            console.error('❌ Validation failed: invalid email');
             return res.status(400).json({
                 status: 'error',
-                message: 'Invalid email format'
+                message: 'Invalid email format',
+                error: 'email validation failed'
             });
         }
         
@@ -572,9 +597,11 @@ router.put('/:id', async (req, res) => {
             );
             
             if (existingAdmission.length > 0) {
+                console.error('❌ Duplicate admission_number:', admission_number);
                 return res.status(409).json({
                     status: 'error',
-                    message: 'Admission number already exists'
+                    message: 'Admission number already exists',
+                    error: 'admission_number must be unique'
                 });
             }
         }
@@ -588,9 +615,47 @@ router.put('/:id', async (req, res) => {
         // Helper to convert boolean to bit (1 or 0)
         const toBit = (value) => value ? 1 : 0;
         
-        // Update student
-        const [result] = await promisePool.query(
-            `UPDATE student_master 
+        // Prepare values for update
+        const updateValues = [
+            admission_number,
+            toNullIfEmpty(ht_number),
+            toNullIfEmpty(roll_number),
+            full_name,
+            toNullIfEmpty(programme_id),
+            toNullIfEmpty(branch_id),
+            toNullIfEmpty(batch_id),
+            toNullIfEmpty(semester_id),
+            toNullIfEmpty(section_id),
+            toNullIfEmpty(regulation_id),
+            toNullIfEmpty(date_of_birth),
+            toNullIfEmpty(gender),
+            toNullIfEmpty(father_name),
+            toNullIfEmpty(mother_name),
+            toNullIfEmpty(aadhaar_number),
+            toNullIfEmpty(caste_category),
+            toNullIfEmpty(student_mobile),
+            toNullIfEmpty(parent_mobile),
+            toNullIfEmpty(email),
+            toNullIfEmpty(admission_date),
+            toNullIfEmpty(completion_year),
+            toNullIfEmpty(date_of_leaving),
+            toNullIfEmpty(discontinue_date),
+            student_status,
+            toBit(is_detainee),
+            toBit(is_transitory),
+            toBit(is_handicapped),
+            toBit(is_lateral),
+            toBit(join_curriculum),
+            toBit(is_locked),
+            studentId
+        ];
+        
+        // Note: In production, consider redacting sensitive fields like Aadhaar, mobile numbers
+        console.log('Update values prepared:', JSON.stringify(updateValues, null, 2));
+        
+        // Execute update query
+        const updateQuery = `
+            UPDATE student_master 
             SET admission_number = COALESCE(?, admission_number),
                 ht_number = ?,
                 roll_number = ?,
@@ -620,59 +685,55 @@ router.put('/:id', async (req, res) => {
                 is_handicapped = ?,
                 is_lateral = ?,
                 join_curriculum = ?,
-                is_locked = ?
-            WHERE student_id = ?`,
-            [
-                admission_number,
-                toNullIfEmpty(ht_number),
-                toNullIfEmpty(roll_number),
-                full_name,
-                toNullIfEmpty(programme_id),
-                toNullIfEmpty(branch_id),
-                toNullIfEmpty(batch_id),
-                toNullIfEmpty(semester_id),
-                toNullIfEmpty(section_id),
-                toNullIfEmpty(regulation_id),
-                toNullIfEmpty(date_of_birth),
-                toNullIfEmpty(gender),
-                toNullIfEmpty(father_name),
-                toNullIfEmpty(mother_name),
-                toNullIfEmpty(aadhaar_number),
-                toNullIfEmpty(caste_category),
-                toNullIfEmpty(student_mobile),
-                toNullIfEmpty(parent_mobile),
-                toNullIfEmpty(email),
-                toNullIfEmpty(admission_date),
-                toNullIfEmpty(completion_year),
-                toNullIfEmpty(date_of_leaving),
-                toNullIfEmpty(discontinue_date),
-                student_status,
-                toBit(is_detainee),
-                toBit(is_transitory),
-                toBit(is_handicapped),
-                toBit(is_lateral),
-                toBit(join_curriculum),
-                toBit(is_locked),
-                studentId
-            ]
-        );
+                is_locked = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE student_id = ?
+        `;
         
-        console.log('Update result:', result);
+        console.log('Executing update query...');
+        
+        const [result] = await promisePool.query(updateQuery, updateValues);
+        
+        console.log('Update result:', JSON.stringify(result, null, 2));
+        console.log('Rows affected:', result.affectedRows);
+        
+        // Note: affectedRows can be 0 if no actual changes were made (all values same as before)
+        // This is still considered a successful operation since student exists
+        
         console.log('✅ Student updated successfully');
+        console.log('='.repeat(60));
         
         res.json({
             status: 'success',
-            message: 'Student updated successfully'
+            message: 'Student updated successfully',
+            data: {
+                student_id: studentId,
+                affected_rows: result.affectedRows
+            }
         });
     } catch (error) {
+        console.error('='.repeat(60));
         console.error('=== UPDATE STUDENT ERROR ===');
-        console.error('Error:', error);
-        console.error('Stack:', error.stack);
+        console.error('='.repeat(60));
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
+        console.error('Error errno:', error.errno);
+        console.error('SQL Message:', error.sqlMessage);
+        console.error('SQL State:', error.sqlState);
+        console.error('SQL:', error.sql);
+        console.error('Stack trace:', error.stack);
+        console.error('='.repeat(60));
+        
+        // Return appropriate error to frontend based on environment
+        const isDevelopment = process.env.NODE_ENV === 'development';
         
         res.status(500).json({
             status: 'error',
             message: 'Failed to update student',
-            error: error.message
+            error: isDevelopment ? (error.sqlMessage || error.message) : 'An error occurred while updating the student',
+            errorCode: isDevelopment ? error.code : undefined,
+            errorType: isDevelopment ? error.constructor.name : undefined
         });
     }
 });

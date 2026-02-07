@@ -1434,7 +1434,12 @@
         async function saveStudent() {
             try {
                 console.log('=== SAVE STUDENT DETAILS ===');
-                console.log('Student ID:', currentStudentId);
+                console.log('Current Student ID:', currentStudentId);
+                
+                if (!currentStudentId) {
+                    alert('No student selected');
+                    return;
+                }
                 
                 // Get all form values with .trim() where appropriate
                 const admissionNumber = document.getElementById('admission-number')?.value.trim();
@@ -1468,6 +1473,43 @@
                 const isLateral = document.getElementById('is-lateral')?.checked || false;
                 const joinCurriculum = document.getElementById('join-curriculum')?.checked || false;
                 const isLocked = document.getElementById('is-locked')?.checked || false;
+                
+                // Build data object with proper NULL handling
+                const studentData = {
+                    admission_number: admissionNumber,
+                    ht_number: htNumber || null,
+                    roll_number: rollNumber || null,
+                    full_name: fullName,
+                    date_of_birth: dateOfBirth || null,
+                    gender: gender || null,
+                    caste_category: casteCategory || null,
+                    father_name: fatherName || null,
+                    mother_name: motherName || null,
+                    aadhaar_number: aadhaarNumber || null,
+                    student_mobile: studentMobile || null,
+                    parent_mobile: parentMobile || null,
+                    email: email || null,
+                    programme_id: programmeId || null,
+                    branch_id: branchId || null,
+                    batch_id: batchId || null,
+                    semester_id: semesterId || null,
+                    section_id: sectionId || null,
+                    student_status: studentStatus,
+                    admission_date: admissionDate || null,
+                    completion_year: completionYear || null,
+                    date_of_leaving: dateOfLeaving || null,
+                    discontinue_date: discontinueDate || null,
+                    is_detainee: isDetainee,
+                    is_transitory: isTransitory,
+                    is_handicapped: isHandicapped,
+                    is_lateral: isLateral,
+                    join_curriculum: joinCurriculum,
+                    is_locked: isLocked
+                };
+                
+                // LOG FULL DATA (not just "Object")
+                console.log('=== FORM DATA COLLECTED ===');
+                console.log(JSON.stringify(studentData, null, 2));
                 
                 // Validate required fields
                 if (!admissionNumber) {
@@ -1503,43 +1545,10 @@
                     return;
                 }
                 
-                // Build data object with proper NULL handling
-                const studentData = {
-                    admission_number: admissionNumber,
-                    ht_number: htNumber || null,
-                    roll_number: rollNumber || null,
-                    full_name: fullName,
-                    date_of_birth: dateOfBirth || null,
-                    gender: gender || null,
-                    caste_category: casteCategory || null,
-                    father_name: fatherName || null,
-                    mother_name: motherName || null,
-                    aadhaar_number: aadhaarNumber || null,
-                    student_mobile: studentMobile || null,
-                    parent_mobile: parentMobile || null,
-                    email: email || null,
-                    programme_id: programmeId || null,
-                    branch_id: branchId || null,
-                    batch_id: batchId || null,
-                    semester_id: semesterId || null,
-                    section_id: sectionId || null,
-                    student_status: studentStatus,
-                    admission_date: admissionDate || null,
-                    completion_year: completionYear || null,
-                    date_of_leaving: dateOfLeaving || null,
-                    discontinue_date: discontinueDate || null,
-                    is_detainee: isDetainee,
-                    is_transitory: isTransitory,
-                    is_handicapped: isHandicapped,
-                    is_lateral: isLateral,
-                    join_curriculum: joinCurriculum,
-                    is_locked: isLocked
-                };
-                
-                console.log('Data to save:', studentData);
-                
                 // Send PUT request
                 const url = `/api/students/${currentStudentId}`;
+                console.log(`Sending PUT request to: ${url}`);
+                
                 const response = await fetch(url, {
                     method: 'PUT',
                     headers: {
@@ -1548,10 +1557,17 @@
                     body: JSON.stringify(studentData)
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
                 const data = await response.json();
-                console.log('Save response:', data);
+                
+                // LOG FULL RESPONSE (not just "Object")
+                console.log('=== SERVER RESPONSE ===');
+                console.log(JSON.stringify(data, null, 2));
                 
                 if (response.ok && data.status === 'success') {
+                    console.log('✅ SUCCESS: Student updated');
                     alert('✅ Student updated successfully!');
                     
                     // Reload student list to reflect changes
@@ -1560,13 +1576,24 @@
                     // Close panel after successful save
                     closeDetailsPanel();
                 } else {
-                    console.error('Save failed:', data);
-                    alert('❌ Error: ' + (data.message || 'Failed to update student'));
+                    console.error('❌ SAVE FAILED');
+                    console.error('Status:', data.status);
+                    console.error('Message:', data.message);
+                    console.error('Error:', data.error);
+                    console.error('Error Code:', data.errorCode);
+                    console.error('Error Type:', data.errorType);
+                    
+                    // Show specific error message
+                    const errorMsg = data.error || data.message || 'Failed to update student';
+                    alert('❌ Error: ' + errorMsg);
                 }
                 
             } catch (error) {
-                console.error('=== SAVE ERROR ===');
-                console.error('Error:', error);
+                console.error('=== EXCEPTION CAUGHT ===');
+                console.error('Error type:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                
                 alert('❌ Error updating student: ' + error.message);
             }
         }
