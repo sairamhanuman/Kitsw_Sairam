@@ -1458,13 +1458,22 @@
 
         function openImportExcelModal() {
             console.log('Opening import excel modal');
-            document.getElementById('import-excel-modal').classList.add('show');
+            const modal = document.getElementById('import-excel-modal');
+            if (modal) {
+                modal.style.display = 'block';
+                console.log('Import excel modal opened');
+            } else {
+                console.error('Import excel modal not found!');
+            }
         }
 
         function closeImportExcelModal() {
             console.log('Closing import excel modal');
-            document.getElementById('import-excel-modal').classList.remove('show');
-            document.getElementById('excel-file-input').value = '';
+            const modal = document.getElementById('import-excel-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.getElementById('excel-file-input').value = '';
+            }
         }
 
         async function uploadExcelFile() {
@@ -1539,13 +1548,22 @@
 
         function openImportPhotosModal() {
             console.log('Opening import photos modal');
-            document.getElementById('import-photos-modal').classList.add('show');
+            const modal = document.getElementById('import-photos-modal');
+            if (modal) {
+                modal.style.display = 'block';
+                console.log('Import photos modal opened');
+            } else {
+                console.error('Import photos modal not found!');
+            }
         }
 
         function closeImportPhotosModal() {
             console.log('Closing import photos modal');
-            document.getElementById('import-photos-modal').classList.remove('show');
-            document.getElementById('photos-zip-input').value = '';
+            const modal = document.getElementById('import-photos-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.getElementById('photos-zip-input').value = '';
+            }
         }
 
         async function uploadPhotosZip() {
