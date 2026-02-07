@@ -1026,6 +1026,16 @@
         let departments = [];
         let currentStaffId = null;
         let filtersApplied = false;
+        
+        // Default empty statistics object - single source of truth
+        const DEFAULT_STATS = {
+            total: 0,
+            teaching: 0,
+            non_teaching: 0,
+            active: 0,
+            on_leave: 0,
+            retired: 0
+        };
 
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing staff management...');
@@ -1078,15 +1088,15 @@
                 updateStatistics(result.data.statistics);
             } catch (error) {
                 console.error('Error loading statistics:', error);
-                updateStatistics({total:0,teaching:0,non_teaching:0,active:0,on_leave:0,retired:0});
+                updateStatistics(DEFAULT_STATS);
             }
         }
 
         function updateStatistics(stats) {
             // Validate stats object
             if (!stats) {
-                console.error('updateStatistics received null/undefined');
-                stats = { total: 0, teaching: 0, non_teaching: 0, active: 0, on_leave: 0, retired: 0 };
+                console.error('updateStatistics received null/undefined, using defaults');
+                stats = DEFAULT_STATS;
             }
             
             document.getElementById('stat-total').textContent = stats.total || 0;
@@ -1120,10 +1130,18 @@
                 const result = await response.json();
                 console.log('API Response:', result);
                 
-                // Extract staff array from response
+                // Validate response structure and extract staff array
                 if (result.status === 'success' && result.data) {
-                    staffData = result.data.staff || [];
-                    console.log('Staff data loaded:', staffData.length, 'records');
+                    if (!result.data.staff) {
+                        console.error('Expected result.data.staff array, but it was missing. Data:', result.data);
+                        staffData = [];
+                    } else if (!Array.isArray(result.data.staff)) {
+                        console.error('Expected result.data.staff to be an array, but got:', typeof result.data.staff);
+                        staffData = [];
+                    } else {
+                        staffData = result.data.staff;
+                        console.log('Staff data loaded:', staffData.length, 'records');
+                    }
                     
                     // Update statistics if available
                     if (result.data.statistics) {
@@ -1175,9 +1193,13 @@
             const tbody = document.getElementById('staff-table-body');
             tbody.innerHTML = '';
 
-            // Validate staffData is an array
+            // Defensive check: Validate staffData is an array
+            // This should never trigger if applyFilters() works correctly
             if (!Array.isArray(staffData)) {
-                console.error('staffData is not an array. Type:', typeof staffData, 'Value:', staffData);
+                console.error('BUG DETECTED: staffData is not an array at render time!');
+                console.error('  Type:', typeof staffData);
+                console.error('  Value:', staffData);
+                console.error('  This indicates a data flow bug in applyFilters() or initialization.');
                 staffData = [];
             }
 
