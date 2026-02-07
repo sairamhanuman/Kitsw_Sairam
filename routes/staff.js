@@ -811,16 +811,9 @@ router.delete('/:id', async (req, res) => {
 const photoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../uploads/staff');
-        // Use mkdirSync with recursive option which is safe for concurrent calls
-        // The recursive option ensures directory creation is idempotent
-        try {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        } catch (err) {
-            // Ignore EEXIST errors as directory already exists
-            if (err.code !== 'EEXIST') {
-                return cb(err);
-            }
-        }
+        // Use mkdirSync with recursive option to ensure directory exists
+        // The recursive option makes this operation idempotent
+        fs.mkdirSync(uploadDir, { recursive: true });
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
@@ -885,16 +878,13 @@ router.post('/:id/upload-photo', uploadPhoto.single('photo'), async (req, res) =
         // Delete old photo file if exists
         // Fire-and-forget cleanup: New photo is already uploaded and DB updated
         // Old photo deletion is best-effort cleanup, doesn't block response
-        // Note: Consider implementing periodic cleanup job for orphaned files
         if (oldPhotoUrl) {
             const oldPhotoPath = path.join(__dirname, '..', oldPhotoUrl);
             fs.promises.unlink(oldPhotoPath)
                 .then(() => console.log('Deleted old photo:', oldPhotoPath))
                 .catch(err => {
-                    // Only log error if it's not "file not found"
                     if (err.code !== 'ENOENT') {
                         console.error('Error deleting old photo:', err);
-                        // TODO: Log to monitoring system for cleanup tracking
                     }
                 });
         }
