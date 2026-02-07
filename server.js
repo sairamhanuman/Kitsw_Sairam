@@ -6,6 +6,7 @@ const path = require('path');
 const multer = require('multer');
 const crypto = require('crypto');
 const initializeDatabase = require('./db/init');
+const { pool, promisePool } = require('./config/database');
 
 // Load environment variables
 dotenv.config();
@@ -51,34 +52,27 @@ const upload = multer({
     }
 });
 
-// MySQL connection pool
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'engineering_college',
-    port: process.env.DB_PORT || 3306,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
-
-// Promisify pool queries
-const promisePool = pool.promise();
-
 // Test database connection and initialize tables
-(async () => {
+async function testDatabaseConnection() {
     try {
+        console.log('Testing database connection...');
         const connection = await promisePool.getConnection();
-        console.log('Database connection successful');
+        console.log('✅ Database connected successfully');
         connection.release();
         
         // Initialize database tables
         await initializeDatabase(promisePool);
-    } catch (err) {
-        console.error('Error connecting to database:', err.message);
+        return true;
+    } catch (error) {
+        console.error('❌ Database connection failed:', error.message);
         console.log('Note: Database connection will be required for API endpoints');
+        return false;
     }
+}
+
+// Initialize database on startup
+(async () => {
+    await testDatabaseConnection();
 })();
 
 // Routes
