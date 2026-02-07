@@ -471,53 +471,57 @@ router.post('/', async (req, res) => {
 });
 
 // PUT update student
+// PUT /api/students/:id - Update student (COMPLETE WORKING VERSION)
 router.put('/:id', async (req, res) => {
+    const connection = await promisePool.getConnection();
+    
     try {
         const studentId = req.params.id;
         
-        console.log('='.repeat(60));
+        console.log('='.repeat(80));
         console.log('=== UPDATE STUDENT REQUEST ===');
-        console.log('='.repeat(60));
+        console.log('='.repeat(80));
         console.log('Student ID:', studentId);
-        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('Request Body:', JSON.stringify(req.body, null, 2));
         
-        // Check if student exists
-        const [existing] = await promisePool.query(
+        // Validate student exists
+        const [existing] = await connection.query(
             'SELECT student_id, admission_number FROM student_master WHERE student_id = ? AND is_active = 1',
             [studentId]
         );
         
         if (existing.length === 0) {
             console.error('❌ Student not found:', studentId);
+            connection.release();
             return res.status(404).json({
                 status: 'error',
                 message: 'Student not found',
-                error: 'No student exists with ID: ' + studentId
+                error: `No active student with ID ${studentId}`
             });
         }
         
-        console.log('✅ Student found:', existing[0].admission_number);
+        console.log('✅ Student exists:', existing[0].admission_number);
         
-        const { 
+        // Extract all fields
+        const {
             admission_number,
             ht_number,
             roll_number,
             full_name,
+            date_of_birth,
+            gender,
+            caste_category,
+            father_name,
+            mother_name,
+            aadhaar_number,
+            student_mobile,
+            parent_mobile,
+            email,
             programme_id,
             branch_id,
             batch_id,
             semester_id,
             section_id,
-            regulation_id,
-            date_of_birth,
-            gender,
-            father_name,
-            mother_name,
-            aadhaar_number,
-            caste_category,
-            student_mobile,
-            parent_mobile,
-            email,
             admission_date,
             completion_year,
             date_of_leaving,
@@ -532,8 +536,9 @@ router.put('/:id', async (req, res) => {
         } = req.body;
         
         // Validate required fields
-        if (!admission_number) {
-            console.error('❌ Validation failed: admission_number is required');
+        if (!admission_number || admission_number.trim() === '') {
+            console.error('❌ Validation: admission_number required');
+            connection.release();
             return res.status(400).json({
                 status: 'error',
                 message: 'Admission Number is required',
@@ -541,8 +546,9 @@ router.put('/:id', async (req, res) => {
             });
         }
         
-        if (!full_name) {
-            console.error('❌ Validation failed: full_name is required');
+        if (!full_name || full_name.trim() === '') {
+            console.error('❌ Validation: full_name required');
+            connection.release();
             return res.status(400).json({
                 status: 'error',
                 message: 'Full Name is required',
@@ -550,136 +556,88 @@ router.put('/:id', async (req, res) => {
             });
         }
         
-        // Validate mobile numbers (10 digits)
-        if (student_mobile && !/^\d{10}$/.test(student_mobile)) {
-            console.error('❌ Validation failed: invalid student_mobile');
-            return res.status(400).json({
-                status: 'error',
-                message: 'Student mobile must be 10 digits',
-                error: 'student_mobile validation failed'
-            });
-        }
-        
-        if (parent_mobile && !/^\d{10}$/.test(parent_mobile)) {
-            console.error('❌ Validation failed: invalid parent_mobile');
-            return res.status(400).json({
-                status: 'error',
-                message: 'Parent mobile must be 10 digits',
-                error: 'parent_mobile validation failed'
-            });
-        }
-        
-        // Validate Aadhaar (12 digits)
-        if (aadhaar_number && !/^\d{12}$/.test(aadhaar_number)) {
-            console.error('❌ Validation failed: invalid aadhaar_number');
-            return res.status(400).json({
-                status: 'error',
-                message: 'Aadhaar number must be 12 digits',
-                error: 'aadhaar_number validation failed'
-            });
-        }
-        
-        // Validate email format
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            console.error('❌ Validation failed: invalid email');
-            return res.status(400).json({
-                status: 'error',
-                message: 'Invalid email format',
-                error: 'email validation failed'
-            });
-        }
-        
-        // Check if admission number already exists for another student
-        if (admission_number) {
-            const [existingAdmission] = await promisePool.query(
-                'SELECT student_id FROM student_master WHERE admission_number = ? AND student_id != ?',
-                [admission_number, req.params.id]
-            );
-            
-            if (existingAdmission.length > 0) {
-                console.error('❌ Duplicate admission_number:', admission_number);
-                return res.status(409).json({
-                    status: 'error',
-                    message: 'Admission number already exists',
-                    error: 'admission_number must be unique'
-                });
+        // Helper to convert empty strings and undefined to null
+        const toNull = (value) => {
+            if (value === undefined || value === null || value === '') {
+                return null;
             }
-        }
-        
-        // Helper to convert empty strings to null
-        const toNullIfEmpty = (value) => {
-            if (value === '' || value === undefined || value === null) return null;
+            if (typeof value === 'string') {
+                return value.trim();
+            }
             return value;
         };
         
-        // Helper to convert boolean to bit (1 or 0)
-        const toBit = (value) => value ? 1 : 0;
+        // Helper to convert to boolean 0/1
+        const toBool = (value) => {
+            if (value === true || value === 1 || value === '1' || value === 'true') {
+                return 1;
+            }
+            return 0;
+        };
         
-        // Prepare values for update
+        // Prepare update values
         const updateValues = [
-            admission_number,
-            toNullIfEmpty(ht_number),
-            toNullIfEmpty(roll_number),
-            full_name,
-            toNullIfEmpty(programme_id),
-            toNullIfEmpty(branch_id),
-            toNullIfEmpty(batch_id),
-            toNullIfEmpty(semester_id),
-            toNullIfEmpty(section_id),
-            toNullIfEmpty(regulation_id),
-            toNullIfEmpty(date_of_birth),
-            toNullIfEmpty(gender),
-            toNullIfEmpty(father_name),
-            toNullIfEmpty(mother_name),
-            toNullIfEmpty(aadhaar_number),
-            toNullIfEmpty(caste_category),
-            toNullIfEmpty(student_mobile),
-            toNullIfEmpty(parent_mobile),
-            toNullIfEmpty(email),
-            toNullIfEmpty(admission_date),
-            toNullIfEmpty(completion_year),
-            toNullIfEmpty(date_of_leaving),
-            toNullIfEmpty(discontinue_date),
-            student_status,
-            toBit(is_detainee),
-            toBit(is_transitory),
-            toBit(is_handicapped),
-            toBit(is_lateral),
-            toBit(join_curriculum),
-            toBit(is_locked),
+            admission_number.trim(),
+            toNull(ht_number),
+            toNull(roll_number),
+            full_name.trim(),
+            toNull(date_of_birth),
+            toNull(gender),
+            toNull(caste_category),
+            toNull(father_name),
+            toNull(mother_name),
+            toNull(aadhaar_number),
+            toNull(student_mobile),
+            toNull(parent_mobile),
+            toNull(email),
+            toNull(programme_id),
+            toNull(branch_id),
+            toNull(batch_id),
+            toNull(semester_id),
+            toNull(section_id),
+            toNull(admission_date),
+            toNull(completion_year),
+            toNull(date_of_leaving),
+            toNull(discontinue_date),
+            student_status || 'In Roll',
+            toBool(is_detainee),
+            toBool(is_transitory),
+            toBool(is_handicapped),
+            toBool(is_lateral),
+            toBool(join_curriculum),
+            toBool(is_locked),
             studentId
         ];
         
-        // Note: In production, consider redacting sensitive fields like Aadhaar, mobile numbers
-        console.log('Update values prepared:', JSON.stringify(updateValues, null, 2));
+        console.log('Update values:', updateValues);
         
-        // Execute update query
-        const updateQuery = `
+        // Execute UPDATE query
+        const updateSQL = `
             UPDATE student_master 
-            SET admission_number = COALESCE(?, admission_number),
+            SET 
+                admission_number = ?,
                 ht_number = ?,
                 roll_number = ?,
-                full_name = COALESCE(?, full_name),
-                programme_id = COALESCE(?, programme_id),
-                branch_id = COALESCE(?, branch_id),
-                batch_id = COALESCE(?, batch_id),
-                semester_id = ?,
-                section_id = ?,
-                regulation_id = ?,
+                full_name = ?,
                 date_of_birth = ?,
                 gender = ?,
+                caste_category = ?,
                 father_name = ?,
                 mother_name = ?,
                 aadhaar_number = ?,
-                caste_category = ?,
                 student_mobile = ?,
                 parent_mobile = ?,
                 email = ?,
+                programme_id = ?,
+                branch_id = ?,
+                batch_id = ?,
+                semester_id = ?,
+                section_id = ?,
                 admission_date = ?,
                 completion_year = ?,
                 date_of_leaving = ?,
                 discontinue_date = ?,
-                student_status = COALESCE(?, student_status),
+                student_status = ?,
                 is_detainee = ?,
                 is_transitory = ?,
                 is_handicapped = ?,
@@ -687,53 +645,67 @@ router.put('/:id', async (req, res) => {
                 join_curriculum = ?,
                 is_locked = ?,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE student_id = ?
+            WHERE student_id = ? AND is_active = 1
         `;
         
-        console.log('Executing update query...');
+        console.log('Executing UPDATE query...');
         
-        const [result] = await promisePool.query(updateQuery, updateValues);
+        const [result] = await connection.query(updateSQL, updateValues);
         
-        console.log('Update result:', JSON.stringify(result, null, 2));
-        console.log('Rows affected:', result.affectedRows);
+        console.log('Update result:', {
+            affectedRows: result.affectedRows,
+            changedRows: result.changedRows,
+            warningCount: result.warningCount
+        });
         
-        // Note: affectedRows can be 0 if no actual changes were made (all values same as before)
-        // This is still considered a successful operation since student exists
+        connection.release();
+        
+        if (result.affectedRows === 0) {
+            console.warn('⚠️ No rows affected - student may not exist or no changes');
+            return res.status(404).json({
+                status: 'error',
+                message: 'Student not found or no changes made',
+                error: 'No rows were affected by the update'
+            });
+        }
         
         console.log('✅ Student updated successfully');
-        console.log('='.repeat(60));
+        console.log('='.repeat(80));
         
         res.json({
             status: 'success',
             message: 'Student updated successfully',
             data: {
                 student_id: studentId,
-                affected_rows: result.affectedRows
+                affected_rows: result.affectedRows,
+                changed_rows: result.changedRows
             }
         });
+        
     } catch (error) {
-        console.error('='.repeat(60));
+        connection.release();
+        
+        console.error('='.repeat(80));
         console.error('=== UPDATE STUDENT ERROR ===');
-        console.error('='.repeat(60));
-        console.error('Error type:', error.constructor.name);
+        console.error('='.repeat(80));
+        console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Error code:', error.code);
         console.error('Error errno:', error.errno);
-        console.error('SQL Message:', error.sqlMessage);
-        console.error('SQL State:', error.sqlState);
-        console.error('SQL:', error.sql);
+        console.error('Error sqlState:', error.sqlState);
+        console.error('Error sqlMessage:', error.sqlMessage);
+        console.error('Error sql:', error.sql);
         console.error('Stack trace:', error.stack);
-        console.error('='.repeat(60));
+        console.error('='.repeat(80));
         
-        // Return appropriate error to frontend based on environment
-        const isDevelopment = process.env.NODE_ENV === 'development';
-        
+        // Return detailed error to frontend
         res.status(500).json({
             status: 'error',
             message: 'Failed to update student',
-            error: isDevelopment ? (error.sqlMessage || error.message) : 'An error occurred while updating the student',
-            errorCode: isDevelopment ? error.code : undefined,
-            errorType: isDevelopment ? error.constructor.name : undefined
+            error: error.sqlMessage || error.message || 'Unknown database error',
+            errorCode: error.code,
+            errorErrno: error.errno,
+            errorSqlState: error.sqlState
         });
     }
 });
