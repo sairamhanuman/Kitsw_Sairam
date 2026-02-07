@@ -1257,25 +1257,25 @@
         function populateStaffForm(staff) {
             console.log('Populating form with staff data');
             document.getElementById('employee_id').value = staff.employee_id || '';
-            document.getElementById('title').value = staff.title || '';
+            document.getElementById('title').value = staff.title_prefix || '';
             document.getElementById('full_name').value = staff.full_name || '';
             document.getElementById('department').value = staff.department_id || '';
             document.getElementById('designation').value = staff.designation || '';
-            document.getElementById('dob').value = staff.dob ? staff.dob.split('T')[0] : '';
+            document.getElementById('dob').value = staff.date_of_birth ? staff.date_of_birth.split('T')[0] : '';
             document.getElementById('gender').value = staff.gender || '';
             document.getElementById('qualification').value = staff.qualification || '';
-            document.getElementById('experience').value = staff.experience || '';
-            document.getElementById('mobile').value = staff.mobile || '';
+            document.getElementById('experience').value = staff.years_of_experience || '';
+            document.getElementById('mobile').value = staff.mobile_number || '';
             document.getElementById('email').value = staff.email || '';
-            document.getElementById('joining_date').value = staff.joining_date ? staff.joining_date.split('T')[0] : '';
+            document.getElementById('joining_date').value = staff.date_of_joining ? staff.date_of_joining.split('T')[0] : '';
             document.getElementById('emergency_contact').value = staff.emergency_contact || '';
             document.getElementById('address').value = staff.address || '';
             document.getElementById('bank_name').value = staff.bank_name || '';
             document.getElementById('account_number').value = staff.account_number || '';
             document.getElementById('ifsc_code').value = staff.ifsc_code || '';
-            document.getElementById('pan_number').value = staff.pan_number || '';
+            document.getElementById('pan_number').value = staff.pan_card || '';
             document.getElementById('aadhaar_number').value = staff.aadhaar_number || '';
-            document.getElementById('uan').value = staff.uan || '';
+            document.getElementById('uan').value = staff.uan_number || '';
             document.getElementById('salary').value = staff.salary || '';
             document.getElementById('employment_status').value = staff.employment_status || 'Active';
             document.getElementById('is_hod').checked = staff.is_hod || false;
@@ -1375,25 +1375,26 @@
 
             const staffData = {
                 employee_id: employeeId,
-                title: title,
+                title_prefix: title,
                 full_name: fullName,
-                dept_id: department,
+                department_id: department,
                 designation: designation,
-                dob: document.getElementById('dob').value || null,
+                date_of_birth: document.getElementById('dob').value || null,
                 gender: document.getElementById('gender').value || null,
                 qualification: document.getElementById('qualification').value.trim() || null,
-                experience: document.getElementById('experience').value || null,
-                mobile: mobile || null,
+                years_of_experience: document.getElementById('experience').value || null,
+                mobile_number: mobile || null,
                 email: email || null,
-                joining_date: document.getElementById('joining_date').value || null,
+                date_of_joining: document.getElementById('joining_date').value || null,
                 emergency_contact: emergencyContact || null,
                 address: document.getElementById('address').value.trim() || null,
                 bank_name: document.getElementById('bank_name').value.trim() || null,
-                account_number: document.getElementById('account_number').value.trim() || null,
+                bank_branch: null,
                 ifsc_code: ifsc || null,
-                pan_number: pan || null,
+                account_number: document.getElementById('account_number').value.trim() || null,
+                pan_card: pan || null,
                 aadhaar_number: aadhaar || null,
-                uan: document.getElementById('uan').value.trim() || null,
+                uan_number: document.getElementById('uan').value.trim() || null,
                 salary: document.getElementById('salary').value || null,
                 employment_status: document.getElementById('employment_status').value,
                 is_hod: document.getElementById('is_hod').checked,
