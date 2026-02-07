@@ -444,6 +444,7 @@ router.get('/:id', async (req, res) => {
         // Return in expected format
         res.json({
             status: 'success',
+            message: 'Student retrieved successfully',
             data: student
         });
         
