@@ -250,6 +250,45 @@ const tableSchemas = {
             INDEX idx_is_active (is_active),
             INDEX idx_department (department_id)
         )
+    `,
+    
+    subject_master: `
+        CREATE TABLE IF NOT EXISTS subject_master (
+            subject_id INT PRIMARY KEY AUTO_INCREMENT,
+            programme_id INT NOT NULL,
+            branch_id INT NOT NULL,
+            semester_id INT NOT NULL,
+            regulation_id INT NOT NULL,
+            subject_order INT DEFAULT 1,
+            syllabus_code VARCHAR(50) NOT NULL,
+            ref_code VARCHAR(50),
+            internal_exam_code VARCHAR(50),
+            external_exam_code VARCHAR(50),
+            subject_name VARCHAR(255) NOT NULL,
+            subject_type ENUM('Theory','Practical','Drawing','Project','Others') DEFAULT 'Theory',
+            internal_max_marks INT DEFAULT 0,
+            external_max_marks INT DEFAULT 0,
+            ta_max_marks INT DEFAULT 0,
+            credits DECIMAL(3,1) DEFAULT 0,
+            is_elective TINYINT(1) DEFAULT 0,
+            is_under_group TINYINT(1) DEFAULT 0,
+            is_exempt_exam_fee TINYINT(1) DEFAULT 0,
+            replacement_group_order INT,
+            is_running_curriculum TINYINT(1) DEFAULT 1,
+            is_locked TINYINT(1) DEFAULT 0,
+            is_active TINYINT(1) DEFAULT 1,
+            deleted_at TIMESTAMP NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_programme (programme_id),
+            INDEX idx_branch (branch_id),
+            INDEX idx_semester (semester_id),
+            INDEX idx_regulation (regulation_id),
+            FOREIGN KEY (programme_id) REFERENCES programme_master(programme_id),
+            FOREIGN KEY (branch_id) REFERENCES branch_master(branch_id),
+            FOREIGN KEY (semester_id) REFERENCES semester_master(semester_id),
+            FOREIGN KEY (regulation_id) REFERENCES regulation_master(regulation_id)
+        ) ENGINE=InnoDB
     `
 };
 
@@ -281,7 +320,8 @@ async function addDeletedAtColumn(pool) {
         'section_master',
         'exam_session_master',
         'student_master',
-        'staff_master'
+        'staff_master',
+        'subject_master'
     ];
     
     console.log('\nRunning migrations to add deleted_at column...');
@@ -414,7 +454,8 @@ async function initializeDatabase(pool) {
             'section_master',
             'exam_session_master',
             'student_master',
-            'staff_master'
+            'staff_master',
+            'subject_master'
         ];
         
         let allTablesCreated = true;
