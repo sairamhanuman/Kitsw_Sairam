@@ -473,6 +473,12 @@ router.post('/', async (req, res) => {
 // PUT update student
 router.put('/:id', async (req, res) => {
     try {
+        const studentId = req.params.id;
+        
+        console.log('=== UPDATE STUDENT ===');
+        console.log('Student ID:', studentId);
+        console.log('Request body:', req.body);
+        
         const { 
             admission_number,
             ht_number,
@@ -506,10 +512,18 @@ router.put('/:id', async (req, res) => {
             is_locked
         } = req.body;
         
+        // Validate required fields
+        if (!admission_number || !full_name) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Admission Number and Full Name are required'
+            });
+        }
+        
         // Check if student exists
         const [existing] = await promisePool.query(
             'SELECT student_id FROM student_master WHERE student_id = ?',
-            [req.params.id]
+            [studentId]
         );
         
         if (existing.length === 0) {
@@ -565,21 +579,27 @@ router.put('/:id', async (req, res) => {
             }
         }
         
+        // Helper to convert empty strings to null
+        const toNullIfEmpty = (value) => {
+            if (value === '' || value === undefined) return null;
+            return value;
+        };
+        
         // Update student
-        await promisePool.query(
+        const [result] = await promisePool.query(
             `UPDATE student_master 
             SET admission_number = COALESCE(?, admission_number),
                 ht_number = ?,
                 roll_number = ?,
                 full_name = COALESCE(?, full_name),
-                programme_id = COALESCE(?, programme_id),
-                branch_id = COALESCE(?, branch_id),
-                batch_id = COALESCE(?, batch_id),
+                programme_id = ?,
+                branch_id = ?,
+                batch_id = ?,
                 semester_id = ?,
                 section_id = ?,
                 regulation_id = ?,
                 date_of_birth = ?,
-                gender = COALESCE(?, gender),
+                gender = ?,
                 father_name = ?,
                 mother_name = ?,
                 aadhaar_number = ?,
@@ -592,54 +612,60 @@ router.put('/:id', async (req, res) => {
                 date_of_leaving = ?,
                 discontinue_date = ?,
                 student_status = COALESCE(?, student_status),
-                is_detainee = COALESCE(?, is_detainee),
-                is_transitory = COALESCE(?, is_transitory),
-                is_handicapped = COALESCE(?, is_handicapped),
-                is_lateral = COALESCE(?, is_lateral),
-                join_curriculum = COALESCE(?, join_curriculum),
-                is_locked = COALESCE(?, is_locked)
+                is_detainee = ?,
+                is_transitory = ?,
+                is_handicapped = ?,
+                is_lateral = ?,
+                join_curriculum = ?,
+                is_locked = ?
             WHERE student_id = ?`,
             [
                 admission_number,
-                ht_number || null,
-                roll_number || null,
+                toNullIfEmpty(ht_number),
+                toNullIfEmpty(roll_number),
                 full_name,
-                programme_id,
-                branch_id,
-                batch_id,
-                semester_id || null,
-                section_id || null,
-                regulation_id || null,
-                date_of_birth || null,
-                gender,
-                father_name || null,
-                mother_name || null,
-                aadhaar_number || null,
-                caste_category || null,
-                student_mobile || null,
-                parent_mobile || null,
-                email || null,
-                admission_date || null,
-                completion_year || null,
-                date_of_leaving || null,
-                discontinue_date || null,
+                toNullIfEmpty(programme_id),
+                toNullIfEmpty(branch_id),
+                toNullIfEmpty(batch_id),
+                toNullIfEmpty(semester_id),
+                toNullIfEmpty(section_id),
+                toNullIfEmpty(regulation_id),
+                toNullIfEmpty(date_of_birth),
+                toNullIfEmpty(gender),
+                toNullIfEmpty(father_name),
+                toNullIfEmpty(mother_name),
+                toNullIfEmpty(aadhaar_number),
+                toNullIfEmpty(caste_category),
+                toNullIfEmpty(student_mobile),
+                toNullIfEmpty(parent_mobile),
+                toNullIfEmpty(email),
+                toNullIfEmpty(admission_date),
+                toNullIfEmpty(completion_year),
+                toNullIfEmpty(date_of_leaving),
+                toNullIfEmpty(discontinue_date),
                 student_status,
-                is_detainee,
-                is_transitory,
-                is_handicapped,
-                is_lateral,
-                join_curriculum,
-                is_locked,
-                req.params.id
+                is_detainee ? 1 : 0,
+                is_transitory ? 1 : 0,
+                is_handicapped ? 1 : 0,
+                is_lateral ? 1 : 0,
+                join_curriculum ? 1 : 0,
+                is_locked ? 1 : 0,
+                studentId
             ]
         );
+        
+        console.log('Update result:', result);
+        console.log('✅ Student updated successfully');
         
         res.json({
             status: 'success',
             message: 'Student updated successfully'
         });
     } catch (error) {
-        console.error('Error updating student:', error);
+        console.error('=== UPDATE STUDENT ERROR ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to update student',
