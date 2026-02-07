@@ -771,14 +771,13 @@
     </div>
 
     <!-- Details Panel Overlay -->
-    <div class="overlay" id="overlay" onclick="closeDetailsPanel()"></div>
+    <div class="details-panel-overlay" id="overlay" onclick="closeDetailsPanel()"></div>
 
     <!-- Details Panel -->
     <div class="details-panel" id="details-panel">
         <div class="details-header">
-            <h2 id="panel-title">Staff Details</h2>
-            <p id="panel-subtitle">View and edit staff information</p>
-            <button class="close-panel" onclick="closeDetailsPanel()">×</button>
+            <h3 id="panel-title">Staff Details</h3>
+            <button class="close-btn" onclick="closeDetailsPanel()">×</button>
         </div>
         <div class="details-body">
             <!-- Photo Section -->
@@ -896,7 +895,7 @@
             </div>
             <div class="form-group">
                 <label for="address">Address</label>
-                <textarea id="address" placeholder="Enter complete address"></textarea>
+                <textarea id="address" rows="3" placeholder="Enter complete address"></textarea>
             </div>
 
             <!-- Account Details -->
@@ -1072,11 +1071,11 @@
         async function loadStatistics() {
             try {
                 console.log('Loading statistics...');
-                const response = await fetch('/api/staff/statistics');
+                const response = await fetch('/api/staff');
                 if (!response.ok) throw new Error('Failed to fetch statistics');
-                const stats = await response.json();
-                console.log('Statistics loaded:', stats);
-                updateStatistics(stats);
+                const result = await response.json();
+                console.log('Statistics loaded:', result.data.statistics);
+                updateStatistics(result.data.statistics);
             } catch (error) {
                 console.error('Error loading statistics:', error);
                 updateStatistics({total:0,teaching:0,nonTeaching:0,active:0,onLeave:0,retired:0});
@@ -1102,9 +1101,9 @@
 
             try {
                 const params = new URLSearchParams();
-                if (department) params.append('department', department);
+                if (department) params.append('department_id', department);
                 if (designation) params.append('designation', designation);
-                if (status) params.append('status', status);
+                if (status) params.append('employment_status', status);
 
                 const url = `/api/staff?${params.toString()}`;
                 console.log('Fetching staff data from:', url);
@@ -1212,7 +1211,7 @@
             document.getElementById('employee_id').value = staff.employee_id || '';
             document.getElementById('title').value = staff.title || '';
             document.getElementById('full_name').value = staff.full_name || '';
-            document.getElementById('department').value = staff.dept_id || '';
+            document.getElementById('department').value = staff.department_id || '';
             document.getElementById('designation').value = staff.designation || '';
             document.getElementById('dob').value = staff.dob ? staff.dob.split('T')[0] : '';
             document.getElementById('gender').value = staff.gender || '';
@@ -1428,7 +1427,7 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/staff/import-excel', {
+                const response = await fetch('/api/staff/import/excel', {
                     method: 'POST',
                     body: formData
                 });
@@ -1459,7 +1458,7 @@
                 if (designation) params.append('designation', designation);
                 if (status) params.append('status', status);
 
-                const url = `/api/staff/export-excel?${params.toString()}`;
+                const url = `/api/staff/export/excel?${params.toString()}`;
                 console.log('Downloading from:', url);
                 window.location.href = url;
                 console.log('Export initiated');

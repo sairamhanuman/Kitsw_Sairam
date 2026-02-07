@@ -1006,7 +1006,7 @@ router.get('/export/excel', async (req, res) => {
                 s.uan_number,
                 s.basic_salary,
                 s.employment_status,
-                COALESCE(d.branch_code, '-') as department_name,
+                COALESCE(d.branch_name, '-') as department_name,
                 s.is_hod,
                 s.is_class_coordinator,
                 s.is_exam_invigilator
@@ -1238,7 +1238,7 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
                     is_hod: parseYesNo(row['Is HOD (Yes/No)']),
                     is_class_coordinator: parseYesNo(row['Is Class Coordinator (Yes/No)']),
                     is_exam_invigilator: parseYesNo(row['Is Exam Invigilator (Yes/No)']),
-                    department_id: req.body.department_id || null
+                    department: row['Department Code']?.trim() || null
                 };
                 
                 // Validate required fields
@@ -1355,6 +1355,16 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
         
         for (const staff of staffList) {
             try {
+                // Lookup department_id from department code
+                let departmentId = null;
+                if (staff.department) {
+                    const [deptResult] = await promisePool.query(
+                        'SELECT branch_id FROM branch_master WHERE branch_code = ? AND is_active = 1',
+                        [staff.department]
+                    );
+                    departmentId = deptResult.length > 0 ? deptResult[0].branch_id : null;
+                }
+                
                 // Check if employee ID already exists
                 const [existing] = await promisePool.query(
                     'SELECT staff_id FROM staff_master WHERE employee_id = ?',
@@ -1381,7 +1391,7 @@ router.post('/import/excel', uploadExcel.single('file'), async (req, res) => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
                     [
                         staff.employee_id, staff.title_prefix, staff.full_name,
-                        staff.department_id, staff.designation, staff.date_of_birth,
+                        departmentId, staff.designation, staff.date_of_birth,
                         staff.gender, staff.qualification, staff.years_of_experience,
                         staff.mobile_number, staff.email, staff.date_of_joining,
                         staff.emergency_contact, staff.address, staff.bank_name,

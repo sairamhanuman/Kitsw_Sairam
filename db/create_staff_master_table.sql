@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS staff_master (
     
     -- Personal Details
     date_of_birth DATE,
-    gender ENUM('Male', 'Female', 'Other') NOT NULL,
+    gender ENUM('Male', 'Female', 'Other'),
     qualification VARCHAR(255),
     years_of_experience INT DEFAULT 0,
     mobile_number VARCHAR(15),
