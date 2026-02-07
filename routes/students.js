@@ -176,13 +176,13 @@ router.get('/sample-excel', async (req, res) => {
         // Build CSV content
         let csv = '';
         
-        // Header Section (Rows 1-6)
+        // Metadata Section (Rows 1-5, Row 6 is empty)
         csv += `Batch,${batchName}\n`;
         csv += `Programme,${programmeName}\n`;
         csv += `Branch,${branchName}\n`;
         csv += `Semester,${semesterName}\n`;
         csv += `Regulation,${regulationCode}\n`;
-        csv += '\n'; // Empty line
+        csv += '\n'; // Empty line (Row 6)
         
         // Column Headers (Row 7)
         const headers = [
