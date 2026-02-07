@@ -36,6 +36,39 @@ const upload = multer({
     }
 });
 
+// GET /api/departments - Get all active departments/branches
+router.get('/departments', async (req, res) => {
+    try {
+        console.log('=== GET DEPARTMENTS ===');
+        
+        const query = `
+            SELECT 
+                branch_id as dept_id,
+                branch_name as dept_name,
+                branch_code as dept_code
+            FROM branch_master
+            WHERE is_active = 1
+            ORDER BY branch_name
+        `;
+        
+        const [departments] = await promisePool.query(query);
+        
+        console.log(`Found ${departments.length} departments`);
+        
+        res.json(departments);
+        
+    } catch (error) {
+        console.error('=== GET DEPARTMENTS ERROR ===');
+        console.error('Error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch departments',
+            error: error.message
+        });
+    }
+});
+
 // GET /api/staff - List all staff with filters and statistics
 router.get('/', async (req, res) => {
     try {
