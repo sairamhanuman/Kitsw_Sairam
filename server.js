@@ -159,7 +159,49 @@ app.use('/api/batches', batchRoutes);
 const semesterRoutes = require('./routes/semesters')(promisePool);
 app.use('/api/semesters', semesterRoutes);
 
-// Regulation Management Routes
+// ============================================
+// REGULATIONS ENDPOINT (Top-Level)
+// ============================================
+// This must be at top level because it's used by multiple modules
+app.get('/api/regulations', async (req, res) => {
+    try {
+        console.log('=== GET REGULATIONS (Top-Level Endpoint) ===');
+        
+        const query = `
+            SELECT 
+                regulation_id,
+                regulation_code,
+                regulation_name,
+                description,
+                is_active
+            FROM regulation_master
+            WHERE is_active = 1
+            ORDER BY regulation_code DESC
+        `;
+        
+        const [regulations] = await promisePool.query(query);
+        
+        console.log(`Successfully fetched ${regulations.length} regulations`);
+        console.log('Regulations:', regulations.map(r => r.regulation_code).join(', '));
+        
+        res.json(regulations);
+        
+    } catch (error) {
+        console.error('=== GET REGULATIONS ERROR ===');
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Error code:', error.code);
+        
+        res.status(500).json({ 
+            status: 'error',
+            message: 'Failed to fetch regulations',
+            error: error.message,
+            code: error.code
+        });
+    }
+});
+
+// Regulation Management Routes (other CRUD operations)
 const regulationRoutes = require('./routes/regulations')(promisePool);
 app.use('/api/regulations', regulationRoutes);
 
