@@ -1046,10 +1046,10 @@
                 console.log('=== GENERATE SAMPLE EXCEL ===');
                 
                 // Get filter values
-                const programmeId = document.getElementById('filter-programme').value;
-                const branchId = document.getElementById('filter-branch').value;
-                const semesterId = document.getElementById('filter-semester').value;
-                const regulationId = document.getElementById('filter-regulation').value;
+                const programmeId = document.getElementById('filterProgramme')?.value;
+                const branchId = document.getElementById('filterBranch')?.value;
+                const semesterId = document.getElementById('filterSemester')?.value;
+                const regulationId = document.getElementById('filterRegulation')?.value;
                 
                 // Validate filters
                 if (!programmeId || !branchId || !semesterId || !regulationId) {
