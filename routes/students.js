@@ -585,6 +585,9 @@ router.put('/:id', async (req, res) => {
             return value;
         };
         
+        // Helper to convert boolean to bit (1 or 0)
+        const toBit = (value) => value ? 1 : 0;
+        
         // Update student
         const [result] = await promisePool.query(
             `UPDATE student_master 
@@ -644,12 +647,12 @@ router.put('/:id', async (req, res) => {
                 toNullIfEmpty(date_of_leaving),
                 toNullIfEmpty(discontinue_date),
                 student_status,
-                is_detainee ? 1 : 0,
-                is_transitory ? 1 : 0,
-                is_handicapped ? 1 : 0,
-                is_lateral ? 1 : 0,
-                join_curriculum ? 1 : 0,
-                is_locked ? 1 : 0,
+                toBit(is_detainee),
+                toBit(is_transitory),
+                toBit(is_handicapped),
+                toBit(is_lateral),
+                toBit(join_curriculum),
+                toBit(is_locked),
                 studentId
             ]
         );

@@ -1335,16 +1335,10 @@
                 if (event && event.currentTarget) {
                     rowElement = event.currentTarget.closest('tr');
                 } else {
-                    // Fallback: find row containing this student's link
+                    // Fallback: find row by data-student-id attribute
                     const tbody = document.getElementById('student-table-body');
                     if (tbody) {
-                        const rows = tbody.querySelectorAll('tr');
-                        rows.forEach(row => {
-                            const link = row.querySelector('.admission-link');
-                            if (link && link.onclick && link.onclick.toString().includes(studentId)) {
-                                rowElement = row;
-                            }
-                        });
+                        rowElement = tbody.querySelector(`tr[data-student-id="${studentId}"]`);
                     }
                 }
                 
@@ -2021,6 +2015,16 @@
             }
         });
         
+        // Helper function to determine if click should close the panel
+        function shouldCloseOnClick(event) {
+            const isClickOnModal = event.target.closest('#importExcelModal, #importPhotosModal');
+            const isClickOnActionButton = event.target.closest('.filter-actions, .action-buttons');
+            const isClickOnStudentLink = event.target.closest('.admission-link');
+            
+            // Don't close if clicking on modals, action buttons, or student links
+            return !isClickOnModal && !isClickOnActionButton && !isClickOnStudentLink;
+        }
+        
         // Click outside to close details panel
         document.addEventListener('click', (event) => {
             const panel = document.getElementById('details-panel');
@@ -2029,25 +2033,16 @@
             // If clicking on overlay, close panel
             if (event.target === overlay) {
                 closeDetailsPanel();
+                return;
             }
             
             // Check if panel is open and click is outside
             if (panel && panel.classList.contains('open')) {
                 const isClickInside = panel.contains(event.target);
-                const isStudentLink = event.target.closest('.admission-link');
                 
-                // If click is outside panel and not on a student link, close panel
-                // (student links are handled separately to switch between students)
-                if (!isClickInside && !isStudentLink) {
-                    // Don't close if clicking on modals or other UI elements
-                    const isModal = event.target.closest('#importExcelModal, #importPhotosModal');
-                    if (!isModal) {
-                        // Check if not clicking filter/action buttons
-                        const isActionButton = event.target.closest('.filter-actions, .action-buttons');
-                        if (!isActionButton) {
-                            closeDetailsPanel();
-                        }
-                    }
+                // If click is outside panel and appropriate, close it
+                if (!isClickInside && shouldCloseOnClick(event)) {
+                    closeDetailsPanel();
                 }
             }
         });
