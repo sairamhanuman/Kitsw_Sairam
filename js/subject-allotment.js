@@ -64,8 +64,12 @@ async function loadRegulations() {
     const dropdown = document.getElementById("regulationId");
     dropdown.innerHTML = `<option value="">Select Regulation</option>`;
 
-    data.data.forEach(r => {
-        dropdown.innerHTML += `<option value="${r.regulation_id}">${r.regulation_name}</option>`;
+    data.forEach(r => {
+        dropdown.innerHTML += `
+            <option value="${r.regulation_id}">
+                ${r.regulation_name}
+            </option>
+        `;
     });
 
     dropdown.addEventListener("change", loadSubjects);
@@ -137,7 +141,8 @@ async function loadStaff() {
     const dropdown = document.getElementById("staffId");
     dropdown.innerHTML = `<option value="">Select Faculty</option>`;
 
-    data.data.forEach(st => {
+    data.forEach(st => {
+
         dropdown.innerHTML += `
             <option value="${st.staff_id}">
                 ${st.department_name} - ${st.employee_id} - ${st.full_name}
@@ -151,15 +156,28 @@ async function loadStaff() {
 
 async function saveAllotment() {
 
+    if (!programmeId.value ||
+        !branchId.value ||
+        !semesterId.value ||
+        !regulationId.value ||
+        !subjectId.value ||
+        !batchId.value ||
+        !sectionId.value ||
+        !staffId.value) {
+
+        alert("Please select all fields");
+        return;
+    }
+
     const body = {
-        programme_id: programmeId.value,
-        branch_id: branchId.value,
-        semester_id: semesterId.value,
-        regulation_id: regulationId.value,
-        subject_id: subjectId.value,
-        batch_id: batchId.value,
-        section_id: sectionId.value,
-        staff_id: staffId.value
+        programme_id: parseInt(programmeId.value),
+        branch_id: parseInt(branchId.value),
+        semester_id: parseInt(semesterId.value),
+        regulation_id: parseInt(regulationId.value),
+        subject_id: parseInt(subjectId.value),
+        batch_id: parseInt(batchId.value),
+        section_id: parseInt(sectionId.value),
+        staff_id: parseInt(staffId.value)
     };
 
     const res = await fetch("/api/subject-allotments", {
@@ -169,8 +187,8 @@ async function saveAllotment() {
     });
 
     const data = await res.json();
-
     alert(data.message);
+
     loadAllotments();
 }
 
