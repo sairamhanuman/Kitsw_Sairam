@@ -371,6 +371,7 @@ router.get('/', async (req, res) => {
                 s.designation,
                 s.employment_status,
                 s.photo_url,
+                 b.branch_code,
                 b.branch_name as dept_name,
                 b.branch_id as department_id
             FROM staff_master s
