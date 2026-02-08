@@ -1,3 +1,5 @@
+let editingId = null;
+
 document.addEventListener("DOMContentLoaded", function () {
     loadProgrammes();
     loadBatches();
@@ -190,8 +192,15 @@ async function saveAllotment() {
         staff_id: parseInt(staffId.value)
     };
 
-    const res = await fetch("/api/subject-allotments", {
-        method: "POST",
+    const url = editingId 
+    ? `/api/subject-allotments/${editingId}`
+    : "/api/subject-allotments";
+
+const method = editingId ? "PUT" : "POST";
+
+const res = await fetch(url, {
+    method: method,
+
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
@@ -219,7 +228,7 @@ async function loadAllotments() {
                 <th>Batch</th>
                 <th>Section</th>
                 <th>Faculty</th>
-                <th>Action</th>
+                <th>Actions</th>
             </tr>
     `;
 
@@ -231,11 +240,16 @@ async function loadAllotments() {
                 <td>${row.batch_name}</td>
                 <td>${row.section_name}</td>
                 <td>${row.faculty_name}</td>
-                <td>
-                    <button onclick="deleteAllotment(${row.allotment_id})" class="btn btn-danger">
-                        Delete
-                    </button>
-                </td>
+              <td>
+    <button onclick="editAllotment(${row.allotment_id})" class="btn btn-primary btn-sm">
+        Edit
+    </button>
+
+    <button onclick="deleteAllotment(${row.allotment_id})" class="btn btn-danger btn-sm">
+        Delete
+    </button>
+</td>
+
             </tr>
         `;
     });
@@ -243,6 +257,20 @@ async function loadAllotments() {
     html += `</table>`;
 
     document.getElementById("tableContainer").innerHTML = html;
+}
+
+async function editAllotment(id) {
+
+    const res = await fetch("/api/subject-allotments");
+    const data = await res.json();
+
+    const record = data.data.find(r => r.allotment_id == id);
+
+    if (!record) return;
+
+    editingId = id;
+
+    alert("Now modify fields and click Save to update");
 }
 
 /* ================================
