@@ -139,26 +139,27 @@ async function loadSections() {
 ================================ */
 
 async function loadStaff() {
+
     const res = await fetch("/api/staff");
-    const data = await res.json();
+    const result = await res.json();
 
     const dropdown = document.getElementById("staffId");
     dropdown.innerHTML = `<option value="">Select Faculty</option>`;
 
-    // ✅ FIX HERE
-    if (!data.staff || data.staff.length === 0) {
-        console.log("No staff found");
+    if (!result.data || !result.data.staff || result.data.staff.length === 0) {
+        console.warn("No staff found");
         return;
     }
 
-    data.staff.forEach(st => {
+    result.data.staff.forEach(st => {
         dropdown.innerHTML += `
             <option value="${st.staff_id}">
-                ${st.employee_id} - ${st.full_name}
+                ${st.dept_name} - ${st.employee_id} - ${st.full_name}
             </option>
         `;
     });
 }
+
 /* ================================
    SAVE
 ================================ */
