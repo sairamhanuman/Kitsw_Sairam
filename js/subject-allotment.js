@@ -154,7 +154,7 @@ async function loadStaff() {
     result.data.staff.forEach(st => {
         dropdown.innerHTML += `
             <option value="${st.staff_id}">
-                ${st.dept_code} - ${st.employee_id} - ${st.full_name}
+                ${st.branch_code} - ${st.employee_id} - ${st.full_name}
             </option>
         `;
     });
