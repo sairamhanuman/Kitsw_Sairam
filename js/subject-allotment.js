@@ -146,14 +146,21 @@ async function loadStaff() {
     const dropdown = document.getElementById("staffId");
     dropdown.innerHTML = `<option value="">Select Faculty</option>`;
 
-    if (data.data) {
-        data.data.forEach(st => {
+    // If API returns array directly
+    const staffList = Array.isArray(data) ? data : data.data;
+
+    if (staffList && staffList.length > 0) {
+
+        staffList.forEach(st => {
             dropdown.innerHTML += `
                 <option value="${st.staff_id}">
-                    ${st.department_name || ''} - ${st.employee_id} - ${st.full_name}
+                    ${st.employee_id} - ${st.full_name}
                 </option>
             `;
         });
+
+    } else {
+        console.log("No staff found");
     }
 }
 /* ================================
