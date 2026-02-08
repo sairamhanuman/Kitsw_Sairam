@@ -262,7 +262,7 @@ async function loadAllotments() {
 async function editAllotment(id) {
     editingId = id;
 
-    // Get the allotment record
+    // Get allotment record
     const res = await fetch("/api/subject-allotments");
     const data = await res.json();
     const record = data.data.find(r => r.allotment_id == id);
@@ -270,34 +270,24 @@ async function editAllotment(id) {
 
     // PROGRAMME
     document.getElementById('programmeId').value = record.programme_id;
-    await loadBranches(); // Loads branches for selected programme
-
-    // BRANCH
+    await loadBranches();
     document.getElementById('branchId').value = record.branch_id;
-    await loadSemesters(); // Loads semesters for selected branch
-
-    // SEMESTER
+    await loadSemesters();
     document.getElementById('semesterId').value = record.semester_id;
-    await loadRegulations(); // Loads regulations (not dependent)
-
-    // REGULATION
+    await loadRegulations();
     document.getElementById('regulationId').value = record.regulation_id;
-    await loadSubjects(); // Loads subjects for selected filters
-
-    // SUBJECT
+    await loadSubjects();
     document.getElementById('subjectId').value = record.subject_id;
 
     // BATCH
     document.getElementById('batchId').value = record.batch_id;
-    await loadSections(); // Loads sections for selected batch
-
-    // SECTION
+    await loadSections();
     document.getElementById('sectionId').value = record.section_id;
 
     // STAFF
     document.getElementById('staffId').value = record.staff_id;
 
-    alert("Fields have been populated for editing. Modify as needed and click Save.");
+    alert("Fields populated for editing!");
 }
 /* ================================
    DELETE
