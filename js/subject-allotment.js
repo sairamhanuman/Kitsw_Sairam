@@ -184,49 +184,42 @@ async function loadAllotments() {
 
 /* ================================
    EDIT (CASCADE LOGIC!)
-================================ */async function editAllotment(id) {
+================================ */
+async function editAllotment(id) {
+
+    const res = await fetch("/api/subject-allotments");
+    const data = await res.json();
+
+    const row = data.data.find(r => r.allotment_id == id);
+    if (!row) return;
+
     editingId = id;
 
-    // 1. Fetch the record to edit
-    const allotmentsRes = await fetch("/api/subject-allotments");
-    const allotmentsData = await allotmentsRes.json();
-    const record = allotmentsData.data.find(r => r.allotment_id == id);
-    if (!record) return;
-
-    // PROGRAMME - always set parent first
-    document.getElementById('programmeId').value = record.programme_id;
-
-    // CHILD: loading branches for this programme
+    // SET VALUES STEP BY STEP (IMPORTANT ORDER)
+    programmeId.value = row.programme_id;
     await loadBranches();
-    const branchDropdown = document.getElementById('branchId');
-    branchDropdown.innerHTML = `<option value="">Select Branch</option>`;
-    // After loadBranches, set branch value
-    branchDropdown.value = record.branch_id;
 
+    branchId.value = row.branch_id;
     await loadSemesters();
-    const semesterDropdown = document.getElementById('semesterId');
-    semesterDropdown.innerHTML = `<option value="">Select Semester</option>`;
-    semesterDropdown.value = record.semester_id;
 
+    semesterId.value = row.semester_id;
     await loadRegulations();
-    const regulationDropdown = document.getElementById('regulationId');
-    regulationDropdown.innerHTML = `<option value="">Select Regulation</option>`;
-    regulationDropdown.value = record.regulation_id;
 
+    regulationId.value = row.regulation_id;
     await loadSubjects();
-    const subjectDropdown = document.getElementById('subjectId');
-    subjectDropdown.innerHTML = `<option value="">Select Subject</option>`;
-    subjectDropdown.value = record.subject_id;
 
-    // BATCH (not usually dependent)
-    document.getElementById('batchId').value = record.batch_id;
+    subjectId.value = row.subject_id;
+
+    batchId.value = row.batch_id;
     await loadSections();
-    document.getElementById('sectionId').value = record.section_id;
 
-    document.getElementById('staffId').value = record.staff_id;
+    sectionId.value = row.section_id;
 
-    alert("Fields have been populated for editing. Modify as needed and click Save.");
+    staffId.value = row.staff_id;
+
+    alert("Edit mode enabled. Modify and click Save.");
 }
+
 
 /* ================================
    DELETE
