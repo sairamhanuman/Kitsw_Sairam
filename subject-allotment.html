@@ -1,97 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Subject Allotment to Faculty</title>
-    <link rel="stylesheet" href="css/styles.css">
+<meta charset="UTF-8">
+<title>Subject Allotment to Faculty</title>
+<link rel="stylesheet" href="css/styles.css">
 
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            margin: 0;
-        }
+<style>
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fa;
+    margin: 0;
+    padding: 0;
+}
 
-        .student-container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 20px;
-        }
+/* Container */
+.allotment-container {
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 20px;
+}
 
-        .student-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+/* Header */
+.allotment-header {
+    background: linear-gradient(135deg, #5b73e8 0%, #4a5fb8 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
 
-        .box {
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
+.allotment-header h1 {
+    margin: 0;
+    font-size: 28px;
+}
 
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
+.allotment-header p {
+    margin-top: 8px;
+    opacity: 0.9;
+}
 
-        select {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
+/* Filter Card */
+.filter-card {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+}
 
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-        }
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
 
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
+.filter-row select {
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+}
 
-        .btn-primary:hover {
-            background: #5568d3;
-        }
+/* Save Button */
+.action-row {
+    text-align: right;
+}
 
-        #tableContainer {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
 
-        #alertContainer {
-            margin-bottom: 15px;
-        }
-    </style>
+.btn-primary {
+    background: #5b73e8;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #4a63d8;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+/* Table Section */
+.table-section {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow-x: auto;
+}
+
+.simple-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.simple-table thead {
+    background: #5b73e8;
+    color: white;
+}
+
+.simple-table th {
+    padding: 12px;
+    text-align: left;
+}
+
+.simple-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.simple-table tbody tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+.simple-table tbody tr:hover {
+    background: #f0f4ff;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .filter-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 </head>
 
 <body>
 
-<div class="student-container">
+<div class="allotment-container">
 
     <!-- HEADER -->
-    <div class="student-header">
-        <h2>Subject Allotment to Faculty</h2>
-        <p>Assign subjects to faculty members</p>
+    <div class="allotment-header">
+        <h1>Subject Allotment to Faculty</h1>
+        <p>Assign subjects to faculty members based on programme, branch & semester</p>
     </div>
 
-    <!-- FILTER / FORM -->
-    <div class="box">
+    <!-- FILTERS -->
+    <div class="filter-card">
 
-        <div class="form-row">
+        <div class="filter-row">
             <select id="programmeId"></select>
             <select id="branchId"></select>
             <select id="semesterId"></select>
@@ -99,11 +163,13 @@
             <select id="subjectId"></select>
         </div>
 
-        <div class="form-row">
+        <div class="filter-row">
             <select id="batchId"></select>
             <select id="sectionId"></select>
             <select id="staffId"></select>
+        </div>
 
+        <div class="action-row">
             <button onclick="saveAllotment()" class="btn btn-primary">
                 + Save Allotment
             </button>
@@ -111,11 +177,8 @@
 
     </div>
 
-    <!-- ALERTS -->
-    <div id="alertContainer"></div>
-
     <!-- TABLE -->
-    <div id="tableContainer"></div>
+    <div id="tableContainer" class="table-section"></div>
 
 </div>
 
