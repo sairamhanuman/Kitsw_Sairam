@@ -303,6 +303,10 @@ app.get('/api/departments', async (req, res) => {
     }
 });
 
+// Subect allotement to faculty Routes
+const subjectAllotmentRoutes = require('./routes/subject-allotments')(promisePool);
+app.use('/api/subject-allotments', subjectAllotmentRoutes);
+
 // Staff Management Routes
 const staffRoutes = require('./routes/staff');
 app.use('/api/staff', staffRoutes);
@@ -328,6 +332,8 @@ app.use((err, req, res, next) => {
         error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
+
+
 
 // Serve index.html for all other routes (SPA support) - MUST BE LAST
 app.get(/.*/, (req, res) => {
