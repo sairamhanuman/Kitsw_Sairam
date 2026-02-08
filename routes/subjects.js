@@ -115,46 +115,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET single subject by ID
-router.get('/:id', async (req, res) => {
-    try {
-        const [rows] = await promisePool.query(
-            `SELECT 
-                s.*,
-                p.programme_name,
-                b.branch_name,
-                sem.semester_name,
-                r.regulation_name
-            FROM subject_master s
-            LEFT JOIN programme_master p ON s.programme_id = p.programme_id
-            LEFT JOIN branch_master b ON s.branch_id = b.branch_id
-            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id
-            LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
-            WHERE s.subject_id = ?`,
-            [req.params.id]
-        );
-        
-        if (rows.length === 0) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'Subject not found'
-            });
-        }
-        
-        res.json({
-            status: 'success',
-            message: 'Subject retrieved successfully',
-            data: rows[0]
-        });
-    } catch (error) {
-        console.error('Error fetching subject:', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to fetch subject',
-            error: error.message
-        });
-    }
-});
+
 
 // POST create new subject
 router.post('/', async (req, res) => {
@@ -1016,6 +977,46 @@ router.get('/export/excel', async (req, res) => {
     }
 });
 
+// GET single subject by ID
+router.get('/:id', async (req, res) => {
+    try {
+        const [rows] = await promisePool.query(
+            `SELECT 
+                s.*,
+                p.programme_name,
+                b.branch_name,
+                sem.semester_name,
+                r.regulation_name
+            FROM subject_master s
+            LEFT JOIN programme_master p ON s.programme_id = p.programme_id
+            LEFT JOIN branch_master b ON s.branch_id = b.branch_id
+            LEFT JOIN semester_master sem ON s.semester_id = sem.semester_id
+            LEFT JOIN regulation_master r ON s.regulation_id = r.regulation_id
+            WHERE s.subject_id = ?`,
+            [req.params.id]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Subject not found'
+            });
+        }
+        
+        res.json({
+            status: 'success',
+            message: 'Subject retrieved successfully',
+            data: rows[0]
+        });
+    } catch (error) {
+        console.error('Error fetching subject:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch subject',
+            error: error.message
+        });
+    }
+});
 // GET Generate sample Excel template
 router.get('/export/sample', async (req, res) => {
     try {
