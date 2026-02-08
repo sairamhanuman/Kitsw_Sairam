@@ -184,29 +184,45 @@ async function loadAllotments() {
 
 /* ================================
    EDIT (CASCADE LOGIC!)
-================================ */
-async function editAllotment(id) {
-    // Step 1: get the record
-    const res = await fetch("/api/subject-allotments");
-    const data = await res.json();
-    const record = data.data.find(r => r.allotment_id == id);
-    if (!record) return;
+================================ */async function editAllotment(id) {
     editingId = id;
 
-    // Step 2: programme
-    document.getElementById('programmeId').value = record.programme_id;
-    await loadBranches();
-    document.getElementById('branchId').value = record.branch_id;
-    await loadSemesters();
-    document.getElementById('semesterId').value = record.semester_id;
-    await loadRegulations();
-    document.getElementById('regulationId').value = record.regulation_id;
-    await loadSubjects();
-    document.getElementById('subjectId').value = record.subject_id;
+    // 1. Fetch the record to edit
+    const allotmentsRes = await fetch("/api/subject-allotments");
+    const allotmentsData = await allotmentsRes.json();
+    const record = allotmentsData.data.find(r => r.allotment_id == id);
+    if (!record) return;
 
+    // PROGRAMME - always set parent first
+    document.getElementById('programmeId').value = record.programme_id;
+
+    // CHILD: loading branches for this programme
+    await loadBranches();
+    const branchDropdown = document.getElementById('branchId');
+    branchDropdown.innerHTML = `<option value="">Select Branch</option>`;
+    // After loadBranches, set branch value
+    branchDropdown.value = record.branch_id;
+
+    await loadSemesters();
+    const semesterDropdown = document.getElementById('semesterId');
+    semesterDropdown.innerHTML = `<option value="">Select Semester</option>`;
+    semesterDropdown.value = record.semester_id;
+
+    await loadRegulations();
+    const regulationDropdown = document.getElementById('regulationId');
+    regulationDropdown.innerHTML = `<option value="">Select Regulation</option>`;
+    regulationDropdown.value = record.regulation_id;
+
+    await loadSubjects();
+    const subjectDropdown = document.getElementById('subjectId');
+    subjectDropdown.innerHTML = `<option value="">Select Subject</option>`;
+    subjectDropdown.value = record.subject_id;
+
+    // BATCH (not usually dependent)
     document.getElementById('batchId').value = record.batch_id;
     await loadSections();
     document.getElementById('sectionId').value = record.section_id;
+
     document.getElementById('staffId').value = record.staff_id;
 
     alert("Fields have been populated for editing. Modify as needed and click Save.");
