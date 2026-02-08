@@ -139,29 +139,25 @@ async function loadSections() {
 ================================ */
 
 async function loadStaff() {
-
     const res = await fetch("/api/staff");
     const data = await res.json();
 
     const dropdown = document.getElementById("staffId");
     dropdown.innerHTML = `<option value="">Select Faculty</option>`;
 
-    // If API returns array directly
-    const staffList = Array.isArray(data) ? data : data.data;
-
-    if (staffList && staffList.length > 0) {
-
-        staffList.forEach(st => {
-            dropdown.innerHTML += `
-                <option value="${st.staff_id}">
-                    ${st.employee_id} - ${st.full_name}
-                </option>
-            `;
-        });
-
-    } else {
+    // ✅ FIX HERE
+    if (!data.staff || data.staff.length === 0) {
         console.log("No staff found");
+        return;
     }
+
+    data.staff.forEach(st => {
+        dropdown.innerHTML += `
+            <option value="${st.staff_id}">
+                ${st.employee_id} - ${st.full_name}
+            </option>
+        `;
+    });
 }
 /* ================================
    SAVE
