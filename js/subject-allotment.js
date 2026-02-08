@@ -77,13 +77,14 @@ async function loadRegulations() {
 
 // SUBJECT
 async function loadSubjects() {
+
     const programmeId = document.getElementById("programmeId").value;
     const branchId = document.getElementById("branchId").value;
     const semesterId = document.getElementById("semesterId").value;
     const regulationId = document.getElementById("regulationId").value;
 
     const res = await fetch(
-        `/api/subjects/filter?programme_id=${programmeId}&branch_id=${branchId}&semester_id=${semesterId}&regulation_id=${regulationId}`
+        `/api/subjects?programme_id=${programmeId}&branch_id=${branchId}&semester_id=${semesterId}&regulation_id=${regulationId}`
     );
 
     const data = await res.json();
@@ -91,12 +92,15 @@ async function loadSubjects() {
     const dropdown = document.getElementById("subjectId");
     dropdown.innerHTML = `<option value="">Select Subject</option>`;
 
-    data.data.forEach(s => {
-        dropdown.innerHTML += `
-            <option value="${s.subject_id}">
-                ${s.syllabus_code} - ${s.subject_name}
-            </option>`;
-    });
+    if (data.data) {
+        data.data.forEach(s => {
+            dropdown.innerHTML += `
+                <option value="${s.subject_id}">
+                    ${s.syllabus_code} - ${s.subject_name}
+                </option>
+            `;
+        });
+    }
 }
 
 /* ================================
@@ -135,21 +139,23 @@ async function loadSections() {
 ================================ */
 
 async function loadStaff() {
+
     const res = await fetch("/api/staff");
     const data = await res.json();
 
     const dropdown = document.getElementById("staffId");
     dropdown.innerHTML = `<option value="">Select Faculty</option>`;
 
-    data.forEach(st => {
-
-        dropdown.innerHTML += `
-            <option value="${st.staff_id}">
-                ${st.department_name} - ${st.employee_id} - ${st.full_name}
-            </option>`;
-    });
+    if (data.data) {
+        data.data.forEach(st => {
+            dropdown.innerHTML += `
+                <option value="${st.staff_id}">
+                    ${st.department_name || ''} - ${st.employee_id} - ${st.full_name}
+                </option>
+            `;
+        });
+    }
 }
-
 /* ================================
    SAVE
 ================================ */
