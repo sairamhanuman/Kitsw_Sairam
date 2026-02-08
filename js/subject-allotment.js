@@ -18,7 +18,7 @@ async function loadProgrammes() {
     dropdown.innerHTML = `<option value="">Select Programme</option>`;
 
     data.data.forEach(p => {
-        dropdown.innerHTML += `<option value="${p.programme_id}">${p.programme_name}</option>`;
+        dropdown.innerHTML += `<option value="${p.programme_id}">${p.programme_code}</option>`;
     });
 
     dropdown.addEventListener("change", loadBranches);
@@ -34,7 +34,7 @@ async function loadBranches() {
     dropdown.innerHTML = `<option value="">Select Branch</option>`;
 
     data.data.forEach(b => {
-        dropdown.innerHTML += `<option value="${b.branch_id}">${b.branch_name}</option>`;
+        dropdown.innerHTML += `<option value="${b.branch_id}">${b.branch_code}</option>`;
     });
 
     dropdown.addEventListener("change", loadSemesters);
@@ -154,7 +154,7 @@ async function loadStaff() {
     result.data.staff.forEach(st => {
         dropdown.innerHTML += `
             <option value="${st.staff_id}">
-                ${st.dept_name} - ${st.employee_id} - ${st.full_name}
+                ${st.dept_code} - ${st.employee_id} - ${st.full_name}
             </option>
         `;
     });
