@@ -59,6 +59,50 @@ JOIN branch_master br ON a.branch_id = br.branch_id
         }
     });
 
+    // UPDATE Allotment
+router.put('/:id', async (req, res) => {
+    try {
+        const {
+            programme_id,
+            branch_id,
+            semester_id,
+            regulation_id,
+            subject_id,
+            batch_id,
+            section_id,
+            staff_id
+        } = req.body;
+
+        await promisePool.query(`
+            UPDATE subject_faculty_allotment
+            SET programme_id = ?,
+                branch_id = ?,
+                semester_id = ?,
+                regulation_id = ?,
+                subject_id = ?,
+                batch_id = ?,
+                section_id = ?,
+                staff_id = ?
+            WHERE allotment_id = ?
+        `, [
+            programme_id,
+            branch_id,
+            semester_id,
+            regulation_id,
+            subject_id,
+            batch_id,
+            section_id,
+            staff_id,
+            req.params.id
+        ]);
+
+        res.json({ success: true, message: 'Allotment updated successfully' });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
     // DELETE
     router.delete('/:id', async (req, res) => {
         try {
@@ -77,3 +121,6 @@ JOIN branch_master br ON a.branch_id = br.branch_id
 
     return router;
 };
+
+
+
