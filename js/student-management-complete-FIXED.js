@@ -972,7 +972,7 @@ async function loadElectiveSubjects() {
             subjectSelect.innerHTML = '<option value="">Select Elective Subject</option>';
             
             result.data.subjects.forEach(s => {
-                subjectSelect.innerHTML += `<option value="${s.subject_id}">${s.syllabus_code} - ${s.course_code}</option>`;
+                subjectSelect.innerHTML += `<option value="${s.subject_id}">${s.syllabus_code} - ${s.subject_name}</option>`;
             });
         }
     } catch (error) {
