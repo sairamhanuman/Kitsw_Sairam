@@ -313,7 +313,7 @@ router.post('/import-initial/upload', upload.single('file'), async (req, res) =>
                 // Insert into student_semester_history (Semester I)
                 await connection.query(
                     `INSERT INTO student_semester_history (
-                        student_id, academic_year, semester_number,
+                        student_id, academic_year, semester_id,
                         programme_id, branch_id, batch_id, regulation_id, section_id,
                         roll_number, student_status, status_date,
                         is_promoted, created_by
@@ -508,7 +508,7 @@ router.get('/students', async (req, res) => {
                 sm.parent_mobile,
                 sm.email,
                 sm.photo_url,
-                ssh.semester_number,
+                ssh.semester_id,
                 ssh.student_status,
                 ssh.academic_year,
                 ssh.semester_history_id,
@@ -548,7 +548,7 @@ router.get('/students', async (req, res) => {
         }
         
         if (semester_id) {
-            query += ' AND ssh.semester_number = ?';
+            query += ' AND ssh.semester_id = ?';
             params.push(semester_id);
         }
         
@@ -640,7 +640,7 @@ router.get('/mapping/students', async (req, res) => {
         }
         
         if (semester_id) {
-            query += ' AND ssh.semester_number = ?';
+            query += ' AND ssh.semester_id = ?';
             params.push(semester_id);
         }
         
@@ -676,7 +676,7 @@ router.get('/mapping/semester-view', async (req, res) => {
         let query = `
             SELECT 
                 sm.roll_number,
-                ssh.semester_number,
+                ssh.semester_id,
                 b.batch_name,
                 r.regulation_name,
                 CONCAT(b.batch_name, '-', r.regulation_name) as mapping
@@ -704,7 +704,7 @@ router.get('/mapping/semester-view', async (req, res) => {
             params.push(branch_id);
         }
         
-        query += ' ORDER BY sm.roll_number, ssh.semester_number';
+        query += ' ORDER BY sm.roll_number, ssh.semester_id';
         
         const [mappings] = await promisePool.query(query, params);
         
@@ -715,7 +715,7 @@ router.get('/mapping/semester-view', async (req, res) => {
             if (!pivotData[row.roll_number]) {
                 pivotData[row.roll_number] = {};
             }
-            pivotData[row.roll_number][`sem_${row.semester_number}`] = row.mapping;
+            pivotData[row.roll_number][`sem_${row.semester_id}`] = row.mapping;
         });
         
         res.json({
@@ -736,7 +736,7 @@ router.get('/mapping/semester-view', async (req, res) => {
 // Update batch/regulation for selected students
 router.post('/mapping/update', async (req, res) => {
     try {
-        const { student_ids, batch_id, regulation_id, semester_number } = req.body;
+        const { student_ids, batch_id, regulation_id, semester_id } = req.body;
         
         if (!student_ids || student_ids.length === 0) {
             return res.status(400).json({
@@ -768,13 +768,13 @@ router.post('/mapping/update', async (req, res) => {
             
             // Add WHERE conditions
             params.push(...student_ids);
-            params.push(semester_number);
+            params.push(semester_id);
             
             const query = `
                 UPDATE student_semester_history 
                 SET ${updates.join(', ')}, updated_by = 'system', updated_at = NOW()
                 WHERE student_id IN (${student_ids.map(() => '?').join(',')})
-                    AND semester_number = ?
+                    AND semester_id = ?
             `;
             
             await connection.query(query, params);
@@ -805,12 +805,15 @@ router.post('/mapping/update', async (req, res) => {
 // ========================================
 // TAB 5: PROMOTIONS
 // ========================================
+// ========================================
+// TAB 5: PROMOTIONS
+// ========================================
 
 // Get promotion statistics
 router.get('/promotions/stats', async (req, res) => {
     try {
-        const { programme_id, batch_id, branch_id, semester_number } = req.query;
-        
+        const { programme_id, batch_id, branch_id, semester_id } = req.query;
+
         let query = `
             SELECT 
                 COUNT(*) as total,
@@ -820,36 +823,36 @@ router.get('/promotions/stats', async (req, res) => {
             FROM student_semester_history
             WHERE 1=1
         `;
-        
+
         const params = [];
-        
+
         if (programme_id) {
             query += ' AND programme_id = ?';
             params.push(programme_id);
         }
-        
+
         if (batch_id) {
             query += ' AND batch_id = ?';
             params.push(batch_id);
         }
-        
+
         if (branch_id) {
             query += ' AND branch_id = ?';
             params.push(branch_id);
         }
-        
-        if (semester_number) {
-            query += ' AND semester_number = ?';
-            params.push(semester_number);
+
+        if (semester_id) {
+            query += ' AND semester_id = ?';
+            params.push(semester_id);
         }
-        
+
         const [stats] = await promisePool.query(query, params);
-        
+
         res.json({
             status: 'success',
             data: stats[0] || { total: 0, on_roll: 0, detained: 0, left_out: 0 }
         });
-        
+
     } catch (error) {
         console.error('Error fetching promotion stats:', error);
         res.status(500).json({
@@ -860,115 +863,188 @@ router.get('/promotions/stats', async (req, res) => {
     }
 });
 
-// Perform promotion
+
+// ========================================
+// PERFORM PROMOTION
+// ========================================
 router.post('/promotions/promote', async (req, res) => {
+
     try {
         const {
             from_programme_id,
             from_batch_id,
             from_branch_id,
-            from_semester_number,
+            from_semester_id,
             to_programme_id,
             to_batch_id,
             to_branch_id,
-            to_semester_number,
+            to_semester_id,
             to_regulation_id,
             to_section_id,
             academic_year
         } = req.body;
-        
+
         const connection = await promisePool.getConnection();
         await connection.beginTransaction();
-        
+
         try {
-            // Get all "On Roll" students from source semester
+
+            // 1️⃣ Get all "On Roll" students from source semester
             const [students] = await connection.query(
                 `SELECT * FROM student_semester_history
                  WHERE programme_id = ?
-                     AND batch_id = ?
-                     AND branch_id = ?
-                     AND semester_number = ?
-                     AND student_status = 'On Roll'`,
-                [from_programme_id, from_batch_id, from_branch_id, from_semester_number]
+                   AND batch_id = ?
+                   AND branch_id = ?
+                   AND semester_id = ?
+                   AND student_status = 'On Roll'`,
+                [
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester_id
+                ]
             );
-            
+
             if (students.length === 0) {
                 throw new Error('No students found to promote');
             }
-            
-            // Create new semester records
-           // Create new semester records safely (avoid duplicate error)
-let promotedCount = 0;
 
-for (const student of students) {
+            let promotedCount = 0;
 
-    // 🔍 Check if semester already exists
-    const [existing] = await connection.query(
-        `SELECT semester_history_id
-         FROM student_semester_history
-         WHERE student_id = ?
-           AND academic_year = ?
-           AND semester_number = ?`,
-        [student.student_id, academic_year, to_semester_number]
-    );
+            // 2️⃣ Loop students
+            for (const student of students) {
 
-    if (existing.length > 0) {
-        console.log(`Student ${student.student_id} already promoted. Skipping.`);
-        continue; // Skip duplicate
-    }
+                const finalProgramme = to_programme_id ?? student.programme_id;
+                const finalBranch = to_branch_id ?? student.branch_id;
+                const finalBatch = to_batch_id ?? student.batch_id;
+                const finalRegulation = to_regulation_id ?? student.regulation_id;
+                const finalSection = to_section_id ?? student.section_id;
 
-    await connection.query(
-        `INSERT INTO student_semester_history (
-            student_id, academic_year, semester_number,
-            programme_id, branch_id, batch_id, regulation_id, section_id,
-            roll_number, student_status, status_date,
-            promoted_from_semester_history_id, is_promoted, promotion_date,
-            created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
-        [
-            student.student_id,
-            academic_year,
-            to_semester_number,
-            to_programme_id || student.programme_id,
-            to_branch_id || student.branch_id,
-            to_batch_id || student.batch_id,
-            to_regulation_id || student.regulation_id,
-            to_section_id || student.section_id,
-            student.roll_number,
-            student.semester_history_id
-        ]
-    );
+                // 🔍 Duplicate check (FULL SAFE CHECK)
+                const [existing] = await connection.query(
+                    `SELECT semester_history_id
+                     FROM student_semester_history
+                     WHERE student_id = ?
+                       AND academic_year = ?
+                       AND semester_id = ?
+                       AND programme_id = ?
+                       AND branch_id = ?
+                       AND batch_id = ?`,
+                    [
+                        student.student_id,
+                        academic_year,
+                        to_semester_id,
+                        finalProgramme,
+                        finalBranch,
+                        finalBatch
+                    ]
+                );
 
-    promotedCount++;
-}
+                if (existing.length > 0) {
+                    console.log(`Student ${student.student_id} already promoted. Skipping.`);
+                    continue;
+                }
 
-            
-            // Log promotion in promotion_batch_log
+                // 3️⃣ Insert new semester record
+                await connection.query(
+                    `INSERT INTO student_semester_history (
+                        student_id,
+                        academic_year,
+                        semester_id,
+                        programme_id,
+                        branch_id,
+                        batch_id,
+                        regulation_id,
+                        section_id,
+                        roll_number,
+                        student_status,
+                        status_date,
+                        promoted_from_semester_history_id,
+                        is_promoted,
+                        promotion_date,
+                        created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
+                    [
+                        student.student_id,
+                        academic_year,
+                        to_semester_id,
+                        finalProgramme,
+                        finalBranch,
+                        finalBatch,
+                        finalRegulation,
+                        finalSection,
+                        student.roll_number,
+                        student.semester_history_id
+                    ]
+                );
+
+                promotedCount++;
+            }
+
+            // 🚨 If all already promoted
+            if (promotedCount === 0) {
+                throw new Error('All students already promoted.');
+            }
+
+            // 4️⃣ Insert into promotion log
             await connection.query(
                 `INSERT INTO promotion_batch_log (
-                    from_semester, to_semester, from_batch_id, to_batch_id,
-                    students_promoted, promotion_date, created_by
-                ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'system')`,
-                [from_semester_number, to_semester_number, from_batch_id, to_batch_id, promotedCount]
+                    promotion_name,
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester,
+                    to_programme_id,
+                    to_batch_id,
+                    to_branch_id,
+                    to_semester,
+                    to_academic_year,
+                    to_regulation_id,
+                    total_students,
+                    promoted_count,
+                    skipped_count,
+                    executed_by,
+                    remarks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    `Sem-${from_semester_id} to Sem-${to_semester_id}`,
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester_id,
+                    to_programme_id,
+                    to_batch_id,
+                    to_branch_id,
+                    to_semester_id,
+                    academic_year,
+                    to_regulation_id,
+                    students.length,
+                    promotedCount,
+                    students.length - promotedCount,
+                    'system',
+                    'Promotion executed successfully'
+                ]
             );
-            
+
             await connection.commit();
-            
+
             res.json({
                 status: 'success',
-                message: `Successfully promoted ${promotedCount} students to Semester ${to_semester_number}`,
+                message: `Successfully promoted ${promotedCount} students to Semester ${to_semester_id}`,
                 data: {
-                    promoted: students.length
+                    total_students: students.length,
+                    promoted: promotedCount,
+                    skipped: students.length - promotedCount
                 }
             });
-            
+
         } catch (error) {
             await connection.rollback();
             throw error;
         } finally {
             connection.release();
         }
-        
+
     } catch (error) {
         console.error('Error promoting students:', error);
         res.status(500).json({
@@ -978,5 +1054,6 @@ for (const student of students) {
         });
     }
 });
+
 
 module.exports = { initializeRouter };
