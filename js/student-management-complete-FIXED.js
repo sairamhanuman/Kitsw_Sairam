@@ -489,7 +489,7 @@ function displayStudents(students) {
                 <td>${s.programme_code || '-'}</td>
                 <td>${s.branch_code || '-'}</td>
                 <td>${s.batch_name || '-'}</td>
-                <td>${s.semester_number || '-'}</td>
+                <td>${s.semester_id || '-'}</td>
                 <td>${s.regulation_name || '-'}</td>
                 <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getStatusColor(s.student_status)}; color: white; font-size: 11px;">${s.student_status}</span></td>
             </tr>
@@ -559,7 +559,7 @@ async function openStudentEditModal(studentId) {
         // Set dropdowns
         document.getElementById('edit-programme').value = student.programme_id || '';
         document.getElementById('edit-batch').value = student.batch_id || '';
-        document.getElementById('edit-semester').value = student.semester_number || '';
+        document.getElementById('edit-semester').value = student.semester_id || '';
         document.getElementById('edit-section').value = student.section_id || '';
         document.getElementById('edit-student-status').value = student.student_status || 'On Roll';
         
@@ -622,7 +622,7 @@ async function saveStudentChanges() {
         programme_id: document.getElementById('edit-programme').value,
         branch_id: document.getElementById('edit-branch').value,
         batch_id: document.getElementById('edit-batch').value,
-        semester_number: document.getElementById('edit-semester').value,
+        semester_id: document.getElementById('edit-semester').value,
         section_id: document.getElementById('edit-section').value,
         student_status: document.getElementById('edit-student-status').value
     };
@@ -750,7 +750,7 @@ async function applyMapping() {
                 student_ids: selectedStudents,
                 batch_id: batchId || null,
                 regulation_id: regulationId || null,
-                semester_number: semesterNumber
+                semester_id: semesterNumber
             })
         });
 
@@ -853,7 +853,7 @@ async function loadPromotionStats() {
     params.append('programme_id', programmeId);
     params.append('batch_id', batchId);
     params.append('branch_id', branchId);
-    params.append('semester_number', semesterNumber);
+    params.append('semester_id', semesterNumber);
 
     try {
         const response = await fetch(`/api/student-management/promotions/stats?${params}`);
@@ -903,11 +903,11 @@ async function performPromotion() {
                 from_programme_id: fromProgrammeId,
                 from_batch_id: fromBatchId,
                 from_branch_id: fromBranchId,
-                from_semester_number: fromSemester,
+                from_semester_id: fromSemester,
                 to_programme_id: fromProgrammeId,
                 to_batch_id: toBatchId || fromBatchId,
                 to_branch_id: fromBranchId,
-                to_semester_number: toSemester,
+                to_semester_id: toSemester,
                 to_regulation_id: toRegulationId || null,  // FIX: Allow null
                 academic_year: toYear
             })
@@ -964,7 +964,7 @@ async function loadElectiveSubjects() {
     const semesterNumber = document.getElementById('elective-semester').value;
     
     try {
-        const response = await fetch(`/api/elective-mapping/elective-subjects?semester_number=${semesterNumber || ''}`);
+        const response = await fetch(`/api/elective-mapping/elective-subjects?semester_id=${semesterNumber || ''}`);
         const result = await response.json();
         
         if (response.ok) {
@@ -1008,7 +1008,7 @@ async function loadAvailableStudents() {
         programme_id: programmeId,
         batch_id: batchId,
         branch_id: branchId,
-        semester_number: semesterNumber,
+        semester_id: semesterNumber,
         subject_id: subjectId
     });
     
@@ -1037,7 +1037,7 @@ async function loadMappedStudents() {
         programme_id: programmeId,
         batch_id: batchId,
         branch_id: branchId,
-        semester_number: semesterNumber,
+        semester_id: semesterNumber,
         subject_id: subjectId
     });
     
@@ -1149,7 +1149,7 @@ async function addStudentsToElective() {
                 programme_id: programmeId,
                 batch_id: batchId,
                 branch_id: branchId,
-                semester_number: semesterNumber,
+                semester_id: semesterNumber,
                 subject_id: subjectId,
                 academic_year: academicYear
             })
@@ -1191,7 +1191,7 @@ async function removeStudentsFromElective() {
             body: JSON.stringify({
                 student_ids: selectedIds,
                 subject_id: subjectId,
-                semester_number: semesterNumber
+                semester_id: semesterNumber
             })
         });
         
