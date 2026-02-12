@@ -276,12 +276,6 @@ app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, r
 });
 
 
-// Professional Student Management Routes
-const studentManagementProfessional = require('./routes/student-management-professional');
-const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
-app.use('/api/student-management', studentMgmtRoutes);
-// ========================================
-
 
 // Departments API endpoint (used by staff management and other modules)
 // Note: Department data is stored in branch_master table in the database schema
