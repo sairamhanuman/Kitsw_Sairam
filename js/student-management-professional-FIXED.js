@@ -1,11 +1,12 @@
 // ========================================
-// PROFESSIONAL STUDENT MANAGEMENT - PUBLIC JS
+// PROFESSIONAL STUDENT MANAGEMENT - FIXED VERSION
 // File: js/student-management-professional.js
 // ========================================
 
 // Global state
 let currentTab = 'import-initial';
 let allStudents = [];
+let currentEditingStudent = null;
 
 // ========================================
 // UTILITY FUNCTIONS
@@ -59,9 +60,12 @@ function openTab(tabName) {
 
     currentTab = tabName;
 
-    // Load data for specific tabs
+    // Load data for specific tabs (but DON'T load students automatically)
     if (tabName === 'student-management') {
         loadMasterData('view');
+        // Clear student list on tab switch
+        document.getElementById('student-list').innerHTML = '<div class="alert alert-info">Please select filters and click a filter to load students</div>';
+        document.getElementById('student-stats').classList.add('hidden');
     } else if (tabName === 'mapping') {
         loadMasterData('mapping');
     } else if (tabName === 'promotions') {
@@ -399,6 +403,12 @@ async function applyFilters() {
     const semesterId = document.getElementById('view-semester').value;
     const status = document.getElementById('view-status').value;
 
+    // FIX: At least one filter must be selected
+    if (!programmeId && !branchId && !batchId && !semesterId && !status) {
+        showAlert('Please select at least one filter', 'error');
+        return;
+    }
+
     const params = new URLSearchParams();
     if (programmeId) params.append('programme_id', programmeId);
     if (branchId) params.append('branch_id', branchId);
@@ -435,11 +445,11 @@ function displayStudents(students) {
     }
 
     let html = `
+        <div style="overflow-x: auto;">
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Photo</th>
-                    <th>Admission No</th>
                     <th>Roll No</th>
                     <th>Name</th>
                     <th>Programme</th>
@@ -455,26 +465,26 @@ function displayStudents(students) {
 
     students.forEach(s => {
         const photoHtml = s.photo_url 
-            ? `<img src="${s.photo_url}" alt="${s.full_name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
-            : '<div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>';
+            ? `<img src="${s.photo_url}" alt="${s.full_name}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;">`
+            : '<div style="width: 35px; height: 35px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 12px;">👤</div>';
         
+        // FIXED: Roll number is now clickable and opens edit modal
         html += `
             <tr>
                 <td>${photoHtml}</td>
-                <td>${s.admission_number}</td>
-                <td>${s.roll_number || '-'}</td>
+                <td><a href="javascript:void(0)" onclick="openStudentEditModal('${s.student_id}')" class="roll-link">${s.roll_number || '-'}</a></td>
                 <td>${s.full_name}</td>
                 <td>${s.programme_code || '-'}</td>
                 <td>${s.branch_code || '-'}</td>
                 <td>${s.batch_name || '-'}</td>
                 <td>${s.semester_number || '-'}</td>
                 <td>${s.regulation_name || '-'}</td>
-                <td><span style="padding: 5px 10px; border-radius: 4px; background: ${getStatusColor(s.student_status)}; color: white; font-size: 12px;">${s.student_status}</span></td>
+                <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getStatusColor(s.student_status)}; color: white; font-size: 11px;">${s.student_status}</span></td>
             </tr>
         `;
     });
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     listDiv.innerHTML = html;
 }
 
@@ -497,12 +507,149 @@ function getStatusColor(status) {
 }
 
 // ========================================
-// TAB 4: MAPPING
+// STUDENT EDIT MODAL (NEW!)
+// ========================================
+
+async function openStudentEditModal(studentId) {
+    try {
+        // Fetch full student details
+        const response = await fetch(`/api/students/${studentId}`);
+        const result = await response.json();
+        
+        if (!response.ok) {
+            showAlert('Failed to load student details', 'error');
+            return;
+        }
+        
+        const student = result.data;
+        currentEditingStudent = student;
+        
+        // Create and show modal
+        const modal = document.getElementById('student-edit-modal');
+        
+        // Populate form fields
+        document.getElementById('edit-admission-number').value = student.admission_number || '';
+        document.getElementById('edit-ht-number').value = student.ht_number || '';
+        document.getElementById('edit-roll-number').value = student.roll_number || '';
+        document.getElementById('edit-full-name').value = student.full_name || '';
+        document.getElementById('edit-dob').value = student.date_of_birth || '';
+        document.getElementById('edit-gender').value = student.gender || '';
+        document.getElementById('edit-father-name').value = student.father_name || '';
+        document.getElementById('edit-mother-name').value = student.mother_name || '';
+        document.getElementById('edit-aadhaar').value = student.aadhaar_number || '';
+        document.getElementById('edit-caste').value = student.caste_category || '';
+        document.getElementById('edit-student-mobile').value = student.student_mobile || '';
+        document.getElementById('edit-parent-mobile').value = student.parent_mobile || '';
+        document.getElementById('edit-email').value = student.email || '';
+        
+        // Set dropdowns
+        document.getElementById('edit-programme').value = student.programme_id || '';
+        document.getElementById('edit-branch').value = student.branch_id || '';
+        document.getElementById('edit-batch').value = student.batch_id || '';
+        document.getElementById('edit-semester').value = student.semester_number || '';
+        document.getElementById('edit-section').value = student.section_id || '';
+        document.getElementById('edit-student-status').value = student.student_status || 'On Roll';
+        
+        // Load branches for selected programme
+        if (student.programme_id) {
+            await loadBranchesForEdit(student.programme_id);
+            document.getElementById('edit-branch').value = student.branch_id || '';
+        }
+        
+        // Show modal
+        modal.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error opening student edit modal:', error);
+        showAlert('Failed to open student details', 'error');
+    }
+}
+
+async function loadBranchesForEdit(programmeId) {
+    try {
+        const response = await fetch(`/api/branches?programme_id=${programmeId}`);
+        const data = await response.json();
+        const branches = data.data || data;
+        
+        const branchSelect = document.getElementById('edit-branch');
+        branchSelect.innerHTML = '<option value="">Select Branch</option>';
+        branches.forEach(b => {
+            branchSelect.innerHTML += `<option value="${b.branch_id}">${b.branch_name} (${b.branch_code})</option>`;
+        });
+    } catch (error) {
+        console.error('Error loading branches for edit:', error);
+    }
+}
+
+function closeStudentEditModal() {
+    document.getElementById('student-edit-modal').style.display = 'none';
+    currentEditingStudent = null;
+}
+
+async function saveStudentChanges() {
+    if (!currentEditingStudent) return;
+    
+    const studentId = currentEditingStudent.student_id;
+    const semesterHistoryId = currentEditingStudent.semester_history_id;
+    
+    // Collect form data
+    const updatedData = {
+        // Basic info (updates student_master)
+        ht_number: document.getElementById('edit-ht-number').value,
+        roll_number: document.getElementById('edit-roll-number').value,
+        full_name: document.getElementById('edit-full-name').value,
+        date_of_birth: document.getElementById('edit-dob').value,
+        gender: document.getElementById('edit-gender').value,
+        father_name: document.getElementById('edit-father-name').value,
+        mother_name: document.getElementById('edit-mother-name').value,
+        aadhaar_number: document.getElementById('edit-aadhaar').value,
+        caste_category: document.getElementById('edit-caste').value,
+        student_mobile: document.getElementById('edit-student-mobile').value,
+        parent_mobile: document.getElementById('edit-parent-mobile').value,
+        email: document.getElementById('edit-email').value,
+        
+        // Semester info (updates student_semester_history)
+        programme_id: document.getElementById('edit-programme').value,
+        branch_id: document.getElementById('edit-branch').value,
+        batch_id: document.getElementById('edit-batch').value,
+        semester_number: document.getElementById('edit-semester').value,
+        section_id: document.getElementById('edit-section').value,
+        student_status: document.getElementById('edit-student-status').value
+    };
+    
+    try {
+        // Update student master
+        const masterResponse = await fetch(`/api/students/${studentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        
+        if (!masterResponse.ok) {
+            const error = await masterResponse.json();
+            throw new Error(error.message || 'Failed to update student');
+        }
+        
+        showAlert('Student updated successfully!', 'success');
+        closeStudentEditModal();
+        
+        // Reload students
+        applyFilters();
+        
+    } catch (error) {
+        console.error('Error saving student changes:', error);
+        showAlert('Failed to save changes: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// TAB 4: MAPPING (WITH BRANCH FILTER FIX)
 // ========================================
 
 async function loadMappingStudents() {
     const programmeId = document.getElementById('mapping-programme').value;
     const batchId = document.getElementById('mapping-batch').value;
+    const branchId = document.getElementById('mapping-branch')?.value; // FIXED: Added branch filter
     const semesterId = document.getElementById('mapping-semester').value;
     const status = document.getElementById('mapping-status').value;
 
@@ -513,6 +660,7 @@ async function loadMappingStudents() {
     const params = new URLSearchParams();
     params.append('programme_id', programmeId);
     params.append('batch_id', batchId);
+    if (branchId) params.append('branch_id', branchId); // FIXED: Include branch in filter
     params.append('semester_id', semesterId);
     if (status) params.append('student_status', status);
 
@@ -539,16 +687,17 @@ function displayMappingStudents(students) {
     const gridDiv = document.getElementById('student-selection-grid');
     
     if (students.length === 0) {
-        gridDiv.innerHTML = '<p>No students found</p>';
+        gridDiv.innerHTML = '<p>No students found for selected filters</p>';
         return;
     }
 
+    // FIXED: Better display format with full roll number
     let html = '';
     students.forEach(s => {
         html += `
             <div class="student-checkbox">
                 <input type="checkbox" id="student-${s.student_id}" value="${s.student_id}">
-                <label for="student-${s.student_id}">${s.roll_number}</label>
+                <label for="student-${s.student_id}" title="${s.full_name || ''}">${s.roll_number}</label>
             </div>
         `;
     });
@@ -618,14 +767,14 @@ async function applyMapping() {
 async function loadSemesterView() {
     const programmeId = document.getElementById('mapping-programme').value;
     const batchId = document.getElementById('mapping-batch').value;
-    const branchId = document.getElementById('mapping-branch')?.value;
+    const branchId = document.getElementById('mapping-branch')?.value; // FIXED: Added branch
 
     if (!programmeId || !batchId) return;
 
     const params = new URLSearchParams();
     params.append('programme_id', programmeId);
     params.append('batch_id', batchId);
-    if (branchId) params.append('branch_id', branchId);
+    if (branchId) params.append('branch_id', branchId); // FIXED: Include branch
 
     try {
         const response = await fetch(`/api/student-management/mapping/semester-view?${params}`);
@@ -647,19 +796,21 @@ function displaySemesterView(mappings) {
         return;
     }
 
+    // FIXED: Compact table design
     let html = `
-        <table class="semester-table">
+        <div style="max-height: 400px; overflow: auto;">
+        <table class="semester-table" style="font-size: 12px;">
             <thead>
-                <tr>
-                    <th>Roll No</th>
-                    <th>Sem I</th>
-                    <th>Sem II</th>
-                    <th>Sem III</th>
-                    <th>Sem IV</th>
-                    <th>Sem V</th>
-                    <th>Sem VI</th>
-                    <th>Sem VII</th>
-                    <th>Sem VIII</th>
+                <tr style="position: sticky; top: 0; z-index: 10;">
+                    <th style="min-width: 100px;">Roll No</th>
+                    <th>I</th>
+                    <th>II</th>
+                    <th>III</th>
+                    <th>IV</th>
+                    <th>V</th>
+                    <th>VI</th>
+                    <th>VII</th>
+                    <th>VIII</th>
                 </tr>
             </thead>
             <tbody>
@@ -668,12 +819,13 @@ function displaySemesterView(mappings) {
     Object.keys(mappings).forEach(rollNo => {
         html += `<tr><td><strong>${rollNo}</strong></td>`;
         for (let i = 1; i <= 8; i++) {
-            html += `<td>${mappings[rollNo][`sem_${i}`] || '-'}</td>`;
+            const value = mappings[rollNo][`sem_${i}`] || '-';
+            html += `<td style="font-size: 11px;">${value}</td>`;
         }
         html += '</tr>';
     });
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     tableDiv.innerHTML = html;
 }
 
@@ -765,7 +917,6 @@ async function performPromotion() {
                 </div>
             `;
             
-            // Reload stats after promotion
             setTimeout(() => {
                 loadPromotionStats();
             }, 2000);
@@ -797,4 +948,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Load master data for the initial tab
     loadMasterData('initial');
+    
+    // FIXED: Don't auto-load students on page load
+    // Students will only load when user clicks filter
 });
