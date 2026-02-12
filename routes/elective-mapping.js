@@ -19,19 +19,19 @@ function initializeRouter(pool) {
 // Get all elective subjects for a semester
 router.get('/elective-subjects', async (req, res) => {
     try {
-        const { semester_number } = req.query;
+        const { semester_id } = req.query;
         
         console.log('=== GET ELECTIVE SUBJECTS ===');
-        console.log('Semester:', semester_number);
+        console.log('Semester:', semester_id);
         
         let query = `
             SELECT 
                 subject_id,
-                course_code,
-                course_name,
+                syllabus_code,
+                subject_name,
                 subject_type,
                 credits,
-                semester_number
+                semester_id
             FROM subject_master
             WHERE elective_mapping = 'Yes'
             AND is_active = 1
@@ -39,12 +39,12 @@ router.get('/elective-subjects', async (req, res) => {
         
         const params = [];
         
-        if (semester_number) {
-            query += ` AND semester_number = ?`;
-            params.push(semester_number);
+        if (semester_id) {
+            query += ` AND semester_id = ?`;
+            params.push(semester_id);
         }
         
-        query += ` ORDER BY course_code`;
+        query += ` ORDER BY  syllabus_code`;
         
         const [subjects] = await promisePool.query(query, params);
         
@@ -71,12 +71,12 @@ router.get('/elective-subjects', async (req, res) => {
 // Students who are NOT yet mapped to the selected elective
 router.get('/available-students', async (req, res) => {
     try {
-        const { programme_id, batch_id, branch_id, semester_number, subject_id } = req.query;
+        const { programme_id, batch_id, branch_id, semester_id, subject_id } = req.query;
         
         console.log('=== GET AVAILABLE STUDENTS ===');
-        console.log('Filters:', { programme_id, batch_id, branch_id, semester_number, subject_id });
+        console.log('Filters:', { programme_id, batch_id, branch_id, semester_id, subject_id });
         
-        if (!programme_id || !batch_id || !branch_id || !semester_number) {
+        if (!programme_id || !batch_id || !branch_id || !semester_id) {
             return res.status(400).json({
                 status: 'error',
                 message: 'Programme, Batch, Branch, and Semester are required'
@@ -92,20 +92,20 @@ router.get('/available-students', async (req, res) => {
                 sm.full_name,
                 sm.gender,
                 ssh.student_status,
-                ssh.semester_number
+                ssh.semester_id
             FROM student_master sm
             INNER JOIN student_semester_history ssh 
                 ON sm.student_id = ssh.student_id
             WHERE ssh.programme_id = ?
             AND ssh.batch_id = ?
             AND ssh.branch_id = ?
-            AND ssh.semester_number = ?
+            AND ssh.semester_id = ?
             AND ssh.student_status = 'On Roll'
             AND sm.student_id NOT IN (
                 SELECT student_id 
                 FROM student_elective_mapping 
                 WHERE subject_id = ?
-                AND semester_number = ?
+                AND semester_id = ?
                 AND is_active = 1
             )
             ORDER BY sm.roll_number
@@ -115,9 +115,9 @@ router.get('/available-students', async (req, res) => {
             programme_id,
             batch_id,
             branch_id,
-            semester_number,
-            subject_id || 0,
-            semester_number
+            semester_id,
+            subject_id ? subject_id : 0,
+            semester_id
         ]);
         
         console.log(`Found ${students.length} available students`);
@@ -146,7 +146,7 @@ router.get('/available-students', async (req, res) => {
 // Students already mapped to the selected elective
 router.get('/mapped-students', async (req, res) => {
     try {
-        const { programme_id, batch_id, branch_id, semester_number, subject_id } = req.query;
+        const { programme_id, batch_id, branch_id, semester_id, subject_id } = req.query;
         
         console.log('=== GET MAPPED STUDENTS ===');
         
@@ -172,7 +172,7 @@ router.get('/mapped-students', async (req, res) => {
             AND sem.programme_id = ?
             AND sem.batch_id = ?
             AND sem.branch_id = ?
-            AND sem.semester_number = ?
+            AND sem.semester_id = ?
             AND sem.is_active = 1
             ORDER BY sm.roll_number
         `;
@@ -182,7 +182,7 @@ router.get('/mapped-students', async (req, res) => {
             programme_id,
             batch_id,
             branch_id,
-            semester_number
+            semester_id
         ]);
         
         console.log(`Found ${students.length} mapped students`);
@@ -215,7 +215,7 @@ router.post('/add-students', async (req, res) => {
             programme_id,
             batch_id,
             branch_id,
-            semester_number,
+            semester_id,
             subject_id,
             academic_year
         } = req.body;
@@ -230,7 +230,7 @@ router.post('/add-students', async (req, res) => {
             });
         }
         
-        if (!subject_id || !programme_id || !batch_id || !branch_id || !semester_number) {
+        if (!subject_id || !programme_id || !batch_id || !branch_id || !semester_id) {
             return res.status(400).json({
                 status: 'error',
                 message: 'All fields are required'
@@ -251,8 +251,8 @@ router.post('/add-students', async (req, res) => {
                     // Check if already mapped
                     const [existing] = await connection.query(
                         `SELECT mapping_id FROM student_elective_mapping 
-                         WHERE student_id = ? AND subject_id = ? AND semester_number = ? AND is_active = 1`,
-                        [student_id, subject_id, semester_number]
+                         WHERE student_id = ? AND subject_id = ? AND semester_id = ? AND is_active = 1`,
+                        [student_id, subject_id, semester_id]
                     );
                     
                     if (existing.length > 0) {
@@ -263,9 +263,9 @@ router.post('/add-students', async (req, res) => {
                     // Insert mapping
                     await connection.query(
                         `INSERT INTO student_elective_mapping 
-                        (student_id, programme_id, batch_id, branch_id, semester_number, subject_id, academic_year, is_active)
+                        (student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year, is_active)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-                        [student_id, programme_id, batch_id, branch_id, semester_number, subject_id, academic_year || null]
+                        [student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year || null]
                     );
                     
                     added++;
@@ -313,17 +313,17 @@ router.post('/add-students', async (req, res) => {
 // ========================================
 router.post('/remove-students', async (req, res) => {
     try {
-        const { student_ids, subject_id, semester_number } = req.body;
+        const { student_ids, subject_id, semester_id } = req.body;
         
         console.log('=== REMOVE STUDENTS FROM ELECTIVE ===');
-        console.log('Removing', student_ids.length, 'students from subject', subject_id);
-        
+      
         if (!student_ids || student_ids.length === 0) {
             return res.status(400).json({
                 status: 'error',
                 message: 'No students selected'
             });
         }
+          console.log('Removing', student_ids.length, 'students from subject', subject_id);
         
         const placeholders = student_ids.map(() => '?').join(',');
         
@@ -332,9 +332,9 @@ router.post('/remove-students', async (req, res) => {
              SET is_active = 0 
              WHERE student_id IN (${placeholders})
              AND subject_id = ?
-             AND semester_number = ?
+             AND semester_id = ?
              AND is_active = 1`,
-            [...student_ids, subject_id, semester_number]
+            [...student_ids, subject_id, semester_id]
         );
         
         console.log(`✅ Removed ${result.affectedRows} students`);
@@ -362,7 +362,7 @@ router.post('/remove-students', async (req, res) => {
 // ========================================
 router.get('/report', async (req, res) => {
     try {
-        const { programme_id, batch_id, branch_id, semester_number } = req.query;
+        const { programme_id, batch_id, branch_id, semester_id } = req.query;
         
         const query = `
             SELECT 
@@ -377,7 +377,7 @@ router.get('/report', async (req, res) => {
                 AND sem.programme_id = ?
                 AND sem.batch_id = ?
                 AND sem.branch_id = ?
-                AND sem.semester_number = ?
+                AND sem.semester_id = ?
             LEFT JOIN student_master sm ON sem.student_id = sm.student_id
             WHERE subm.elective_mapping = 'Yes'
             AND subm.is_active = 1
@@ -389,7 +389,7 @@ router.get('/report', async (req, res) => {
             programme_id,
             batch_id,
             branch_id,
-            semester_number
+            semester_id
         ]);
         
         res.json({
