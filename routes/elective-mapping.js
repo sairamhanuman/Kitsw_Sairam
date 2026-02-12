@@ -366,8 +366,8 @@ router.get('/report', async (req, res) => {
         
         const query = `
             SELECT 
-                subm.course_code,
-                subm.course_name,
+                subm.syllabus_code,
+                subm.subject_name,
                 COUNT(sem.student_id) as student_count,
                 GROUP_CONCAT(sm.roll_number ORDER BY sm.roll_number SEPARATOR ', ') as students
             FROM subject_master subm
@@ -381,8 +381,8 @@ router.get('/report', async (req, res) => {
             LEFT JOIN student_master sm ON sem.student_id = sm.student_id
             WHERE subm.elective_mapping = 'Yes'
             AND subm.is_active = 1
-            GROUP BY subm.subject_id, subm.course_code, subm.course_name
-            ORDER BY subm.course_code
+            GROUP BY subm.subject_id, subm.syllabus_code, subm.subject_name
+            ORDER BY subm.syllabus_code
         `;
         
         const [report] = await promisePool.query(query, [
