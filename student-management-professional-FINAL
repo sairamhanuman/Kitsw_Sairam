@@ -187,6 +187,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            font-size: 13px;
         }
 
         .data-table thead {
@@ -196,13 +197,26 @@
 
         .data-table th,
         .data-table td {
-            padding: 15px;
+            padding: 12px 10px;
             text-align: left;
             border-bottom: 1px solid #eee;
         }
 
         .data-table tbody tr:hover {
             background: #f8f9fa;
+        }
+
+        /* Roll number link styling */
+        .roll-link {
+            color: #667eea;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .roll-link:hover {
+            text-decoration: underline;
+            color: #764ba2;
         }
 
         .loading {
@@ -267,6 +281,7 @@
             background: #f8f9fa;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 13px;
         }
 
         .student-checkbox:hover {
@@ -275,6 +290,11 @@
 
         .student-checkbox input {
             margin-right: 8px;
+        }
+
+        .student-checkbox label {
+            cursor: pointer;
+            user-select: none;
         }
 
         .mapping-panel {
@@ -293,27 +313,97 @@
 
         .semester-table-container {
             margin-top: 30px;
-            overflow-x: auto;
         }
 
         .semester-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1000px;
+            min-width: 800px;
+            font-size: 12px;
         }
 
         .semester-table th {
             background: #667eea;
             color: white;
-            padding: 12px;
+            padding: 10px 8px;
             position: sticky;
             top: 0;
+            z-index: 10;
         }
 
         .semester-table td {
-            padding: 10px;
+            padding: 8px;
             border: 1px solid #ddd;
             text-align: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 2% auto;
+            padding: 0;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .modal-close {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            opacity: 0.8;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .modal-footer {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
         }
 
         .hidden {
@@ -335,6 +425,11 @@
 
             .student-grid {
                 grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
             }
         }
     </style>
@@ -435,43 +530,49 @@
         <div id="student-management" class="tab-content">
             <h2>📋 Student Management</h2>
             <p style="color: #666; margin: 10px 0 30px 0;">
-                View and manage students. Data fetched from student_semester_history (current semester) joined with student_master (basic info).
+                View and manage students. Click roll number to edit student details. Data fetched from student_semester_history joined with student_master.
             </p>
 
             <div class="form-row">
                 <div class="form-group">
                     <label>Programme</label>
-                    <select id="view-programme" onchange="loadBranches('view'); applyFilters()">
-                        <option value="">All Programmes</option>
+                    <select id="view-programme" onchange="loadBranches('view')">
+                        <option value="">Select Programme</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Branch</label>
-                    <select id="view-branch" onchange="applyFilters()">
-                        <option value="">All Branches</option>
+                    <select id="view-branch">
+                        <option value="">Select Branch</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Batch</label>
-                    <select id="view-batch" onchange="applyFilters()">
-                        <option value="">All Batches</option>
+                    <select id="view-batch">
+                        <option value="">Select Batch</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Semester</label>
-                    <select id="view-semester" onchange="applyFilters()">
-                        <option value="">All Semesters</option>
+                    <select id="view-semester">
+                        <option value="">Select Semester</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Status</label>
-                    <select id="view-status" onchange="applyFilters()">
+                    <select id="view-status">
                         <option value="">All Status</option>
                         <option value="On Roll">On Roll</option>
                         <option value="Detained">Detained</option>
                         <option value="Left">Left</option>
                     </select>
                 </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    🔍 Load Students
+                </button>
             </div>
 
             <div class="stats-bar hidden" id="student-stats">
@@ -497,7 +598,9 @@
                 </div>
             </div>
 
-            <div id="student-list"></div>
+            <div id="student-list">
+                <div class="alert alert-info">Please select filters and click "Load Students" button to view students</div>
+            </div>
         </div>
 
         <!-- TAB 4: Regulation/Batch Mapping -->
@@ -510,12 +613,12 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>Programme *</label>
-                    <select id="mapping-programme" onchange="loadBranches('mapping'); loadMappingStudents()">
+                    <select id="mapping-programme" onchange="loadBranches('mapping')">
                         <option value="">Select Programme</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Branch</label>
+                    <label>Branch *</label>
                     <select id="mapping-branch" onchange="loadMappingStudents()">
                         <option value="">Select Branch</option>
                     </select>
@@ -551,7 +654,9 @@
                             <strong>Select All</strong>
                         </label>
                     </div>
-                    <div id="student-selection-grid" class="student-grid"></div>
+                    <div id="student-selection-grid" class="student-grid">
+                        <p>Please select filters above to load students</p>
+                    </div>
                 </div>
 
                 <div class="mapping-right">
@@ -579,7 +684,9 @@
 
             <div class="semester-table-container">
                 <h3>Semester-wise Batch & Regulation View</h3>
-                <div id="semester-view-table"></div>
+                <div id="semester-view-table">
+                    <p>Select filters above to view semester-wise mapping</p>
+                </div>
             </div>
         </div>
 
@@ -684,7 +791,139 @@
         </div>
     </div>
 
+    <!-- Student Edit Modal -->
+    <div id="student-edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📝 Student Details</h2>
+                <button class="modal-close" onclick="closeStudentEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Admission Number *</label>
+                        <input type="text" id="edit-admission-number" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div class="form-group">
+                        <label>HT Number</label>
+                        <input type="text" id="edit-ht-number">
+                    </div>
+                    <div class="form-group">
+                        <label>Roll Number *</label>
+                        <input type="text" id="edit-roll-number">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="edit-full-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" id="edit-dob">
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="edit-gender">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Caste Category</label>
+                        <input type="text" id="edit-caste">
+                    </div>
+                    <div class="form-group">
+                        <label>Father Name</label>
+                        <input type="text" id="edit-father-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Mother Name</label>
+                        <input type="text" id="edit-mother-name">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Aadhaar Number (12 digits)</label>
+                        <input type="text" id="edit-aadhaar" maxlength="12">
+                    </div>
+                    <div class="form-group">
+                        <label>Student Mobile</label>
+                        <input type="text" id="edit-student-mobile" maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Parent Mobile</label>
+                        <input type="text" id="edit-parent-mobile" maxlength="10">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="edit-email">
+                    </div>
+                    <div class="form-group">
+                        <label>Programme</label>
+                        <select id="edit-programme" onchange="loadBranchesForEdit(this.value)">
+                            <option value="">Select Programme</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Branch</label>
+                        <select id="edit-branch">
+                            <option value="">Select Branch</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Batch</label>
+                        <select id="edit-batch">
+                            <option value="">Select Batch</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Semester</label>
+                        <select id="edit-semester">
+                            <option value="">Select Semester</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Section</label>
+                        <select id="edit-section">
+                            <option value="">Select Section</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Student Status *</label>
+                        <select id="edit-student-status">
+                            <option value="On Roll">On Roll</option>
+                            <option value="Detained">Detained</option>
+                            <option value="Left">Left</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Dropout">Dropout</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveStudentChanges()">💾 Save Changes</button>
+                <button class="btn" style="background: #6c757d; color: white;" onclick="closeStudentEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Load external JavaScript -->
-    <script src="js/student-management-professional.js"></script>
+    <script src="js/student-management-professional-FIXED.js"></script>
 </body>
 </html>
