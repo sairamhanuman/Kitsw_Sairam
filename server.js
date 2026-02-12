@@ -221,7 +221,7 @@ const studentRoutes = require('./routes/students')(promisePool);
 app.use('/api/students', studentRoutes);
 
 
-const studentManagementProfessional = require('./routes/student-management-professional');
+const studentManagementProfessional = require('./routes/student-management-professional-routes');
 const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
 app.use('/api/student-management', studentMgmtRoutes);
 
