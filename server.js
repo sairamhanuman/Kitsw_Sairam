@@ -221,9 +221,10 @@ const studentRoutes = require('./routes/students')(promisePool);
 app.use('/api/students', studentRoutes);
 
 // Professional Student Management
+/*
 const studentManagementProfessional = require('./routes/student-management-professional');
 const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
-app.use('/api/student-management', studentMgmtRoutes);
+app.use('/api/student-management', studentMgmtRoutes);*/
 
 // Elective Mapping (NEW!)
 const electiveMappingRoutes = require('./routes/elective-mapping');
