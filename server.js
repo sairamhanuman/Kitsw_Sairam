@@ -220,6 +220,12 @@ app.use('/api/exam-sessions', examSessionRoutes);
 const studentRoutes = require('./routes/students')(promisePool);
 app.use('/api/students', studentRoutes);
 
+
+const studentManagementProfessional = require('./routes/student-management-professional');
+const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
+app.use('/api/student-management', studentMgmtRoutes);
+
+
 // Photo upload route for students (must be after students routes initialization)
 app.post('/api/students/:id/upload-photo', upload.single('photo'), async (req, res) => {
     try {
