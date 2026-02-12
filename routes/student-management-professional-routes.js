@@ -897,29 +897,51 @@ router.post('/promotions/promote', async (req, res) => {
             }
             
             // Create new semester records
-            for (const student of students) {
-                await connection.query(
-                    `INSERT INTO student_semester_history (
-                        student_id, academic_year, semester_number,
-                        programme_id, branch_id, batch_id, regulation_id, section_id,
-                        roll_number, student_status, status_date,
-                        promoted_from_semester_history_id, is_promoted, promotion_date,
-                        created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
-                    [
-                        student.student_id,
-                        academic_year,
-                        to_semester_number,
-                        to_programme_id || from_programme_id,
-                        to_branch_id || from_branch_id,
-                        to_batch_id || from_batch_id,
-                        to_regulation_id || student.regulation_id,
-                        to_section_id || student.section_id,
-                        student.roll_number,
-                        student.semester_history_id
-                    ]
-                );
-            }
+           // Create new semester records safely (avoid duplicate error)
+let promotedCount = 0;
+
+for (const student of students) {
+
+    // 🔍 Check if semester already exists
+    const [existing] = await connection.query(
+        `SELECT semester_history_id
+         FROM student_semester_history
+         WHERE student_id = ?
+           AND academic_year = ?
+           AND semester_number = ?`,
+        [student.student_id, academic_year, to_semester_number]
+    );
+
+    if (existing.length > 0) {
+        console.log(`Student ${student.student_id} already promoted. Skipping.`);
+        continue; // Skip duplicate
+    }
+
+    await connection.query(
+        `INSERT INTO student_semester_history (
+            student_id, academic_year, semester_number,
+            programme_id, branch_id, batch_id, regulation_id, section_id,
+            roll_number, student_status, status_date,
+            promoted_from_semester_history_id, is_promoted, promotion_date,
+            created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
+        [
+            student.student_id,
+            academic_year,
+            to_semester_number,
+            to_programme_id || student.programme_id,
+            to_branch_id || student.branch_id,
+            to_batch_id || student.batch_id,
+            to_regulation_id || student.regulation_id,
+            to_section_id || student.section_id,
+            student.roll_number,
+            student.semester_history_id
+        ]
+    );
+
+    promotedCount++;
+}
+
             
             // Log promotion in promotion_batch_log
             await connection.query(
@@ -927,14 +949,14 @@ router.post('/promotions/promote', async (req, res) => {
                     from_semester, to_semester, from_batch_id, to_batch_id,
                     students_promoted, promotion_date, created_by
                 ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'system')`,
-                [from_semester_number, to_semester_number, from_batch_id, to_batch_id, students.length]
+                [from_semester_number, to_semester_number, from_batch_id, to_batch_id, promotedCount]
             );
             
             await connection.commit();
             
             res.json({
                 status: 'success',
-                message: `Successfully promoted ${students.length} students to Semester ${to_semester_number}`,
+                message: `Successfully promoted ${promotedCount} students to Semester ${to_semester_number}`,
                 data: {
                     promoted: students.length
                 }
