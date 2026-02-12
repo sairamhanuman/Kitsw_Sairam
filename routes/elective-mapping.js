@@ -33,7 +33,7 @@ router.get('/elective-subjects', async (req, res) => {
                 credits,
                 semester_id
             FROM subject_master
-            WHERE elective_mapping = 'Yes'
+            WHERE  is_elective = 1
             AND is_active = 1
         `;
         
@@ -379,7 +379,7 @@ router.get('/report', async (req, res) => {
                 AND sem.branch_id = ?
                 AND sem.semester_id = ?
             LEFT JOIN student_master sm ON sem.student_id = sm.student_id
-            WHERE subm.elective_mapping = 'Yes'
+            WHERE subm. is_elective = 1
             AND subm.is_active = 1
             GROUP BY subm.subject_id, subm.syllabus_code, subm.subject_name
             ORDER BY subm.syllabus_code
