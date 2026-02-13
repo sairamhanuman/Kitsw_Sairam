@@ -1156,9 +1156,13 @@ function updateMappedSelectedCount() {
 }
 
 async function addStudentsToElective() {
+    console.log('🔹 ADD button clicked');
+    
     const selectedIds = Array.from(
         document.querySelectorAll('#available-students-box input[type="checkbox"]:checked')
     ).map(cb => cb.value);
+    
+    console.log('Selected IDs for ADD:', selectedIds);
     
     if (selectedIds.length === 0) {
         showAlert('Please select students to add', 'error');
@@ -1171,13 +1175,15 @@ async function addStudentsToElective() {
         pendingRemovals.delete(id); // Remove from pending removals if it was there
     });
     
+    console.log('Pending additions:', Array.from(pendingAdditions));
+    
     // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'available', 'mapped');
     
     // Show small non-blocking notification
     console.log(`✅ Added ${selectedIds.length} students to mapping (not yet saved)`);
     
-    // Optional: Show brief status in console instead of blocking alert
+    // Create visual notification
     const statusDiv = document.createElement('div');
     statusDiv.style.cssText = `
         position: fixed;
@@ -1201,9 +1207,13 @@ async function addStudentsToElective() {
 }
 
 async function removeStudentsFromElective() {
+    console.log('🔸 REMOVE button clicked');
+    
     const selectedIds = Array.from(
         document.querySelectorAll('#mapped-students-box input[type="checkbox"]:checked')
     ).map(cb => cb.value);
+    
+    console.log('Selected IDs for REMOVE:', selectedIds);
     
     if (selectedIds.length === 0) {
         showAlert('Please select students to remove', 'error');
@@ -1216,13 +1226,15 @@ async function removeStudentsFromElective() {
         pendingAdditions.delete(id); // Remove from pending additions if it was there
     });
     
+    console.log('Pending removals:', Array.from(pendingRemovals));
+    
     // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'mapped', 'available');
     
     // Show small non-blocking notification
     console.log(`✅ Removed ${selectedIds.length} students from mapping (not yet saved)`);
     
-    // Optional: Show brief status in console instead of blocking alert
+    // Create visual notification
     const statusDiv = document.createElement('div');
     statusDiv.style.cssText = `
         position: fixed;
@@ -1247,9 +1259,17 @@ async function removeStudentsFromElective() {
 
 // Move students visually between boxes
 async function moveStudentsBetweenBoxes(studentIds, fromBox, toBox) {
+    console.log(`🔄 Moving ${studentIds.length} students from ${fromBox} to ${toBox}`);
+    
     const fromElement = document.getElementById(`${fromBox}-students-box`);
     const toElement = document.getElementById(`${toBox}-students-box`);
     
+    if (!fromElement || !toElement) {
+        console.error('❌ Box elements not found:', { fromElement, toElement });
+        return;
+    }
+    
+    let movedCount = 0;
     studentIds.forEach(id => {
         const studentElement = fromElement.querySelector(`input[value="${id}"]`)?.closest('.student-checkbox-item');
         if (studentElement) {
@@ -1257,8 +1277,13 @@ async function moveStudentsBetweenBoxes(studentIds, fromBox, toBox) {
             // Uncheck the checkbox after moving
             const checkbox = studentElement.querySelector('input[type="checkbox"]');
             if (checkbox) checkbox.checked = false;
+            movedCount++;
+        } else {
+            console.warn(`⚠️ Student element not found for ID: ${id}`);
         }
     });
+    
+    console.log(`✅ Successfully moved ${movedCount}/${studentIds.length} students`);
     
     // Update counts
     updateStudentCounts();
@@ -1368,8 +1393,21 @@ let currentFocusBox = 'available'; // 'available' or 'mapped'
 
 // Initialize keyboard navigation
 document.addEventListener('keydown', function(event) {
-    // Only handle keyboard navigation when not typing in input fields
-    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+    // Only handle keyboard navigation when not typing in input fields, textareas, or selects
+    const target = event.target;
+    if (target.tagName === 'INPUT' && target.type !== 'checkbox' || 
+        target.tagName === 'TEXTAREA' || 
+        target.tagName === 'SELECT') {
+        return;
+    }
+    
+    // Only handle keyboard navigation when elective mapping is visible
+    const availableBox = document.getElementById('available-students-box');
+    const mappedBox = document.getElementById('mapped-students-box');
+    
+    if (!availableBox || !mappedBox || 
+        availableBox.style.display === 'none' || 
+        mappedBox.style.display === 'none') {
         return;
     }
     
@@ -1377,6 +1415,8 @@ document.addEventListener('keydown', function(event) {
     const studentItems = document.querySelectorAll(`#${currentBox} .student-checkbox-item`);
     
     if (studentItems.length === 0) return;
+    
+    console.log('Key pressed:', event.key, 'Shift:', event.shiftKey, 'Current box:', currentFocusBox);
     
     switch(event.key) {
         case 'ArrowDown':
@@ -1423,6 +1463,7 @@ document.addEventListener('keydown', function(event) {
     // Handle Shift + Arrow keys for range selection
     if (event.shiftKey && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
         event.preventDefault();
+        console.log('Shift + Arrow detected');
         selectRange(studentItems, event.key === 'ArrowDown' ? 1 : -1);
     }
 });
