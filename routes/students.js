@@ -384,33 +384,6 @@ router.get('/:id', async (req, res) => {
                 console.log('Could not fetch section:', err.message);
             }
         }
-
-
-// ADD THIS CODE AFTER THE SECTION DETAILS FETCH BLOCK (around line 386):
-
-        // Step 7: Fetch student_status from student_semester_history
-        if (student.semester_id) {
-            try {
-                const [semesterHistory] = await promisePool.query(
-                    `SELECT student_status 
-                     FROM student_semester_history 
-                     WHERE student_id = ? 
-                       AND semester_id = ? 
-                       AND is_active = 1 
-                     ORDER BY created_at DESC 
-                     LIMIT 1`,
-                    [req.params.id, student.semester_id]
-                );
-                if (semesterHistory.length > 0) {
-                    // Override student_status from semester_history if exists
-                    student.student_status = semesterHistory[0].student_status;
-                }
-            } catch (err) {
-                console.log('Could not fetch student status from semester history:', err.message);
-            }
-        }
-
-
         
         // Step 7: Fetch joining regulation (if exists)
         if (student.joining_regulation_id) {
@@ -647,6 +620,45 @@ router.post('/', async (req, res) => {
     }
 });
 
+// GET student status from student_semester_history
+router.get('/:id/semester-status', async (req, res) => {
+    try {
+        const studentId = req.params.id;
+        const { semester_id } = req.query;
+        
+        let query = `
+            SELECT ssh.student_status, ssh.semester_id, 
+                   s.semester_name, ssh.academic_year
+            FROM student_semester_history ssh
+            LEFT JOIN semester_master s ON ssh.semester_id = s.semester_id
+            WHERE ssh.student_id = ?
+        `;
+        let params = [studentId];
+        
+        if (semester_id) {
+            query += ' AND ssh.semester_id = ?';
+            params.push(semester_id);
+        }
+        
+        query += ' ORDER BY ssh.semester_id DESC';
+        
+        const [statusHistory] = await promisePool.query(query, params);
+        
+        res.json({
+            status: 'success',
+            message: 'Student status history retrieved successfully',
+            data: statusHistory
+        });
+    } catch (error) {
+        console.error('Error fetching student status history:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch student status history',
+            error: error.message
+        });
+    }
+});
+
 // PUT update student
 // PUT /api/students/:id - Update student (COMPLETE WORKING VERSION)
 router.put('/:id', async (req, res) => {
@@ -834,9 +846,6 @@ router.put('/:id', async (req, res) => {
         
         console.log('Executing UPDATE query...');
         
-       
-        await connection.beginTransaction();
-        
         const [result] = await connection.query(updateSQL, updateValues);
         
         console.log('Update result:', {
@@ -845,33 +854,30 @@ router.put('/:id', async (req, res) => {
             warningCount: result.warningCount
         });
         
-        // Update student_semester_history table as well
-        if (semester_id && student_status) {
-            const historyUpdateSQL = `
+        // Also update student_semester_history if status changed
+        if (student_status) {
+            const currentSemesterId = req.body.semester_id || 1; // Default to semester 1 if not provided
+            const academicYear = new Date().getFullYear();
+            
+            const updateSemesterSQL = `
                 UPDATE student_semester_history 
-                SET 
-                    student_status = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE student_id = ? 
-                  AND semester_id = ? 
-                  AND is_active = 1
+                SET student_status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = ? AND semester_id = ?
             `;
             
-            const [historyResult] = await connection.query(historyUpdateSQL, [
+            const [semesterResult] = await connection.query(updateSemesterSQL, [
                 student_status,
                 studentId,
-                semester_id
+                currentSemesterId
             ]);
             
             console.log('Semester history update result:', {
-                affectedRows: historyResult.affectedRows,
-                changedRows: historyResult.changedRows
+                affectedRows: semesterResult.affectedRows,
+                changedRows: semesterResult.changedRows
             });
         }
         
-        await connection.commit();
         connection.release();
-
         
         if (result.affectedRows === 0) {
             console.warn('⚠️ No rows affected - student may not exist or no changes');
