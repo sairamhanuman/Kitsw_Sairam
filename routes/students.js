@@ -859,22 +859,53 @@ router.put('/:id', async (req, res) => {
             const currentSemesterId = req.body.semester_id || 1; // Default to semester 1 if not provided
             const academicYear = new Date().getFullYear();
             
-            const updateSemesterSQL = `
-                UPDATE student_semester_history 
-                SET student_status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE student_id = ? AND semester_id = ?
-            `;
+            // First check if semester history record exists
+            const [existingRecord] = await connection.query(
+                'SELECT semester_history_id FROM student_semester_history WHERE student_id = ? AND semester_id = ?',
+                [studentId, currentSemesterId]
+            );
             
-            const [semesterResult] = await connection.query(updateSemesterSQL, [
-                student_status,
-                studentId,
-                currentSemesterId
-            ]);
-            
-            console.log('Semester history update result:', {
-                affectedRows: semesterResult.affectedRows,
-                changedRows: semesterResult.changedRows
-            });
+            if (existingRecord.length > 0) {
+                // Update existing record
+                const updateSemesterSQL = `
+                    UPDATE student_semester_history 
+                    SET student_status = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE student_id = ? AND semester_id = ?
+                `;
+                
+                const [semesterResult] = await connection.query(updateSemesterSQL, [
+                    student_status,
+                    studentId,
+                    currentSemesterId
+                ]);
+                
+                console.log('Semester history update result:', {
+                    affectedRows: semesterResult.affectedRows,
+                    changedRows: semesterResult.changedRows
+                });
+            } else {
+                // Insert new record if it doesn't exist
+                const insertSemesterSQL = `
+                    INSERT INTO student_semester_history 
+                    (student_id, academic_year, semester_id, programme_id, branch_id, batch_id, regulation_id, section_id, student_status, status_date, created_at, updated_at)
+                    SELECT ?, ?, ?, programme_id, branch_id, batch_id, regulation_id, ?, ?, CURRENT_DATE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    FROM student_master WHERE student_id = ?
+                `;
+                
+                const [insertResult] = await connection.query(insertSemesterSQL, [
+                    studentId,
+                    academicYear,
+                    currentSemesterId,
+                    req.body.section_id || null,
+                    student_status,
+                    studentId
+                ]);
+                
+                console.log('Semester history insert result:', {
+                    insertId: insertResult.insertId,
+                    affectedRows: insertResult.affectedRows
+                });
+            }
         }
         
         connection.release();
