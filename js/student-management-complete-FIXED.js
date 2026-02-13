@@ -1096,9 +1096,10 @@ function displayAvailableStudents(students) {
     }
     
     let html = '';
-    students.forEach(s => {
+    students.forEach((s, index) => {
         html += `
             <div class="elective-student-item">
+                <span class="student-number">${index + 1}.</span>
                 <input type="checkbox" id="avail-${s.student_id}" value="${s.student_id}" onchange="updateAvailableSelectedCount()">
                 <label for="avail-${s.student_id}">${s.roll_number} - ${s.full_name}</label>
             </div>
@@ -1117,9 +1118,10 @@ function displayMappedStudents(students) {
     }
     
     let html = '';
-    students.forEach(s => {
+    students.forEach((s, index) => {
         html += `
             <div class="elective-student-item">
+                <span class="student-number">${index + 1}.</span>
                 <input type="checkbox" id="mapped-${s.student_id}" value="${s.student_id}" onchange="updateMappedSelectedCount()">
                 <label for="mapped-${s.student_id}">${s.roll_number} - ${s.full_name}</label>
             </div>
@@ -1482,9 +1484,16 @@ function selectNextStudent(studentItems, direction) {
         selectedStudentIndex = newIndex;
         const currentItem = studentItems[newIndex];
         
-        // Highlight current item
+        // Highlight current item AND check the checkbox
         currentItem.style.backgroundColor = '#e3f2fd';
+        const checkbox = currentItem.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+        
         currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        console.log(`✅ Selected student ${newIndex}:`, currentItem.textContent.trim());
     }
 }
 
@@ -1500,6 +1509,8 @@ function selectRange(studentItems, direction) {
             checkbox.checked = true;
             currentItem.style.backgroundColor = '#e3f2fd';
         }
+        
+        console.log(`📋 Range selected student ${newIndex}:`, currentItem.textContent.trim());
     }
 }
 
@@ -1511,6 +1522,7 @@ function toggleCurrentStudentSelection(studentItems) {
         if (checkbox) {
             checkbox.checked = !checkbox.checked;
             currentItem.style.backgroundColor = checkbox.checked ? '#e3f2fd' : '';
+            console.log(`🔄 Toggled student ${selectedStudentIndex}:`, checkbox.checked ? 'SELECTED' : 'DESELECTED');
         }
     }
 }
