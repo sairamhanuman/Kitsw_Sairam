@@ -1133,42 +1133,16 @@ async function addStudentsToElective() {
         return;
     }
     
-    const programmeId = document.getElementById('elective-programme').value;
-    const batchId = document.getElementById('elective-batch').value;
-    const branchId = document.getElementById('elective-branch').value;
-    const semesterNumber = document.getElementById('elective-semester').value;
-    const subjectId = document.getElementById('elective-subject').value;
-    const academicYear = document.getElementById('elective-academic-year').value;
+    // Add to pending additions
+    selectedIds.forEach(id => {
+        pendingAdditions.add(id);
+        pendingRemovals.delete(id); // Remove from pending removals if it was there
+    });
     
-    try {
-        const response = await fetch('/api/elective-mapping/add-students', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_ids: selectedIds,
-                programme_id: programmeId,
-                batch_id: batchId,
-                branch_id: branchId,
-                semester_id: semesterNumber,
-                subject_id: subjectId,
-                academic_year: academicYear
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showAlert(`Added ${result.data.added} students to elective`, 'success');
-            // Reload both boxes
-            await loadAvailableStudents();
-            await loadMappedStudents();
-        } else {
-            showAlert(result.message, 'error');
-        }
-    } catch (error) {
-        console.error('Error adding students:', error);
-        showAlert('Failed to add students', 'error');
-    }
+    // Move students visually between boxes
+    await moveStudentsBetweenBoxes(selectedIds, 'available', 'mapped');
+    
+    showAlert(`Added ${selectedIds.length} students to mapping (not yet saved)`, 'info');
 }
 
 async function removeStudentsFromElective() {
@@ -1181,35 +1155,132 @@ async function removeStudentsFromElective() {
         return;
     }
     
-    const subjectId = document.getElementById('elective-subject').value;
+    // Add to pending removals
+    selectedIds.forEach(id => {
+        pendingRemovals.add(id);
+        pendingAdditions.delete(id); // Remove from pending additions if it was there
+    });
+    
+    // Move students visually between boxes
+    await moveStudentsBetweenBoxes(selectedIds, 'mapped', 'available');
+    
+    showAlert(`Removed ${selectedIds.length} students from mapping (not yet saved)`, 'info');
+}
+
+// Move students visually between boxes
+async function moveStudentsBetweenBoxes(studentIds, fromBox, toBox) {
+    const fromElement = document.getElementById(`${fromBox}-students-box`);
+    const toElement = document.getElementById(`${toBox}-students-box`);
+    
+    studentIds.forEach(id => {
+        const studentElement = fromElement.querySelector(`input[value="${id}"]`)?.closest('.student-checkbox-item');
+        if (studentElement) {
+            toElement.appendChild(studentElement);
+            // Uncheck the checkbox after moving
+            const checkbox = studentElement.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        }
+    });
+    
+    // Update counts
+    updateStudentCounts();
+}
+
+// Update student counts in both boxes
+function updateStudentCounts() {
+    const availableCount = document.querySelectorAll('#available-students-box .student-checkbox-item').length;
+    const mappedCount = document.querySelectorAll('#mapped-students-box .student-checkbox-item').length;
+    
+    document.getElementById('available-count').textContent = availableCount;
+    document.getElementById('mapped-count').textContent = mappedCount;
+}
+
+// Save elective mapping changes to database
+async function saveElectiveMapping() {
+    if (pendingAdditions.size === 0 && pendingRemovals.size === 0) {
+        showAlert('No changes to save', 'info');
+        return;
+    }
+    
+    const programmeId = document.getElementById('elective-programme').value;
+    const batchId = document.getElementById('elective-batch').value;
+    const branchId = document.getElementById('elective-branch').value;
     const semesterNumber = document.getElementById('elective-semester').value;
+    const subjectId = document.getElementById('elective-subject').value;
+    const academicYear = document.getElementById('elective-academic-year').value;
     
     try {
-        const response = await fetch('/api/elective-mapping/remove-students', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_ids: selectedIds,
-                subject_id: subjectId,
-                semester_id: semesterNumber
-            })
-        });
+        let totalAdded = 0;
+        let totalRemoved = 0;
         
-        const result = await response.json();
-        
-        if (response.ok) {
-            showAlert(`Removed ${result.data.removed} students from elective`, 'success');
-            // Reload both boxes
-            await loadAvailableStudents();
-            await loadMappedStudents();
-        } else {
-            showAlert(result.message, 'error');
+        // Process additions
+        if (pendingAdditions.size > 0) {
+            const addResponse = await fetch('/api/elective-mapping/add-students', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_ids: Array.from(pendingAdditions),
+                    programme_id: programmeId,
+                    batch_id: batchId,
+                    branch_id: branchId,
+                    semester_id: semesterNumber,
+                    subject_id: subjectId,
+                    academic_year: academicYear
+                })
+            });
+            
+            const addResult = await addResponse.json();
+            if (addResponse.ok) {
+                totalAdded = addResult.data.added;
+            }
         }
+        
+        // Process removals
+        if (pendingRemovals.size > 0) {
+            const removeResponse = await fetch('/api/elective-mapping/remove-students', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_ids: Array.from(pendingRemovals),
+                    subject_id: subjectId,
+                    semester_id: semesterNumber
+                })
+            });
+            
+            const removeResult = await removeResponse.json();
+            if (removeResponse.ok) {
+                totalRemoved = removeResult.data.removed;
+            }
+        }
+        
+        // Clear pending changes
+        pendingAdditions.clear();
+        pendingRemovals.clear();
+        
+        // Show success message
+        let message = 'Changes saved successfully!';
+        if (totalAdded > 0 || totalRemoved > 0) {
+            message += ` Added: ${totalAdded}, Removed: ${totalRemoved}`;
+        }
+        showAlert(message, 'success');
+        
+        // Reload data to ensure consistency
+        await loadAvailableStudents();
+        await loadMappedStudents();
+        
     } catch (error) {
-        console.error('Error removing students:', error);
-        showAlert('Failed to remove students', 'error');
+        console.error('Error saving elective mapping:', error);
+        showAlert('Failed to save changes', 'error');
     }
 }
+
+// ========================================
+// GLOBAL VARIABLES
+// ========================================
+let currentAvailableStudents = [];
+let currentMappedStudents = [];
+let pendingAdditions = new Set();
+let pendingRemovals = new Set();
 
 // ========================================
 // INITIALIZATION
