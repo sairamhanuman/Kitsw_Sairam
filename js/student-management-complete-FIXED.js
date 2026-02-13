@@ -1174,11 +1174,30 @@ async function addStudentsToElective() {
     // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'available', 'mapped');
     
-    // Show info message without blocking
-    console.log(`Added ${selectedIds.length} students to mapping (not yet saved)`);
+    // Show small non-blocking notification
+    console.log(`✅ Added ${selectedIds.length} students to mapping (not yet saved)`);
     
-    // Optional: Show a non-blocking notification
-    showNotification(`Added ${selectedIds.length} students to mapping (not yet saved)`, 'info');
+    // Optional: Show brief status in console instead of blocking alert
+    const statusDiv = document.createElement('div');
+    statusDiv.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #28a745;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+    `;
+    statusDiv.textContent = `Added ${selectedIds.length} students`;
+    document.body.appendChild(statusDiv);
+    
+    setTimeout(() => {
+        if (statusDiv.parentNode) {
+            statusDiv.parentNode.removeChild(statusDiv);
+        }
+    }, 2000);
 }
 
 async function removeStudentsFromElective() {
@@ -1200,11 +1219,30 @@ async function removeStudentsFromElective() {
     // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'mapped', 'available');
     
-    // Show info message without blocking
-    console.log(`Removed ${selectedIds.length} students from mapping (not yet saved)`);
+    // Show small non-blocking notification
+    console.log(`✅ Removed ${selectedIds.length} students from mapping (not yet saved)`);
     
-    // Optional: Show a non-blocking notification
-    showNotification(`Removed ${selectedIds.length} students from mapping (not yet saved)`, 'info');
+    // Optional: Show brief status in console instead of blocking alert
+    const statusDiv = document.createElement('div');
+    statusDiv.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #dc3545;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+    `;
+    statusDiv.textContent = `Removed ${selectedIds.length} students`;
+    document.body.appendChild(statusDiv);
+    
+    setTimeout(() => {
+        if (statusDiv.parentNode) {
+            statusDiv.parentNode.removeChild(statusDiv);
+        }
+    }, 2000);
 }
 
 // Move students visually between boxes
@@ -1321,6 +1359,143 @@ let currentAvailableStudents = [];
 let currentMappedStudents = [];
 let pendingAdditions = new Set();
 let pendingRemovals = new Set();
+let selectedStudentIndex = -1; // For keyboard navigation
+let currentFocusBox = 'available'; // 'available' or 'mapped'
+
+// ========================================
+// KEYBOARD NAVIGATION
+// ========================================
+
+// Initialize keyboard navigation
+document.addEventListener('keydown', function(event) {
+    // Only handle keyboard navigation when not typing in input fields
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+        return;
+    }
+    
+    const currentBox = currentFocusBox === 'available' ? 'available-students-box' : 'mapped-students-box';
+    const studentItems = document.querySelectorAll(`#${currentBox} .student-checkbox-item`);
+    
+    if (studentItems.length === 0) return;
+    
+    switch(event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            selectNextStudent(studentItems, 1);
+            break;
+            
+        case 'ArrowUp':
+            event.preventDefault();
+            selectNextStudent(studentItems, -1);
+            break;
+            
+        case 'ArrowRight':
+            event.preventDefault();
+            // Switch focus between boxes
+            currentFocusBox = currentFocusBox === 'available' ? 'mapped' : 'available';
+            selectedStudentIndex = -1;
+            highlightCurrentBox();
+            break;
+            
+        case 'ArrowLeft':
+            event.preventDefault();
+            // Switch focus between boxes
+            currentFocusBox = currentFocusBox === 'available' ? 'mapped' : 'available';
+            selectedStudentIndex = -1;
+            highlightCurrentBox();
+            break;
+            
+        case ' ':
+        case 'Enter':
+            event.preventDefault();
+            toggleCurrentStudentSelection(studentItems);
+            break;
+            
+        case 'a':
+        case 'A':
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                selectAllInCurrentBox();
+            }
+            break;
+    }
+    
+    // Handle Shift + Arrow keys for range selection
+    if (event.shiftKey && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        selectRange(studentItems, event.key === 'ArrowDown' ? 1 : -1);
+    }
+});
+
+function selectNextStudent(studentItems, direction) {
+    const newIndex = selectedStudentIndex + direction;
+    
+    if (newIndex >= 0 && newIndex < studentItems.length) {
+        // Clear previous selection
+        clearAllSelections(studentItems);
+        
+        selectedStudentIndex = newIndex;
+        const currentItem = studentItems[newIndex];
+        
+        // Highlight current item
+        currentItem.style.backgroundColor = '#e3f2fd';
+        currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+function selectRange(studentItems, direction) {
+    const newIndex = selectedStudentIndex + direction;
+    
+    if (newIndex >= 0 && newIndex < studentItems.length) {
+        selectedStudentIndex = newIndex;
+        const currentItem = studentItems[newIndex];
+        const checkbox = currentItem.querySelector('input[type="checkbox"]');
+        
+        if (checkbox) {
+            checkbox.checked = true;
+            currentItem.style.backgroundColor = '#e3f2fd';
+        }
+    }
+}
+
+function toggleCurrentStudentSelection(studentItems) {
+    if (selectedStudentIndex >= 0 && selectedStudentIndex < studentItems.length) {
+        const currentItem = studentItems[selectedStudentIndex];
+        const checkbox = currentItem.querySelector('input[type="checkbox"]');
+        
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            currentItem.style.backgroundColor = checkbox.checked ? '#e3f2fd' : '';
+        }
+    }
+}
+
+function selectAllInCurrentBox() {
+    const currentBox = currentFocusBox === 'available' ? 'available-students-box' : 'mapped-students-box';
+    const checkboxes = document.querySelectorAll(`#${currentBox} input[type="checkbox"]`);
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+        const item = checkbox.closest('.student-checkbox-item');
+        if (item) item.style.backgroundColor = '#e3f2fd';
+    });
+}
+
+function clearAllSelections(studentItems) {
+    studentItems.forEach(item => {
+        item.style.backgroundColor = '';
+    });
+}
+
+function highlightCurrentBox() {
+    // Remove highlight from both boxes
+    document.getElementById('available-students-box').style.border = '';
+    document.getElementById('mapped-students-box').style.border = '';
+    
+    // Highlight current box
+    const currentBox = currentFocusBox === 'available' ? 'available-students-box' : 'mapped-students-box';
+    document.getElementById(currentBox).style.border = '2px solid #007bff';
+}
 
 // ========================================
 // INITIALIZATION
