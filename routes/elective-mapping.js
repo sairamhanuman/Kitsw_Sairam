@@ -407,4 +407,113 @@ router.get('/report', async (req, res) => {
     }
 });
 
+
+// NEW: Sync elective mapping (replace all mappings for a subject)
+router.post('/sync', async (req, res) => {
+    let connection;
+    
+    try {
+        connection = await promisePool.getConnection();
+        await connection.beginTransaction();
+        
+        const {
+            programme_id,
+            batch_id,
+            branch_id,
+            semester_id,
+            subject_id,
+            academic_year,
+            student_ids
+        } = req.body;
+        
+        console.log('Syncing elective mapping:', {
+            programme_id,
+            batch_id,
+            branch_id,
+            semester_id,
+            subject_id,
+            academic_year,
+            student_count: student_ids.length
+        });
+        
+        // Step 1: Delete all existing mappings for this subject/semester/batch combination
+        const deleteSQL = `
+            DELETE FROM elective_mapping 
+            WHERE programme_id = ? 
+              AND batch_id = ? 
+              AND branch_id = ? 
+              AND semester_id = ? 
+              AND subject_id = ? 
+              AND academic_year = ?
+        `;
+        
+        const [deleteResult] = await connection.query(deleteSQL, [
+            programme_id,
+            batch_id,
+            branch_id,
+            semester_id,
+            subject_id,
+            academic_year
+        ]);
+        
+        console.log(`Deleted ${deleteResult.affectedRows} existing mappings`);
+        
+        // Step 2: Insert new mappings for all students in the mapped box
+        if (student_ids && student_ids.length > 0) {
+            const insertSQL = `
+                INSERT INTO elective_mapping (
+                    student_id,
+                    programme_id,
+                    batch_id,
+                    branch_id,
+                    semester_id,
+                    subject_id,
+                    academic_year,
+                    created_at
+                ) VALUES ?
+            `;
+            
+            const values = student_ids.map(studentId => [
+                studentId,
+                programme_id,
+                batch_id,
+                branch_id,
+                semester_id,
+                subject_id,
+                academic_year,
+                new Date()
+            ]);
+            
+            const [insertResult] = await connection.query(insertSQL, [values]);
+            
+            console.log(`Inserted ${insertResult.affectedRows} new mappings`);
+        }
+        
+        await connection.commit();
+        connection.release();
+        
+        res.json({
+            status: 'success',
+            message: 'Elective mapping synchronized successfully',
+            data: {
+                deleted: deleteResult.affectedRows,
+                inserted: student_ids ? student_ids.length : 0
+            }
+        });
+        
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+            connection.release();
+        }
+        console.error('Error syncing elective mapping:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to sync elective mapping',
+            error: error.message
+        });
+    }
+});
+
+
 module.exports = { initializeRouter };
