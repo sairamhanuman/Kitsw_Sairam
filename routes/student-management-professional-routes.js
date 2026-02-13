@@ -973,18 +973,6 @@ router.post('/promotions/promote', async (req, res) => {
             });
         }
 
-        // Temporary test response
-        console.log('Returning test promotion response');
-        return res.json({
-            status: 'success',
-            message: `Successfully promoted 42 students to Semester ${to_semester_id}`,
-            data: {
-                total_students: 45,
-                promoted: 42,
-                skipped: 3
-            }
-        });
-
         const connection = await promisePool.getConnection();
         await connection.beginTransaction();
 
@@ -1017,7 +1005,7 @@ router.post('/promotions/promote', async (req, res) => {
                 // Only promote "In Roll" students
                 if (student.student_status === 'In Roll') {
                     // ✅ Update old semester record to "Promoted"
-                    await promisePool.query(
+                    await connection.query(
                         `UPDATE student_semester_history 
                          SET student_status = 'Promoted',
                              is_promoted = 1,
@@ -1028,7 +1016,7 @@ router.post('/promotions/promote', async (req, res) => {
                     );
 
                     // ✅ Insert new semester record with "In Roll" status
-                    await promisePool.query(
+                    await connection.query(
                         `INSERT INTO student_semester_history 
                          (student_id, academic_year, semester_id, programme_id, branch_id, batch_id, 
                           regulation_id, section_id, roll_number, student_status, status_date, 
@@ -1052,7 +1040,7 @@ router.post('/promotions/promote', async (req, res) => {
             }
 
             // 3️⃣ Log the promotion
-            await promisePool.query(
+            await connection.query(
                 `INSERT INTO promotion_batch_log 
                  (promotion_name,
                   from_programme_id,
@@ -1091,7 +1079,7 @@ router.post('/promotions/promote', async (req, res) => {
                 ]
             );
 
-            await promisePool.commit();
+            await connection.commit();
 
             res.json({
                 status: 'success',
@@ -1104,7 +1092,7 @@ router.post('/promotions/promote', async (req, res) => {
             });
 
         } catch (error) {
-            await promisePool.rollback();
+            await connection.rollback();
             throw error;
         }
 
