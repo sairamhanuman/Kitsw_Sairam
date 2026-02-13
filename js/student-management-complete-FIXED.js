@@ -1181,58 +1181,101 @@ async function removeStudentsFromElective() {
 
     updateMappedSelectedCount();
 }
-async function saveElectiveChanges() {
 
-    if (studentsToAdd.length === 0 && studentsToRemove.length === 0) {
-        showAlert('No changes to save', 'info');
-        return;
-    }
-
-    const programmeId = document.getElementById('elective-programme').value;
-    const batchId = document.getElementById('elective-batch').value;
-    const branchId = document.getElementById('elective-branch').value;
-    const semesterId = document.getElementById('elective-semester').value;
-    const subjectId = document.getElementById('elective-subject').value;
-    const academicYear = document.getElementById('elective-academic-year').value;
-
+// ========================================
+// SAVE ELECTIVE CHANGES (ADD + REMOVE)
+// ========================================
+router.post('/save-changes', async (req, res) => {
     try {
-        const response = await fetch('/api/elective-mapping/save-changes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                students_to_add: studentsToAdd,
-                students_to_remove: studentsToRemove,
-                programme_id: programmeId,
-                batch_id: batchId,
-                branch_id: branchId,
-                semester_id: semesterId,
-                subject_id: subjectId,
-                academic_year: academicYear
-            })
-        });
+        const {
+            students_to_add,
+            students_to_remove,
+            programme_id,
+            batch_id,
+            branch_id,
+            semester_id,
+            subject_id,
+            academic_year
+        } = req.body;
 
-        const result = await response.json();
+        if ((!students_to_add || students_to_add.length === 0) &&
+            (!students_to_remove || students_to_remove.length === 0)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No changes to save'
+            });
+        }
 
-        if (response.ok) {
-            showAlert('Changes saved successfully!', 'success');
+        const connection = await promisePool.getConnection();
 
-            // Clear temp arrays
-            studentsToAdd = [];
-            studentsToRemove = [];
+        try {
+            await connection.beginTransaction();
 
-            // Reload boxes
-            await loadAvailableStudents();
-            await loadMappedStudents();
+            let added = 0, removed = 0, errors = [];
 
-        } else {
-            showAlert(result.message, 'error');
+            // Add students
+            if (students_to_add && students_to_add.length > 0) {
+                for (const student_id of students_to_add) {
+                    try {
+                        const [exists] = await connection.query(
+                            `SELECT mapping_id FROM student_elective_mapping 
+                             WHERE student_id = ? AND subject_id = ? AND semester_id = ? AND is_active = 1`,
+                            [student_id, subject_id, semester_id]
+                        );
+                        if (exists.length > 0) continue;
+
+                        await connection.query(
+                            `INSERT INTO student_elective_mapping 
+                            (student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+                            [student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year || null]
+                        );
+
+                        added++;
+                    } catch (err) {
+                        errors.push({ student_id, error: err.message });
+                    }
+                }
+            }
+
+            // Remove students
+            if (students_to_remove && students_to_remove.length > 0) {
+                const placeholders = students_to_remove.map(() => '?').join(',');
+                const [result] = await connection.query(
+                    `UPDATE student_elective_mapping 
+                     SET is_active = 0 
+                     WHERE student_id IN (${placeholders})
+                     AND subject_id = ? AND semester_id = ? AND is_active = 1`,
+                    [...students_to_remove, subject_id, semester_id]
+                );
+                removed = result.affectedRows;
+            }
+
+            await connection.commit();
+
+            res.json({
+                status: 'success',
+                message: 'Changes saved successfully',
+                data: { added, removed, errors }
+            });
+
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
         }
 
     } catch (error) {
         console.error('Error saving elective changes:', error);
-        showAlert('Failed to save changes', 'error');
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to save elective changes',
+            error: error.message
+        });
     }
-}
+});
+
 
 
 // ========================================
