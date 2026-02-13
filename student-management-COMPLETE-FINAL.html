@@ -346,21 +346,33 @@
             border-radius: 4px;
             border: 1px solid #e9ecef;
             font-size: 12px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
         }
-
+        
         .elective-student-item:hover {
             background: #f0f7ff;
             border-color: #667eea;
         }
-
+        
+        .student-number {
+            display: inline-block;
+            width: 30px;
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+        }
+        
         .elective-student-item input {
             margin-right: 8px;
+            transform: scale(1.1);
         }
-
+        
         .elective-student-item label {
             cursor: pointer;
             user-select: none;
             flex: 1;
+            font-size: 13px;
         }
 
         .elective-controls {
