@@ -193,6 +193,52 @@ async function loadMasterData(prefix) {
             });
         }
 
+        // Handle elective-specific dropdowns
+        if (prefix === 'elective') {
+            // Load elective-specific dropdowns
+            const electiveProgrammeSelect = document.getElementById('elective-programme');
+            const electiveBatchSelect = document.getElementById('elective-batch');
+            const electiveBranchSelect = document.getElementById('elective-branch');
+            const electiveSemesterSelect = document.getElementById('elective-semester');
+            
+            if (electiveProgrammeSelect) {
+                electiveProgrammeSelect.innerHTML = '<option value="">Select Programme</option>';
+                programmes.forEach(p => {
+                    electiveProgrammeSelect.innerHTML += `<option value="${p.programme_id}">${p.programme_name} (${p.programme_code})</option>`;
+                });
+            }
+            
+            if (electiveBatchSelect) {
+                electiveBatchSelect.innerHTML = '<option value="">Select Batch</option>';
+                batches.forEach(b => {
+                    electiveBatchSelect.innerHTML += `<option value="${b.batch_id}">${b.batch_name}</option>`;
+                });
+            }
+            
+            if (electiveBranchSelect) {
+                electiveBranchSelect.innerHTML = '<option value="">Select Branch</option>';
+                // Load branches for elective
+                try {
+                    const branchesResponse = await fetch('/api/branches');
+                    const branchesData = await branchesResponse.json();
+                    const branches = branchesData.data || branchesData;
+                    
+                    branches.forEach(b => {
+                        electiveBranchSelect.innerHTML += `<option value="${b.branch_id}">${b.branch_name} (${b.branch_code})</option>`;
+                    });
+                } catch (error) {
+                    console.error('Error loading elective branches:', error);
+                }
+            }
+            
+            if (electiveSemesterSelect) {
+                electiveSemesterSelect.innerHTML = '<option value="">Select Semester</option>';
+                semesters.forEach(s => {
+                    electiveSemesterSelect.innerHTML += `<option value="${s.semester_id}">${s.semester_name}</option>`;
+                });
+            }
+        }
+
         console.log('Master data loaded successfully');
         
     } catch (error) {
