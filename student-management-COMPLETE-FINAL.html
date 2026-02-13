@@ -800,10 +800,18 @@
                 </div>
 
                 <!-- Controls -->
+               <!-- Controls -->
                 <div class="elective-controls">
-                    <button class="btn btn-success" onclick="addStudentsToElective()">ADD &gt;&gt;</button>
-                    <button class="btn" style="background: #dc3545; color: white;" onclick="removeStudentsFromElective()">&lt;&lt; REMOVE</button>
+                    <button class="btn btn-success" onclick="moveStudentsToRight()">ADD &gt;&gt;</button>
+                    <button class="btn" style="background: #dc3545; color: white;" onclick="moveStudentsToLeft()">&lt;&lt; REMOVE</button>
                 </div>
+
+                <!-- SAVE and CANCEL Buttons - ADD THIS NEW SECTION -->
+                <div class="btn-group" style="margin-top: 20px; justify-content: center;">
+                    <button class="btn btn-primary" onclick="saveElectiveMapping()">💾 SAVE CHANGES</button>
+                    <button class="btn" style="background: #6c757d; color: white;" onclick="cancelElectiveChanges()">❌ CANCEL</button>
+                </div>
+
 
                 <!-- Right Box: Mapped Students -->
                 <div class="elective-box">
