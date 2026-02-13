@@ -407,4 +407,98 @@ router.get('/report', async (req, res) => {
     }
 });
 
+// ========================================
+// SAVE ELECTIVE CHANGES (ADD + REMOVE)
+// ========================================
+router.post('/save-changes', async (req, res) => {
+    try {
+        const {
+            students_to_add,
+            students_to_remove,
+            programme_id,
+            batch_id,
+            branch_id,
+            semester_id,
+            subject_id,
+            academic_year
+        } = req.body;
+
+        if ((!students_to_add || students_to_add.length === 0) &&
+            (!students_to_remove || students_to_remove.length === 0)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No changes to save'
+            });
+        }
+
+        const connection = await promisePool.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            let added = 0, removed = 0, errors = [];
+
+            // Add students
+            if (students_to_add && students_to_add.length > 0) {
+                for (const student_id of students_to_add) {
+                    try {
+                        const [exists] = await connection.query(
+                            `SELECT mapping_id FROM student_elective_mapping 
+                             WHERE student_id = ? AND subject_id = ? AND semester_id = ? AND is_active = 1`,
+                            [student_id, subject_id, semester_id]
+                        );
+                        if (exists.length > 0) continue;
+
+                        await connection.query(
+                            `INSERT INTO student_elective_mapping 
+                            (student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+                            [student_id, programme_id, batch_id, branch_id, semester_id, subject_id, academic_year || null]
+                        );
+
+                        added++;
+                    } catch (err) {
+                        errors.push({ student_id, error: err.message });
+                    }
+                }
+            }
+
+            // Remove students
+            if (students_to_remove && students_to_remove.length > 0) {
+                const placeholders = students_to_remove.map(() => '?').join(',');
+                const [result] = await connection.query(
+                    `UPDATE student_elective_mapping 
+                     SET is_active = 0 
+                     WHERE student_id IN (${placeholders})
+                     AND subject_id = ? AND semester_id = ? AND is_active = 1`,
+                    [...students_to_remove, subject_id, semester_id]
+                );
+                removed = result.affectedRows;
+            }
+
+            await connection.commit();
+
+            res.json({
+                status: 'success',
+                message: 'Changes saved successfully',
+                data: { added, removed, errors }
+            });
+
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error('Error saving elective changes:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to save elective changes',
+            error: error.message
+        });
+    }
+});
+
 module.exports = { initializeRouter };
