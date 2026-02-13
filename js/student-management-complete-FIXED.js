@@ -919,41 +919,107 @@ async function performPromotion() {
         return;
     }
 
-    if (!confirm(`Are you sure you want to promote all In Roll students from Semester ${fromSemester} to Semester ${toSemester}?`)) {
-        return;
-    }
+    const resultDiv = document.getElementById('promotion-result');
+    resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading promotion summary...</p></div>';
+    resultDiv.classList.remove('hidden');
 
+    try {
+        // First, get the students that will be promoted
+        const summaryResponse = await fetch('/api/student-management/promotions/summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                programme_id: fromProgrammeId,
+                batch_id: fromBatchId,
+                branch_id: fromBranchId,
+                semester_id: fromSemester
+            })
+        });
+
+        if (summaryResponse.ok) {
+            const summary = await summaryResponse.json();
+            
+            // Display pre-promotion summary
+            resultDiv.innerHTML = `
+                <div class="alert alert-info" style="background: #e3f2fd; border: 1px solid #007bff; color: #004085;">
+                    <h3>📋 Promotion Summary - Ready to Promote</h3>
+                    <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <h4>Students to be Promoted:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
+                            <div><strong>Total Students:</strong> ${summary.total_students}</div>
+                            <div><strong>In Roll:</strong> <span style="color: #28a745;">${summary.in_roll}</span></div>
+                            <div><strong>Detained:</strong> <span style="color: #ffc107;">${summary.detained}</span></div>
+                            <div><strong>Left:</strong> <span style="color: #dc3545;">${summary.left}</span></div>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                            <strong>From:</strong> Semester ${fromSemester} → <strong>To:</strong> Semester ${toSemester}
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button class="btn btn-success" onclick="confirmPromotion()" style="font-size: 16px; padding: 12px 24px;">
+                            🚀 Confirm Promotion
+                        </button>
+                        <button class="btn" style="background: #6c757d; color: white; margin-left: 10px;" onclick="cancelPromotion()">
+                            ❌ Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Store promotion data for confirmation
+            window.pendingPromotion = {
+                fromProgrammeId, fromBatchId, fromBranchId, fromSemester,
+                toYear, toSemester, toBatchId, toRegulationId
+            };
+        } else {
+            throw new Error('Failed to load promotion summary');
+        }
+    } catch (error) {
+        console.error('Error loading promotion summary:', error);
+        resultDiv.innerHTML = `
+            <div class="alert alert-error">
+                <h3>❌ Error</h3>
+                <p>Failed to load promotion summary: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+async function confirmPromotion() {
+    if (!window.pendingPromotion) return;
+    
     const resultDiv = document.getElementById('promotion-result');
     resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Promoting students...</p></div>';
-    resultDiv.classList.remove('hidden');
 
     try {
         const response = await fetch('/api/student-management/promotions/promote', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from_programme_id: fromProgrammeId,
-                from_batch_id: fromBatchId,
-                from_branch_id: fromBranchId,
-                from_semester_id: fromSemester,
-                to_programme_id: fromProgrammeId,
-                to_batch_id: toBatchId || fromBatchId,
-                to_branch_id: fromBranchId,
-                to_semester_id: toSemester,
-                to_regulation_id: toRegulationId || null,  // FIX: Allow null
-                academic_year: toYear
-            })
+            body: JSON.stringify(window.pendingPromotion)
         });
 
         const result = await response.json();
 
         if (response.ok) {
+            const data = result.data;
             resultDiv.innerHTML = `
                 <div class="alert alert-success">
-                    <h3>✅ Promotion Successful</h3>
-                    <p>${result.message}</p>
+                    <h3>✅ Promotion Completed Successfully</h3>
+                    <p><strong>${result.message}</strong></p>
+                    <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                        <h4>📊 Final Promotion Summary:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
+                            <div><strong>Total Students:</strong> ${data.total_students}</div>
+                            <div><strong>Promoted:</strong> <span style="color: #28a745;">${data.promoted}</span></div>
+                            <div><strong>Skipped:</strong> <span style="color: #ffc107;">${data.skipped}</span></div>
+                            <div><strong>To Semester:</strong> ${window.pendingPromotion.toSemester}</div>
+                        </div>
+                    </div>
                 </div>
             `;
+            
+            // Clear pending promotion data
+            delete window.pendingPromotion;
             
             setTimeout(() => {
                 loadPromotionStats();
@@ -975,6 +1041,12 @@ async function performPromotion() {
             </div>
         `;
     }
+}
+
+function cancelPromotion() {
+    const resultDiv = document.getElementById('promotion-result');
+    resultDiv.innerHTML = '<p style="color: #666;">Promotion cancelled. Please modify settings and try again.</p>';
+    delete window.pendingPromotion;
 }
 
 // ========================================
@@ -1493,6 +1565,9 @@ function selectNextStudent(studentItems, direction) {
         
         currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         
+        // Update selected count
+        updateSelectedCount();
+        
         console.log(`✅ Selected student ${newIndex}:`, currentItem.textContent.trim());
     }
 }
@@ -1510,6 +1585,9 @@ function selectRange(studentItems, direction) {
             currentItem.style.backgroundColor = '#e3f2fd';
         }
         
+        // Update selected count
+        updateSelectedCount();
+        
         console.log(`📋 Range selected student ${newIndex}:`, currentItem.textContent.trim());
     }
 }
@@ -1522,6 +1600,10 @@ function toggleCurrentStudentSelection(studentItems) {
         if (checkbox) {
             checkbox.checked = !checkbox.checked;
             currentItem.style.backgroundColor = checkbox.checked ? '#e3f2fd' : '';
+            
+            // Update selected count
+            updateSelectedCount();
+            
             console.log(`🔄 Toggled student ${selectedStudentIndex}:`, checkbox.checked ? 'SELECTED' : 'DESELECTED');
         }
     }
@@ -1536,6 +1618,17 @@ function selectAllInCurrentBox() {
         const item = checkbox.closest('.elective-student-item');
         if (item) item.style.backgroundColor = '#e3f2fd';
     });
+    
+    // Update selected count
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    if (currentFocusBox === 'available') {
+        updateAvailableSelectedCount();
+    } else {
+        updateMappedSelectedCount();
+    }
 }
 
 function clearAllSelections(studentItems) {
