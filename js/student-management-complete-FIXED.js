@@ -1049,10 +1049,25 @@ async function confirmPromotion() {
     resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Promoting students...</p></div>';
 
     try {
+        const promotionData = {
+            from_programme_id: window.pendingPromotion.fromProgrammeId,
+            from_batch_id: window.pendingPromotion.fromBatchId,
+            from_branch_id: window.pendingPromotion.fromBranchId,
+            from_semester_id: window.pendingPromotion.fromSemester,
+            to_programme_id: window.pendingPromotion.fromProgrammeId,
+            to_batch_id: window.pendingPromotion.toBatchId || window.pendingPromotion.fromBatchId,
+            to_branch_id: window.pendingPromotion.fromBranchId,
+            to_semester_id: window.pendingPromotion.toSemester,
+            to_regulation_id: window.pendingPromotion.toRegulationId,
+            academic_year: window.pendingPromotion.toYear
+        };
+        
+        console.log('Sending promotion data:', promotionData);
+        
         const response = await fetch('/api/student-management/promotions/promote', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(window.pendingPromotion)
+            body: JSON.stringify(promotionData)
         });
 
         const result = await response.json();
