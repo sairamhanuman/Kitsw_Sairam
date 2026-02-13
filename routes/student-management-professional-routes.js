@@ -1,6 +1,5 @@
 // Student Management JavaScript
 
-const API_BASE_URL = window.location.origin;
 let currentEditId = null;
 let currentStudents = [];
 let currentFilters = {};
