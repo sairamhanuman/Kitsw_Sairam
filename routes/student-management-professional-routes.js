@@ -317,7 +317,7 @@ router.post('/import-initial/upload', upload.single('file'), async (req, res) =>
                         programme_id, branch_id, batch_id, regulation_id, section_id,
                         roll_number, student_status, status_date,
                         is_promoted, created_by
-                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), 0, 'system')`,
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, 'In Roll', CURDATE(), 0, 'system')`,
                     [
                         studentId, academicYear,
                         programme_id, branch_id, batch_id, regulation_id, actualSectionId,
@@ -577,7 +577,7 @@ router.get('/students', async (req, res) => {
             total: students.length,
             boys: students.filter(s => s.gender === 'Male').length,
             girls: students.filter(s => s.gender === 'Female').length,
-            on_roll: students.filter(s => s.student_status === 'On Roll').length,
+            on_roll: students.filter(s => s.student_status === 'In Roll').length,
             detained: students.filter(s => s.student_status === 'Detained').length,
             left: students.filter(s => s.student_status === 'Left').length
         };
@@ -822,7 +822,7 @@ router.get('/promotions/stats', async (req, res) => {
         let query = `
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN student_status = 'On Roll' THEN 1 ELSE 0 END) as on_roll,
+                SUM(CASE WHEN student_status = 'In Roll' THEN 1 ELSE 0 END) as on_roll,
                 SUM(CASE WHEN student_status = 'Detained' THEN 1 ELSE 0 END) as detained,
                 SUM(CASE WHEN student_status = 'Left' THEN 1 ELSE 0 END) as left_out
             FROM student_semester_history
@@ -901,7 +901,7 @@ router.post('/promotions/promote', async (req, res) => {
                    AND batch_id = ?
                    AND branch_id = ?
                    AND semester_id = ?
-                   AND student_status = 'On Roll'`,
+                   AND student_status = 'In Roll'`,
                 [
                     from_programme_id,
                     from_batch_id,
@@ -968,7 +968,7 @@ router.post('/promotions/promote', async (req, res) => {
                         is_promoted,
                         promotion_date,
                         created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
                     [
                         student.student_id,
                         academic_year,
