@@ -593,7 +593,7 @@ async function openStudentEditModal(studentId) {
         document.getElementById('edit-batch').value = student.batch_id || '';
         document.getElementById('edit-semester').value = student.semester_id || '';
         document.getElementById('edit-section').value = student.section_id || '';
-        document.getElementById('edit-student-status').value = student.student_status || 'On Roll';
+        document.getElementById('edit-student-status').value = student.student_status || 'In Roll';
         
         // FIX: Load branches for selected programme
         if (student.programme_id) {
