@@ -810,14 +810,18 @@ router.post('/mapping/update', async (req, res) => {
 // ========================================
 // ========================================
 // TAB 5: PROMOTIONS
-// ========================================
-
-// Get promotion statistics
 router.get('/promotions/stats', async (req, res) => {
     try {
-        const { programme_id, batch_id, branch_id, semester_id } = req.query;
+        const { programme_id, batch_id, branch_id, semester_number } = req.query;
 
-        let query = `
+        if (!programme_id || !batch_id || !branch_id || !semester_number) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Missing required parameters'
+            });
+        }
+
+        const query = `
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN student_status = 'In Roll' THEN 1 ELSE 0 END) as on_roll,
@@ -831,35 +835,22 @@ router.get('/promotions/stats', async (req, res) => {
             AND student_status IN ('In Roll', 'Detained', 'Left', 'Completed', 'Dropout')
         `;
 
-        const params = [];
-
-        if (programme_id) {
-            params.push(programme_id);
-        }
-
-        if (batch_id) {
-            params.push(batch_id);
-        }
-
-        if (branch_id) {
-            query += ' AND branch_id = ?';
-            params.push(branch_id);
-        }
-
-        if (semester_id) {
-            query += ' AND semester_id = ?';
-            params.push(semester_id);
-        }
+        const params = [programme_id, batch_id, branch_id, semester_number];
 
         const [stats] = await promisePool.query(query, params);
 
         res.json({
             status: 'success',
-            data: stats[0] || { total: 0, on_roll: 0, detained: 0, left_out: 0 }
+            data: {
+                total: stats[0]?.total || 0,
+                on_roll: stats[0]?.on_roll || 0,
+                detained: stats[0]?.detained || 0,
+                left: stats[0]?.left_out || 0
+            }
         });
 
     } catch (error) {
-        console.error('Error fetching promotion stats:', error);
+        console.error('Error fetching promotion statistics:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to fetch statistics',
@@ -884,7 +875,7 @@ router.post('/promotions/summary', async (req, res) => {
         }
 
         // Get students summary for promotion
-        const [students] = await connection.query(
+        const [students] = await promisePool.query(
             `SELECT 
                 COUNT(*) as total_students,
                 SUM(CASE WHEN student_status = 'In Roll' THEN 1 ELSE 0 END) as in_roll,
@@ -907,13 +898,13 @@ router.post('/promotions/summary', async (req, res) => {
         res.json({
             status: 'success',
             data: {
-                total_students: summary.total_students,
-                in_roll: summary.in_roll,
-                detained: summary.detained,
-                left: summary.left,
-                completed: summary.completed,
-                dropout: summary.dropout,
-                eligible_for_promotion: summary.in_roll // Only "In Roll" students can be promoted
+                total_students: summary.total_students || 0,
+                in_roll: summary.in_roll || 0,
+                detained: summary.detained || 0,
+                left: summary.left || 0,
+                completed: summary.completed || 0,
+                dropout: summary.dropout || 0,
+                eligible_for_promotion: summary.in_roll || 0 // Only "In Roll" students can be promoted
             }
         });
 
