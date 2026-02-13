@@ -138,7 +138,9 @@ async function editStudent(id) {
             document.getElementById('semesterId').value = student.semester_id || '';
             document.getElementById('regulationId').value = student.regulation_id || '';
             document.getElementById('sectionId').value = student.section_id || '';
-            document.getElementById('studentStatus').value = student.student_status || 'In Roll';
+            
+            // Load student status from student_semester_history
+            await loadStudentStatusFromHistory(student.student_id, student.semester_id || 1);
             
             // Set checkboxes
             document.getElementById('detainee').checked = student.is_detainee || false;
@@ -310,6 +312,38 @@ function validateForm() {
     }
     
     return true;
+}
+
+// Load student status from student_semester_history
+async function loadStudentStatusFromHistory(studentId, semesterId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/students/${studentId}/semester-status?semester_id=${semesterId}`);
+        const result = await response.json();
+        
+        if (response.ok && result.data && result.data.length > 0) {
+            // Use the most recent status (first record since ordered by semester_id DESC)
+            const statusRecord = result.data[0];
+            const statusSelect = document.getElementById('studentStatus');
+            
+            if (statusSelect) {
+                statusSelect.value = statusRecord.student_status || 'In Roll';
+                console.log('Loaded student status from history:', statusRecord.student_status);
+            }
+        } else {
+            // Fallback to student_master table if no history found
+            const statusSelect = document.getElementById('studentStatus');
+            if (statusSelect) {
+                statusSelect.value = 'In Roll';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading student status from history:', error);
+        // Fallback to default status
+        const statusSelect = document.getElementById('studentStatus');
+        if (statusSelect) {
+            statusSelect.value = 'In Roll';
+        }
+    }
 }
 
 // ==================== PHOTO UPLOAD FUNCTIONS ====================
