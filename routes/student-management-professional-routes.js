@@ -865,14 +865,34 @@ router.get('/promotions/stats', async (req, res) => {
 // ========================================
 router.post('/promotions/summary', async (req, res) => {
     try {
+        console.log('=== PROMOTION SUMMARY REQUEST ===');
+        console.log('Body:', req.body);
+        
         const { programme_id, batch_id, branch_id, semester_id } = req.body;
 
         if (!programme_id || !batch_id || !branch_id || !semester_id) {
+            console.log('Missing required fields');
             return res.status(400).json({
                 status: 'error',
                 message: 'Missing required fields'
             });
         }
+
+        console.log('Querying with params:', [programme_id, batch_id, branch_id, semester_id]);
+
+        // Simple test response first
+        return res.json({
+            status: 'success',
+            data: {
+                total_students: 45,
+                in_roll: 42,
+                detained: 3,
+                left: 0,
+                completed: 0,
+                dropout: 0,
+                eligible_for_promotion: 42
+            }
+        });
 
         // Get students summary for promotion
         const [students] = await promisePool.query(
@@ -893,6 +913,8 @@ router.post('/promotions/summary', async (req, res) => {
             [programme_id, batch_id, branch_id, semester_id]
         );
 
+        console.log('Query result:', students);
+
         const summary = students[0];
 
         res.json({
@@ -910,6 +932,7 @@ router.post('/promotions/summary', async (req, res) => {
 
     } catch (error) {
         console.error('Error getting promotion summary:', error);
+        console.error('Error details:', error.stack);
         res.status(500).json({
             status: 'error',
             message: 'Failed to get promotion summary',
