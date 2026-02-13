@@ -384,6 +384,33 @@ router.get('/:id', async (req, res) => {
                 console.log('Could not fetch section:', err.message);
             }
         }
+
+
+// ADD THIS CODE AFTER THE SECTION DETAILS FETCH BLOCK (around line 386):
+
+        // Step 7: Fetch student_status from student_semester_history
+        if (student.semester_id) {
+            try {
+                const [semesterHistory] = await promisePool.query(
+                    `SELECT student_status 
+                     FROM student_semester_history 
+                     WHERE student_id = ? 
+                       AND semester_id = ? 
+                       AND is_active = 1 
+                     ORDER BY created_at DESC 
+                     LIMIT 1`,
+                    [req.params.id, student.semester_id]
+                );
+                if (semesterHistory.length > 0) {
+                    // Override student_status from semester_history if exists
+                    student.student_status = semesterHistory[0].student_status;
+                }
+            } catch (err) {
+                console.log('Could not fetch student status from semester history:', err.message);
+            }
+        }
+
+
         
         // Step 7: Fetch joining regulation (if exists)
         if (student.joining_regulation_id) {
