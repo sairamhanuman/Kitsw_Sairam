@@ -1,1036 +1,1064 @@
-// Student Management JavaScript
+// ========================================
+// PROFESSIONAL STUDENT MANAGEMENT ROUTES
+// routes/student-management-professional-routes.js
+// ========================================
 
-let currentEditId = null;
-let currentStudents = [];
-let currentFilters = {};
+const express = require('express');
+const router = express.Router();
+const ExcelJS = require('exceljs');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load all dropdown data
-    loadProgrammes();
-    loadBranches();
-    loadBatches();
-    loadSemesters();
-    loadSections();
-    loadRegulations();
-    
-    // Load students with default filters
-    loadStudents();
-    
-    // Setup event listeners
-    setupEventListeners();
+// Create uploads directory if it doesn't exist
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
 });
 
-// Setup all event listeners
-function setupEventListeners() {
-    // Form submit
-    const studentForm = document.getElementById('studentForm');
-    if (studentForm) {
-        studentForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await saveStudent();
+const upload = multer({ storage });
+
+let promisePool;
+
+function initializeRouter(pool) {
+    promisePool = pool;
+    return router;
+}
+
+// ========================================
+// TAB 1: IMPORT INITIAL DATABASE
+// ========================================
+
+// Generate Excel Template for Initial Import
+router.get('/import-initial/generate-template', async (req, res) => {
+    try {
+        const { programme_id, batch_id, branch_id, regulation_id } = req.query;
+        
+        console.log('Generating initial import template:', { programme_id, batch_id, branch_id, regulation_id });
+        
+        // Fetch metadata for template
+        let programmeName = 'B.Tech';
+        let batchName = '2025-2026';
+        let branchName = 'CSE';
+        let regulationName = 'R18';
+        
+        if (programme_id) {
+            const [programmes] = await promisePool.query(
+                'SELECT programme_code FROM programme_master WHERE programme_id = ?', [programme_id]
+            );
+            if (programmes.length > 0) programmeName = programmes[0].programme_code;
+        }
+        
+        if (batch_id) {
+            const [batches] = await promisePool.query(
+                'SELECT batch_name FROM batch_master WHERE batch_id = ?', [batch_id]
+            );
+            if (batches.length > 0) batchName = batches[0].batch_name;
+        }
+        
+        if (branch_id) {
+            const [branches] = await promisePool.query(
+                'SELECT branch_code FROM branch_master WHERE branch_id = ?', [branch_id]
+            );
+            if (branches.length > 0) branchName = branches[0].branch_code;
+        }
+        
+        if (regulation_id) {
+            const [regulations] = await promisePool.query(
+                'SELECT regulation_name FROM regulation_master WHERE regulation_id = ?', [regulation_id]
+            );
+            if (regulations.length > 0) regulationName = regulations[0].regulation_name;
+        }
+        
+        // Create Excel workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Student Data');
+        
+        // Metadata section (rows 1-5)
+        worksheet.getCell('A1').value = 'Batch:';
+        worksheet.getCell('B1').value = batchName;
+        worksheet.getCell('A2').value = 'Programme:';
+        worksheet.getCell('B2').value = programmeName;
+        worksheet.getCell('A3').value = 'Branch:';
+        worksheet.getCell('B3').value = branchName;
+        worksheet.getCell('A4').value = 'Regulation:';
+        worksheet.getCell('B4').value = regulationName;
+        worksheet.getCell('A5').value = 'Semester:';
+        worksheet.getCell('B5').value = 'I (First Semester)';
+        
+        // Style metadata
+        for (let i = 1; i <= 5; i++) {
+            worksheet.getCell(`A${i}`).font = { bold: true };
+            worksheet.getCell(`B${i}`).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE7E6E6' }
+            };
+        }
+        
+        // Row 6 is empty
+        
+        // Headers (row 7)
+        const headers = [
+            'Admission Number*',
+            'HT Number',
+            'Roll Number*',
+            'Full Name*',
+            'Date of Birth (YYYY-MM-DD)*',
+            'Gender (Male/Female/Other)*',
+            'Father Name*',
+            'Mother Name*',
+            'Aadhaar Number (12 digits)',
+            'Caste Category',
+            'Student Mobile',
+            'Parent Mobile*',
+            'Email',
+            'Section'
+        ];
+        
+        worksheet.getRow(7).values = headers;
+        
+        // Style headers
+        const headerRow = worksheet.getRow(7);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        
+        // Set column widths
+        worksheet.columns = [
+            { width: 20 }, { width: 15 }, { width: 15 }, { width: 30 },
+            { width: 20 }, { width: 15 }, { width: 25 }, { width: 25 },
+            { width: 20 }, { width: 15 }, { width: 15 }, { width: 15 },
+            { width: 30 }, { width: 15 }
+        ];
+        
+        // Add sample row (row 8)
+        worksheet.getRow(8).values = [
+            'B25CSE001',
+            'HT123456',
+            'B25AI001',
+            'Sample Student Name',
+            '2005-06-15',
+            'Male',
+            'Father Name',
+            'Mother Name',
+            '123456789012',
+            'OC',
+            '9876543210',
+            '9876543211',
+            'student@example.com',
+            'A'
+        ];
+        
+        // Send file
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Student_Initial_Import_${batchName}_${branchName}.xlsx"`);
+        
+        await workbook.xlsx.write(res);
+        res.end();
+        
+    } catch (error) {
+        console.error('Error generating template:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to generate template',
+            error: error.message
         });
     }
-    
-    // Photo form submit
-    const photoForm = document.getElementById('photoForm');
-    if (photoForm) {
-        photoForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const studentId = document.getElementById('photoStudentId').value;
-            await uploadPhoto(studentId);
+});
+
+// Import Initial Database from Excel
+router.post('/import-initial/upload', upload.single('file'), async (req, res) => {
+    try {
+        const { programme_id, batch_id, branch_id, regulation_id, section_id } = req.body;
+        
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
+            });
+        }
+        
+        console.log('Importing initial database:', {
+            file: req.file.originalname,
+            programme_id, batch_id, branch_id, regulation_id
         });
-    }
-    
-    // Search input
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearch);
-    }
-    
-    // Filter button
-    const applyFilterBtn = document.getElementById('applyFilterBtn');
-    if (applyFilterBtn) {
-        applyFilterBtn.addEventListener('click', applyFilters);
-    }
-    
-    // Clear filter button
-    const clearFilterBtn = document.getElementById('clearFilterBtn');
-    if (clearFilterBtn) {
-        clearFilterBtn.addEventListener('click', clearFilters);
-    }
-    
-    // Export button
-    const exportExcelBtn = document.getElementById('exportExcelBtn');
-    if (exportExcelBtn) {
-        exportExcelBtn.addEventListener('click', exportToExcel);
-    }
-    
-    // Photo file input preview
-    const photoFileInput = document.getElementById('photoFile');
-    if (photoFileInput) {
-        photoFileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('photoPreview');
-                    if (preview) {
-                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px;">`;
-                    }
+        
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(req.file.path);
+        const worksheet = workbook.getWorksheet('Student Data');
+        
+        const students = [];
+        const errors = [];
+        
+        // Read data starting from row 8 (after metadata and headers)
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber < 8) return; // Skip metadata and headers
+            
+            const values = row.values;
+            if (!values[1]) return; // Skip empty rows
+            
+            try {
+                const student = {
+                    admission_number: values[1],
+                    ht_number: values[2] || null,
+                    roll_number: values[3],
+                    full_name: values[4],
+                    date_of_birth: values[5],
+                    gender: values[6],
+                    father_name: values[7],
+                    mother_name: values[8],
+                    aadhaar_number: values[9] || null,
+                    caste_category: values[10] || null,
+                    student_mobile: values[11] || null,
+                    parent_mobile: values[12],
+                    email: values[13] || null,
+                    section: values[14] || 'A'
                 };
-                reader.readAsDataURL(file);
+                
+                // Validation
+                if (!student.admission_number || !student.roll_number || !student.full_name) {
+                    throw new Error('Missing required fields');
+                }
+                
+                students.push(student);
+            } catch (error) {
+                errors.push({
+                    row: rowNumber,
+                    error: error.message
+                });
             }
         });
-    }
-}
-
-// ==================== FORM MANAGEMENT FUNCTIONS ====================
-
-// Open modal for adding new student
-function openStudentModal() {
-    resetForm();
-    const modal = document.getElementById('studentModal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.getElementById('modalTitle').textContent = 'Add New Student';
-    }
-}
-
-// Edit student
-async function editStudent(id) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${id}`);
-        const result = await response.json();
         
-        if (response.ok && result.data) {
-            const student = result.data;
+        // Start transaction
+        const connection = await promisePool.getConnection();
+        await connection.beginTransaction();
+        
+        try {
+            let imported = 0;
+            let skipped = 0;
             
-            // Populate form fields
-            document.getElementById('studentId').value = student.student_id || '';
-            document.getElementById('admissionNumber').value = student.admission_number || '';
-            document.getElementById('htNumber').value = student.ht_number || '';
-            document.getElementById('rollNumber').value = student.roll_number || '';
-            document.getElementById('fullName').value = student.full_name || '';
-            document.getElementById('dateOfBirth').value = student.date_of_birth ? student.date_of_birth.split('T')[0] : '';
-            
-            // Set gender radio button
-            if (student.gender) {
-                const genderRadio = document.querySelector(`input[name="gender"][value="${student.gender}"]`);
-                if (genderRadio) genderRadio.checked = true;
+            // Get section_id if section name provided
+            let actualSectionId = section_id;
+            if (!actualSectionId && students.length > 0) {
+                const [sections] = await connection.query(
+                    'SELECT section_id FROM section_master WHERE section_name = ? AND is_active = 1 LIMIT 1',
+                    [students[0].section]
+                );
+                if (sections.length > 0) {
+                    actualSectionId = sections[0].section_id;
+                }
             }
             
-            document.getElementById('fatherName').value = student.father_name || '';
-            document.getElementById('motherName').value = student.mother_name || '';
-            document.getElementById('aadhaarNumber').value = student.aadhaar_number || '';
-            document.getElementById('casteCategory').value = student.caste_category || '';
-            document.getElementById('studentMobile').value = student.student_mobile || '';
-            document.getElementById('parentMobile').value = student.parent_mobile || '';
-            document.getElementById('email').value = student.email || '';
-            document.getElementById('admissionDate').value = student.admission_date ? student.admission_date.split('T')[0] : '';
-            document.getElementById('completionYear').value = student.completion_year || '';
-            document.getElementById('dateOfLeaving').value = student.date_of_leaving ? student.date_of_leaving.split('T')[0] : '';
-            document.getElementById('discontinueDate').value = student.discontinue_date ? student.discontinue_date.split('T')[0] : '';
-            document.getElementById('programmeId').value = student.programme_id || '';
-            document.getElementById('branchId').value = student.branch_id || '';
-            document.getElementById('batchId').value = student.batch_id || '';
-            document.getElementById('semesterId').value = student.semester_id || '';
-            document.getElementById('regulationId').value = student.regulation_id || '';
-            document.getElementById('sectionId').value = student.section_id || '';
+            // Get academic year from batch
+            const [batches] = await connection.query(
+                'SELECT batch_name FROM batch_master WHERE batch_id = ?',
+                [batch_id]
+            );
+            const academicYear = batches.length > 0 ? batches[0].batch_name : new Date().getFullYear() + '-' + (new Date().getFullYear() + 1);
             
-            // Load student status from student_semester_history
-            await loadStudentStatusFromHistory(student.student_id, student.semester_id || 1);
-            
-            // Set checkboxes
-            document.getElementById('detainee').checked = student.is_detainee || false;
-            document.getElementById('transitory').checked = student.is_transitory || false;
-            document.getElementById('handicapped').checked = student.is_handicapped || false;
-            document.getElementById('lateral').checked = student.is_lateral || false;
-            document.getElementById('joinCurriculum').checked = student.join_curriculum || false;
-            document.getElementById('lockStudent').checked = student.is_locked || false;
-            
-            // Update modal
-            document.getElementById('modalTitle').textContent = 'Edit Student';
-            document.getElementById('submitBtnText').textContent = 'Update Student';
-            
-            currentEditId = id;
-            
-            // Open modal
-            const modal = document.getElementById('studentModal');
-            if (modal) {
-                modal.style.display = 'block';
+            for (const student of students) {
+                // Check if student already exists
+                const [existing] = await connection.query(
+                    'SELECT student_id FROM student_master WHERE admission_number = ?',
+                    [student.admission_number]
+                );
+                
+                if (existing.length > 0) {
+                    skipped++;
+                    errors.push({
+                        admission_number: student.admission_number,
+                        error: 'Student already exists'
+                    });
+                    continue;
+                }
+                
+                // Insert into student_master
+                const [result] = await connection.query(
+                    `INSERT INTO student_master (
+                        admission_number, ht_number, roll_number, full_name,
+                        date_of_birth, gender, father_name, mother_name,
+                        aadhaar_number, caste_category, student_mobile, parent_mobile, email,
+                        programme_id, branch_id, batch_id, section_id,
+                        joining_regulation_id, current_regulation_id,
+                        admission_date, is_active
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1)`,
+                    [
+                        student.admission_number, student.ht_number, student.roll_number, student.full_name,
+                        student.date_of_birth, student.gender, student.father_name, student.mother_name,
+                        student.aadhaar_number, student.caste_category, student.student_mobile, 
+                        student.parent_mobile, student.email,
+                        programme_id, branch_id, batch_id, actualSectionId,
+                        regulation_id, regulation_id
+                    ]
+                );
+                
+                const studentId = result.insertId;
+                
+                // Insert into student_semester_history (Semester I)
+                await connection.query(
+                    `INSERT INTO student_semester_history (
+                        student_id, academic_year, semester_id,
+                        programme_id, branch_id, batch_id, regulation_id, section_id,
+                        roll_number, student_status, status_date,
+                        is_promoted, created_by
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), 0, 'system')`,
+                    [
+                        studentId, academicYear,
+                        programme_id, branch_id, batch_id, regulation_id, actualSectionId,
+                        student.roll_number
+                    ]
+                );
+                
+                imported++;
             }
-        } else {
-            showAlert('Failed to load student details', 'danger');
-        }
-    } catch (error) {
-        console.error('Error loading student:', error);
-        showAlert('Error: ' + error.message, 'danger');
-    }
-}
-
-// Save student (Create or Update)
-async function saveStudent() {
-    // Validate form
-    if (!validateForm()) {
-        return;
-    }
-    
-    // Collect form data
-    const formData = {
-        admission_number: document.getElementById('admissionNumber').value.trim(),
-        ht_number: document.getElementById('htNumber').value.trim(),
-        roll_number: document.getElementById('rollNumber').value.trim(),
-        full_name: document.getElementById('fullName').value.trim(),
-        date_of_birth: document.getElementById('dateOfBirth').value || null,
-        gender: document.querySelector('input[name="gender"]:checked')?.value || null,
-        father_name: document.getElementById('fatherName').value.trim(),
-        mother_name: document.getElementById('motherName').value.trim(),
-        aadhaar_number: document.getElementById('aadhaarNumber').value.trim(),
-        caste_category: document.getElementById('casteCategory').value.trim(),
-        student_mobile: document.getElementById('studentMobile').value.trim(),
-        parent_mobile: document.getElementById('parentMobile').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        admission_date: document.getElementById('admissionDate').value || null,
-        completion_year: document.getElementById('completionYear').value.trim(),
-        date_of_leaving: document.getElementById('dateOfLeaving').value || null,
-        discontinue_date: document.getElementById('discontinueDate').value || null,
-        programme_id: parseInt(document.getElementById('programmeId').value) || null,
-        branch_id: parseInt(document.getElementById('branchId').value) || null,
-        batch_id: parseInt(document.getElementById('batchId').value) || null,
-        semester_id: parseInt(document.getElementById('semesterId').value) || null,
-        regulation_id: parseInt(document.getElementById('regulationId').value) || null,
-        section_id: parseInt(document.getElementById('sectionId').value) || null,
-        student_status: document.getElementById('studentStatus').value || 'In Roll',
-        is_detainee: document.getElementById('detainee').checked,
-        is_transitory: document.getElementById('transitory').checked,
-        is_handicapped: document.getElementById('handicapped').checked,
-        is_lateral: document.getElementById('lateral').checked,
-        join_curriculum: document.getElementById('joinCurriculum').checked,
-        is_locked: document.getElementById('lockStudent').checked
-    };
-    
-    try {
-        let response;
-        if (currentEditId) {
-            // Update existing student
-            response = await fetch(`${API_BASE_URL}/api/students/${currentEditId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
+            
+            await connection.commit();
+            
+            // Delete uploaded file
+            fs.unlinkSync(req.file.path);
+            
+            res.json({
+                status: 'success',
+                message: `Import completed: ${imported} students imported, ${skipped} skipped`,
+                data: {
+                    imported,
+                    skipped,
+                    total: students.length,
+                    errors
+                }
             });
-        } else {
-            // Create new student
-            response = await fetch(`${API_BASE_URL}/api/students`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
+            
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+        
+    } catch (error) {
+        console.error('Error importing initial database:', error);
+        
+        // Clean up file
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to import database',
+            error: error.message
+        });
+    }
+});
+
+// ========================================
+// TAB 2: IMPORT PHOTOS
+// ========================================
+
+router.post('/import-photos/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No file uploaded'
             });
         }
         
-        const result = await response.json();
+        console.log('Importing photos from ZIP:', req.file.originalname);
         
-        if (response.ok) {
-            showAlert(result.message || 'Student saved successfully', 'success');
-            closeModal('studentModal');
-            resetForm();
-            loadStudents();
-        } else {
-            showAlert(result.message || 'Failed to save student', 'danger');
-        }
-    } catch (error) {
-        console.error('Error saving student:', error);
-        showAlert('Error: ' + error.message, 'danger');
-    }
-}
-
-// Reset form
-function resetForm() {
-    const form = document.getElementById('studentForm');
-    if (form) {
-        form.reset();
-    }
-    document.getElementById('studentId').value = '';
-    document.getElementById('submitBtnText').textContent = 'Add Student';
-    document.getElementById('studentStatus').value = 'In Roll';
-    currentEditId = null;
-}
-
-// Validate form
-function validateForm() {
-    const fullName = document.getElementById('fullName').value.trim();
-    const admissionNumber = document.getElementById('admissionNumber').value.trim();
-    const rollNumber = document.getElementById('rollNumber').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const studentMobile = document.getElementById('studentMobile').value.trim();
-    const aadhaarNumber = document.getElementById('aadhaarNumber').value.trim();
-    const programmeId = document.getElementById('programmeId').value;
-    const branchId = document.getElementById('branchId').value;
-    const batchId = document.getElementById('batchId').value;
-    
-    // Check required fields
-    if (!fullName || !admissionNumber) {
-        showAlert('Please fill in all required fields', 'danger');
-        return false;
-    }
-    
-    if (!programmeId || !branchId || !batchId) {
-        showAlert('Please select programme, branch, and batch', 'danger');
-        return false;
-    }
-    
-    // Validate email format
-    if (email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            showAlert('Please enter a valid email address', 'danger');
-            return false;
-        }
-    }
-    
-    // Validate mobile number (10 digits)
-    if (studentMobile) {
-        const mobileRegex = /^[0-9]{10}$/;
-        if (!mobileRegex.test(studentMobile)) {
-            showAlert('Student mobile number must be 10 digits', 'danger');
-            return false;
-        }
-    }
-    
-    // Validate Aadhaar (12 digits)
-    if (aadhaarNumber) {
-        const aadhaarRegex = /^[0-9]{12}$/;
-        if (!aadhaarRegex.test(aadhaarNumber)) {
-            showAlert('Aadhaar number must be 12 digits', 'danger');
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Load student status from student_semester_history
-async function loadStudentStatusFromHistory(studentId, semesterId) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${studentId}/semester-status?semester_id=${semesterId}`);
-        const result = await response.json();
+        // Extract ZIP
+        const zip = new AdmZip(req.file.path);
+        const zipEntries = zip.getEntries();
         
-        if (response.ok && result.data && result.data.length > 0) {
-            // Use the most recent status (first record since ordered by semester_id DESC)
-            const statusRecord = result.data[0];
-            const statusSelect = document.getElementById('studentStatus');
+        let uploaded = 0;
+        let failed = 0;
+        const uploadErrors = [];
+        
+        // Create photos directory
+        const photosDir = path.join(__dirname, '../public/uploads/photos');
+        if (!fs.existsSync(photosDir)) {
+            fs.mkdirSync(photosDir, { recursive: true });
+        }
+        
+        for (const entry of zipEntries) {
+            if (entry.isDirectory) continue;
             
-            if (statusSelect) {
-                statusSelect.value = statusRecord.student_status || 'In Roll';
-                console.log('Loaded student status from history:', statusRecord.student_status);
+            const filename = path.basename(entry.entryName);
+            const ext = path.extname(filename).toLowerCase();
+            
+            // Only process image files
+            if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+                continue;
             }
-        } else {
-            // Fallback to student_master table if no history found
-            const statusSelect = document.getElementById('studentStatus');
-            if (statusSelect) {
-                statusSelect.value = 'In Roll';
+            
+            try {
+                // Extract roll number from filename (e.g., B25AI001.jpg -> B25AI001)
+                const rollNumber = path.parse(filename).name;
+                
+                // Find student by roll number
+                const [students] = await promisePool.query(
+                    'SELECT student_id FROM student_master WHERE roll_number = ? AND is_active = 1',
+                    [rollNumber]
+                );
+                
+                if (students.length === 0) {
+                    uploadErrors.push({
+                        filename,
+                        error: 'Student not found with roll number: ' + rollNumber
+                    });
+                    failed++;
+                    continue;
+                }
+                
+                // Save photo
+                const photoPath = path.join(photosDir, filename);
+                fs.writeFileSync(photoPath, entry.getData());
+                
+                // Update student_master with photo URL
+                await promisePool.query(
+                    'UPDATE student_master SET photo_url = ? WHERE student_id = ?',
+                    [`/uploads/photos/${filename}`, students[0].student_id]
+                );
+                
+                uploaded++;
+                
+            } catch (error) {
+                console.error('Error processing photo:', filename, error);
+                uploadErrors.push({
+                    filename,
+                    error: error.message
+                });
+                failed++;
             }
         }
-    } catch (error) {
-        console.error('Error loading student status from history:', error);
-        // Fallback to default status
-        const statusSelect = document.getElementById('studentStatus');
-        if (statusSelect) {
-            statusSelect.value = 'In Roll';
-        }
-    }
-}
-
-// ==================== PHOTO UPLOAD FUNCTIONS ====================
-
-// Open photo upload modal
-function openPhotoUploadModal(studentId) {
-    document.getElementById('photoStudentId').value = studentId;
-    document.getElementById('photoPreview').innerHTML = '';
-    document.getElementById('photoFile').value = '';
-    
-    const modal = document.getElementById('photoModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
-}
-
-// Upload photo
-async function uploadPhoto(studentId) {
-    const fileInput = document.getElementById('photoFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showAlert('Please select a photo to upload', 'danger');
-        return;
-    }
-    
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
-        showAlert('Only JPG, JPEG, and PNG files are allowed', 'danger');
-        return;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        showAlert('File size must be less than 5MB', 'danger');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('photo', file);
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${studentId}/photo`, {
-            method: 'POST',
-            body: formData
+        
+        // Clean up ZIP file
+        fs.unlinkSync(req.file.path);
+        
+        res.json({
+            status: 'success',
+            message: `Photo import completed: ${uploaded} photos uploaded, ${failed} failed`,
+            data: {
+                uploaded,
+                failed,
+                total: zipEntries.filter(e => !e.isDirectory).length,
+                errors: uploadErrors
+            }
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
-            showAlert('Photo uploaded successfully', 'success');
-            closeModal('photoModal');
-            loadStudents();
-        } else {
-            showAlert(result.message || 'Failed to upload photo', 'danger');
-        }
     } catch (error) {
-        console.error('Error uploading photo:', error);
-        showAlert('Error: ' + error.message, 'danger');
-    }
-}
-
-// ==================== FILTER FUNCTIONS ====================
-
-// Apply filters
-function applyFilters() {
-    currentFilters = {};
-    
-    const programmeId = document.getElementById('filterProgramme').value;
-    const branchId = document.getElementById('filterBranch').value;
-    const batchId = document.getElementById('filterBatch').value;
-    const semesterId = document.getElementById('filterSemester').value;
-    const sectionId = document.getElementById('filterSection').value;
-    const regulationId = document.getElementById('filterRegulation').value;
-    const status = document.getElementById('filterStatus').value;
-    
-    if (programmeId) currentFilters.programme_id = programmeId;
-    if (branchId) currentFilters.branch_id = branchId;
-    if (batchId) currentFilters.batch_id = batchId;
-    if (semesterId) currentFilters.semester_id = semesterId;
-    if (sectionId) currentFilters.section_id = sectionId;
-    if (regulationId) currentFilters.regulation_id = regulationId;
-    if (status) currentFilters.status = status;
-    
-    loadStudents();
-}
-
-// Clear filters
-function clearFilters() {
-    // Clear all filter dropdowns
-    document.getElementById('filterProgramme').value = '';
-    document.getElementById('filterBranch').value = '';
-    document.getElementById('filterBatch').value = '';
-    document.getElementById('filterSemester').value = '';
-    document.getElementById('filterSection').value = '';
-    document.getElementById('filterRegulation').value = '';
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('searchInput').value = '';
-    
-    // Clear filters object
-    currentFilters = {};
-    
-    // Reload students
-    loadStudents();
-}
-
-// Handle search
-function handleSearch() {
-    const searchTerm = document.getElementById('searchInput').value.trim();
-    
-    if (searchTerm.length >= 2) {
-        currentFilters.search = searchTerm;
-    } else {
-        delete currentFilters.search;
-    }
-    
-    loadStudents();
-}
-
-// ==================== STATISTICS FUNCTIONS ====================
-
-// Update statistics
-function updateStatistics(data) {
-    // If data is an object with statistics property (from API response), use it
-    if (data && typeof data === 'object' && 'statistics' in data) {
-        const stats = data.statistics;
-        document.getElementById('statTotal').textContent = stats.total || 0;
-        document.getElementById('statBoys').textContent = stats.boys || 0;
-        document.getElementById('statGirls').textContent = stats.girls || 0;
-        document.getElementById('statInRoll').textContent = stats.in_roll || 0;
-        document.getElementById('statDetained').textContent = stats.detained || 0;
-        document.getElementById('statLeftOut').textContent = stats.left_out || 0;
-    } 
-    // If data is an array of students, calculate statistics
-    else if (Array.isArray(data)) {
-        const total = data.length;
-        const boys = data.filter(s => s.gender === 'Male').length;
-        const girls = data.filter(s => s.gender === 'Female').length;
-        const inRoll = data.filter(s => s.student_status === 'In Roll').length;
-        const detained = data.filter(s => s.student_status === 'Detained').length;
-        const leftOut = data.filter(s => s.student_status === 'Left Out' || s.student_status === 'Left out').length;
+        console.error('Error importing photos:', error);
         
-        document.getElementById('statTotal').textContent = total;
-        document.getElementById('statBoys').textContent = boys;
-        document.getElementById('statGirls').textContent = girls;
-        document.getElementById('statInRoll').textContent = inRoll;
-        document.getElementById('statDetained').textContent = detained;
-        document.getElementById('statLeftOut').textContent = leftOut;
+        // Clean up file
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to import photos',
+            error: error.message
+        });
     }
-    // Otherwise, set all to 0
-    else {
-        document.getElementById('statTotal').textContent = 0;
-        document.getElementById('statBoys').textContent = 0;
-        document.getElementById('statGirls').textContent = 0;
-        document.getElementById('statInRoll').textContent = 0;
-        document.getElementById('statDetained').textContent = 0;
-        document.getElementById('statLeftOut').textContent = 0;
-    }
-}
+});
 
-// ==================== TABLE DISPLAY FUNCTIONS ====================
+// ========================================
+// TAB 3: STUDENT MANAGEMENT (VIEW)
+// ========================================
 
-// Display students in table
-function displayStudents(students) {
-    currentStudents = students;
-    const tableContainer = document.getElementById('tableContainer');
-    
-    if (students.length === 0) {
-        tableContainer.innerHTML = `
-            <div class="alert alert-info">
-                No students found. Add students using the "Add New Student" button or adjust your filters.
-            </div>
+router.get('/students', async (req, res) => {
+    try {
+        const { 
+            programme_id, 
+            batch_id, 
+            branch_id, 
+            semester_id, 
+            section_id,
+            student_status,
+            search 
+        } = req.query;
+        
+        let query = `
+            SELECT 
+                sm.student_id,
+                sm.admission_number,
+                sm.roll_number,
+                sm.full_name,
+                sm.date_of_birth,
+                sm.gender,
+                sm.father_name,
+                sm.mother_name,
+                sm.student_mobile,
+                sm.parent_mobile,
+                sm.email,
+                sm.photo_url,
+                ssh.semester_id,
+                ssh.student_status,
+                ssh.academic_year,
+                ssh.semester_history_id,
+                p.programme_name,
+                p.programme_code,
+                br.branch_name,
+                br.branch_code,
+                b.batch_name,
+                r.regulation_name,
+                sec.section_name
+            FROM student_master sm
+            INNER JOIN student_semester_history ssh ON sm.student_id = ssh.student_id
+            LEFT JOIN programme_master p ON ssh.programme_id = p.programme_id
+            LEFT JOIN branch_master br ON ssh.branch_id = br.branch_id
+            LEFT JOIN batch_master b ON ssh.batch_id = b.batch_id
+            LEFT JOIN regulation_master r ON ssh.regulation_id = r.regulation_id
+            LEFT JOIN section_master sec ON ssh.section_id = sec.section_id
+            WHERE sm.is_active = 1
         `;
-        return;
+        
+        const params = [];
+        
+        // Filters on semester_history
+        if (programme_id) {
+            query += ' AND ssh.programme_id = ?';
+            params.push(programme_id);
+        }
+        
+        if (batch_id) {
+            query += ' AND ssh.batch_id = ?';
+            params.push(batch_id);
+        }
+        
+        if (branch_id) {
+            query += ' AND ssh.branch_id = ?';
+            params.push(branch_id);
+        }
+        
+        if (semester_id) {
+            query += ' AND ssh.semester_id = ?';
+            params.push(semester_id);
+        }
+        
+        if (section_id) {
+            query += ' AND ssh.section_id = ?';
+            params.push(section_id);
+        }
+        
+        if (student_status) {
+            query += ' AND ssh.student_status = ?';
+            params.push(student_status);
+        }
+        
+        if (search) {
+            query += ' AND (sm.full_name LIKE ? OR sm.admission_number LIKE ? OR sm.roll_number LIKE ?)';
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+        
+        query += ' ORDER BY sm.admission_number';
+        
+        const [students] = await promisePool.query(query, params);
+        
+        // Calculate statistics
+        const statistics = {
+            total: students.length,
+            boys: students.filter(s => s.gender === 'Male').length,
+            girls: students.filter(s => s.gender === 'Female').length,
+            on_roll: students.filter(s => s.student_status === 'On Roll').length,
+            detained: students.filter(s => s.student_status === 'Detained').length,
+            left: students.filter(s => s.student_status === 'Left').length
+        };
+        
+        res.json({
+            status: 'success',
+            message: 'Students retrieved successfully',
+            data: {
+                students,
+                statistics
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch students',
+            error: error.message
+        });
     }
-    
-    let tableHTML = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>S.No</th>
-                    <th>Photo</th>
-                    <th>Admission No</th>
-                    <th>Full Name</th>
-                    <th>Gender</th>
-                    <th>Branch</th>
-                    <th>Batch</th>
-                    <th>Semester</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    students.forEach((student, index) => {
-        const fullName = student.full_name || 'N/A';
-        const photoUrl = student.photo_url ? `${API_BASE_URL}${student.photo_url}` : '';
+});
+
+// ========================================
+// TAB 4: REGULATION/BATCH MAPPING
+// ========================================
+
+// Get students for mapping
+router.get('/mapping/students', async (req, res) => {
+    try {
+        const { programme_id, branch_id, batch_id, semester_id, student_status } = req.query;
         
-        // Status badge color
-        let statusClass = 'status-active';
-        if (student.student_status === 'Detained') statusClass = 'status-warning';
-        else if (student.student_status === 'Left Out') statusClass = 'status-inactive';
-        
-        tableHTML += `
-            <tr>
-                <td>${index + 1}</td>
-                <td>
-                    ${photoUrl 
-                        ? `<img src="${photoUrl}" alt="Photo" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` 
-                        : '<div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>'}
-                </td>
-                <td><strong>${escapeHtml(student.admission_number)}</strong></td>
-                <td>${escapeHtml(fullName)}</td>
-                <td>${escapeHtml(student.gender || 'N/A')}</td>
-                <td>${escapeHtml(student.branch_name || 'N/A')}</td>
-                <td>${escapeHtml(student.batch_name || 'N/A')}</td>
-                <td>${escapeHtml(student.current_semester || 'N/A')}</td>
-                <td><span class="status-badge ${statusClass}">${escapeHtml(student.student_status || 'N/A')}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-primary" onclick="editStudent(${student.student_id})" title="Edit">
-                            ✏️
-                        </button>
-                        <button class="btn btn-sm btn-info" onclick="openPhotoUploadModal(${student.student_id})" title="Upload Photo">
-                            📷
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteStudent(${student.student_id}, '${escapeHtml(fullName)}')" title="Delete">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
-            </tr>
+        let query = `
+            SELECT 
+                sm.student_id,
+                sm.roll_number,
+                sm.full_name,
+                ssh.semester_history_id,
+                ssh.batch_id,
+                ssh.regulation_id,
+                b.batch_name,
+                r.regulation_name
+            FROM student_master sm
+            INNER JOIN student_semester_history ssh ON sm.student_id = ssh.student_id
+            LEFT JOIN batch_master b ON ssh.batch_id = b.batch_id
+            LEFT JOIN regulation_master r ON ssh.regulation_id = r.regulation_id
+            WHERE sm.is_active = 1
         `;
-    });
-    
-    tableHTML += `
-            </tbody>
-        </table>
-    `;
-    
-    tableContainer.innerHTML = tableHTML;
-}
-
-// ==================== CRUD OPERATIONS ====================
-
-// Load students with filters
-async function loadStudents() {
-    try {
-        // Build query string from filters
-        const params = new URLSearchParams(currentFilters);
-        const url = `${API_BASE_URL}/api/students${params.toString() ? '?' + params.toString() : ''}`;
         
-        const response = await fetch(url);
-        const result = await response.json();
+        const params = [];
         
-        if (response.ok) {
-            // The API returns result.data as an object with students and statistics
-            if (result.data && result.data.students) {
-                displayStudents(result.data.students);
-                updateStatistics(result.data); // Pass the whole data object which has statistics
-            } else if (Array.isArray(result.data)) {
-                // Fallback if API returns array directly
-                displayStudents(result.data);
-                updateStatistics(result.data);
-            } else {
-                displayStudents([]);
-                updateStatistics([]);
-            }
-        } else {
-            showAlert(result.message || 'Failed to load students', 'danger');
-            displayStudents([]);
-            updateStatistics([]);
+        if (programme_id) {
+            query += ' AND ssh.programme_id = ?';
+            params.push(programme_id);
         }
-    } catch (error) {
-        console.error('Error loading students:', error);
-        showAlert('Error connecting to server: ' + error.message, 'danger');
-        displayStudents([]);
-        updateStatistics([]);
-    }
-}
-
-// Get single student
-async function getStudent(id) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${id}`);
-        const result = await response.json();
         
-        if (response.ok) {
-            return result.data;
-        } else {
-            showAlert(result.message || 'Failed to get student', 'danger');
-            return null;
+        if (branch_id) {
+            query += ' AND ssh.branch_id = ?';
+            params.push(branch_id);
         }
-    } catch (error) {
-        console.error('Error getting student:', error);
-        showAlert('Error: ' + error.message, 'danger');
-        return null;
-    }
-}
-
-// Delete student
-async function deleteStudent(id, name) {
-    if (!confirm(`Are you sure you want to delete student "${name}"?\n\nThis will soft-delete the record and it can be restored later.`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${id}`, {
-            method: 'DELETE'
+        
+        if (batch_id) {
+            query += ' AND ssh.batch_id = ?';
+            params.push(batch_id);
+        }
+        
+        if (semester_id) {
+            query += ' AND ssh.semester_id = ?';
+            params.push(semester_id);
+        }
+        
+        if (student_status) {
+            query += ' AND ssh.student_status = ?';
+            params.push(student_status);
+        }
+        
+        query += ' ORDER BY sm.roll_number';
+        
+        const [students] = await promisePool.query(query, params);
+        
+        res.json({
+            status: 'success',
+            data: { students }
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
-            showAlert(result.message || 'Student deleted successfully', 'success');
-            loadStudents();
-        } else {
-            showAlert(result.message || 'Failed to delete student', 'danger');
-        }
     } catch (error) {
-        console.error('Error deleting student:', error);
-        showAlert('Error: ' + error.message, 'danger');
+        console.error('Error fetching students for mapping:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch students',
+            error: error.message
+        });
     }
-}
+});
 
-// Restore student (if needed)
-async function restoreStudent(id) {
+// Get semester-wise mapping view
+router.get('/mapping/semester-view', async (req, res) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/students/${id}/restore`, {
-            method: 'POST'
+        const { programme_id, batch_id, branch_id } = req.query;
+        
+        let query = `
+            SELECT 
+                sm.roll_number,
+                ssh.semester_id,
+                b.batch_name,
+                r.regulation_name,
+                CONCAT(b.batch_name, '-', r.regulation_name) as mapping
+            FROM student_master sm
+            INNER JOIN student_semester_history ssh ON sm.student_id = ssh.student_id
+            LEFT JOIN batch_master b ON ssh.batch_id = b.batch_id
+            LEFT JOIN regulation_master r ON ssh.regulation_id = r.regulation_id
+            WHERE sm.is_active = 1
+        `;
+        
+        const params = [];
+        
+        if (programme_id) {
+            query += ' AND ssh.programme_id = ?';
+            params.push(programme_id);
+        }
+        
+        if (batch_id) {
+            query += ' AND ssh.batch_id = ?';
+            params.push(batch_id);
+        }
+        
+        if (branch_id) {
+            query += ' AND ssh.branch_id = ?';
+            params.push(branch_id);
+        }
+        
+        query += ' ORDER BY sm.roll_number, ssh.semester_id';
+        
+        const [mappings] = await promisePool.query(query, params);
+        
+        // Transform into pivot table structure
+        const pivotData = {};
+        
+        mappings.forEach(row => {
+            if (!pivotData[row.roll_number]) {
+                pivotData[row.roll_number] = {};
+            }
+            pivotData[row.roll_number][`sem_${row.semester_id}`] = row.mapping;
         });
         
-        const result = await response.json();
+        res.json({
+            status: 'success',
+            data: { mappings: pivotData }
+        });
         
-        if (response.ok) {
-            showAlert(result.message || 'Student restored successfully', 'success');
-            loadStudents();
-        } else {
-            showAlert(result.message || 'Failed to restore student', 'danger');
-        }
     } catch (error) {
-        console.error('Error restoring student:', error);
-        showAlert('Error: ' + error.message, 'danger');
+        console.error('Error fetching semester view:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch semester view',
+            error: error.message
+        });
     }
-}
+});
 
-// ==================== EXCEL EXPORT ====================
-
-// Export to Excel
-async function exportToExcel() {
+// Update batch/regulation for selected students
+router.post('/mapping/update', async (req, res) => {
     try {
-        // Build query string from current filters
-        const params = new URLSearchParams(currentFilters);
-        const url = `${API_BASE_URL}/api/students/export/excel${params.toString() ? '?' + params.toString() : ''}`;
+        const { student_ids, batch_id, regulation_id, semester_id } = req.body;
         
-        showAlert('Preparing Excel file...', 'info');
-        
-        // Trigger download
-        window.location.href = url;
-        
-        setTimeout(() => {
-            showAlert('Excel file downloaded successfully', 'success');
-        }, 2000);
-    } catch (error) {
-        console.error('Error exporting to Excel:', error);
-        showAlert('Error: ' + error.message, 'danger');
-    }
-}
-
-// ==================== DROPDOWN LOAD FUNCTIONS ====================
-
-// Load programmes
-async function loadProgrammes() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/programmes`);
-        const result = await response.json();
-        
-        if (response.ok) {
-            const programmes = result.data || [];
-            
-            // Populate form dropdown
-            const formSelect = document.getElementById('programmeId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Programme</option>';
-                programmes.forEach(prog => {
-                    if (prog.is_active) {
-                        const option = document.createElement('option');
-                        option.value = prog.programme_id;
-                        option.textContent = prog.programme_code;
-                        formSelect.appendChild(option);
-                    }
-                });
-            }
-            
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterProgramme');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Programmes</option>';
-                programmes.forEach(prog => {
-                    if (prog.is_active) {
-                        const option = document.createElement('option');
-                        option.value = prog.programme_id;
-                        option.textContent = prog.programme_code;
-                        filterSelect.appendChild(option);
-                    }
-                });
-            }
+        if (!student_ids || student_ids.length === 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No students selected'
+            });
         }
-    } catch (error) {
-        console.error('Error loading programmes:', error);
-    }
-}
-
-// Load branches
-async function loadBranches() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/branches`);
-        const result = await response.json();
         
-        if (response.ok) {
-            const branches = result.data || [];
-            
-            // Populate form dropdown
-            const formSelect = document.getElementById('branchId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Branch</option>';
-                branches.forEach(branch => {
-                    if (branch.is_active) {
-                        const option = document.createElement('option');
-                        option.value = branch.branch_id;
-                        option.textContent = branch.branch_code;
-                        formSelect.appendChild(option);
-                    }
-                });
-            }
-            
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterBranch');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Branches</option>';
-                branches.forEach(branch => {
-                    if (branch.is_active) {
-                        const option = document.createElement('option');
-                        option.value = branch.branch_id;
-                        option.textContent = branch.branch_code;
-                        filterSelect.appendChild(option);
-                    }
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error loading branches:', error);
-    }
-}
-
-// Load batches
-async function loadBatches() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/batches`);
-        const result = await response.json();
+        const connection = await promisePool.getConnection();
+        await connection.beginTransaction();
         
-        if (response.ok) {
-            const batches = result.data || [];
+        try {
+            let updates = [];
             
-            // Populate form dropdown
-            const formSelect = document.getElementById('batchId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Batch</option>';
-                batches.forEach(batch => {
-                    if (batch.is_active) {
-                        const option = document.createElement('option');
-                        option.value = batch.batch_id;
-                        option.textContent = batch.batch_name;
-                        formSelect.appendChild(option);
-                    }
-                });
+            if (batch_id) {
+                updates.push('batch_id = ?');
+            }
+            if (regulation_id) {
+                updates.push('regulation_id = ?');
             }
             
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterBatch');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Batches</option>';
-                batches.forEach(batch => {
-                    if (batch.is_active) {
-                        const option = document.createElement('option');
-                        option.value = batch.batch_id;
-                        option.textContent = batch.batch_name;
-                        filterSelect.appendChild(option);
-                    }
-                });
+            if (updates.length === 0) {
+                throw new Error('No updates specified');
             }
+            
+            const params = [];
+            if (batch_id) params.push(batch_id);
+            if (regulation_id) params.push(regulation_id);
+            
+            // Add WHERE conditions
+            params.push(...student_ids);
+            params.push(semester_id);
+            
+            const query = `
+                UPDATE student_semester_history 
+                SET ${updates.join(', ')}, updated_by = 'system', updated_at = NOW()
+                WHERE student_id IN (${student_ids.map(() => '?').join(',')})
+                    AND semester_id = ?
+            `;
+            
+            await connection.query(query, params);
+            await connection.commit();
+            
+            res.json({
+                status: 'success',
+                message: `Updated ${student_ids.length} students successfully`
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
         }
-    } catch (error) {
-        console.error('Error loading batches:', error);
-    }
-}
-
-// Load semesters
-async function loadSemesters() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/semesters`);
-        const result = await response.json();
         
-        if (response.ok) {
-            const semesters = result.data || [];
-            
-            // Populate form dropdown
-            const formSelect = document.getElementById('semesterId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Semester</option>';
-                semesters.forEach(sem => {
-                    if (sem.is_active) {
-                        const option = document.createElement('option');
-                        option.value = sem.semester_id;
-                        option.textContent = sem.semester_name;
-                        formSelect.appendChild(option);
-                    }
-                });
-            }
-            
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterSemester');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Semesters</option>';
-                semesters.forEach(sem => {
-                    if (sem.is_active) {
-                        const option = document.createElement('option');
-                        option.value = sem.semester_id;
-                        option.textContent = sem.semester_name;
-                        filterSelect.appendChild(option);
-                    }
-                });
-            }
-        }
     } catch (error) {
-        console.error('Error loading semesters:', error);
+        console.error('Error updating mapping:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to update mapping',
+            error: error.message
+        });
     }
-}
+});
 
-// Load sections
-async function loadSections() {
+// ========================================
+// TAB 5: PROMOTIONS
+// ========================================
+// ========================================
+// TAB 5: PROMOTIONS
+// ========================================
+
+// Get promotion statistics
+router.get('/promotions/stats', async (req, res) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/sections`);
-        const result = await response.json();
-        
-        if (response.ok) {
-            const sections = result.data || [];
-            
-            // Populate form dropdown
-            const formSelect = document.getElementById('sectionId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Section</option>';
-                sections.forEach(section => {
-                    if (section.is_active) {
-                        const option = document.createElement('option');
-                        option.value = section.section_id;
-                        option.textContent = section.section_name;
-                        formSelect.appendChild(option);
-                    }
-                });
-            }
-            
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterSection');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Sections</option>';
-                sections.forEach(section => {
-                    if (section.is_active) {
-                        const option = document.createElement('option');
-                        option.value = section.section_id;
-                        option.textContent = section.section_name;
-                        filterSelect.appendChild(option);
-                    }
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error loading sections:', error);
-    }
-}
+        const { programme_id, batch_id, branch_id, semester_id } = req.query;
 
-// Load regulations
-async function loadRegulations() {
+        let query = `
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN student_status = 'On Roll' THEN 1 ELSE 0 END) as on_roll,
+                SUM(CASE WHEN student_status = 'Detained' THEN 1 ELSE 0 END) as detained,
+                SUM(CASE WHEN student_status = 'Left' THEN 1 ELSE 0 END) as left_out
+            FROM student_semester_history
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (programme_id) {
+            query += ' AND programme_id = ?';
+            params.push(programme_id);
+        }
+
+        if (batch_id) {
+            query += ' AND batch_id = ?';
+            params.push(batch_id);
+        }
+
+        if (branch_id) {
+            query += ' AND branch_id = ?';
+            params.push(branch_id);
+        }
+
+        if (semester_id) {
+            query += ' AND semester_id = ?';
+            params.push(semester_id);
+        }
+
+        const [stats] = await promisePool.query(query, params);
+
+        res.json({
+            status: 'success',
+            data: stats[0] || { total: 0, on_roll: 0, detained: 0, left_out: 0 }
+        });
+
+    } catch (error) {
+        console.error('Error fetching promotion stats:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch statistics',
+            error: error.message
+        });
+    }
+});
+
+
+// ========================================
+// PERFORM PROMOTION
+// ========================================
+router.post('/promotions/promote', async (req, res) => {
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/regulations`);
-        const result = await response.json();
-        
-        if (response.ok) {
-            const regulations = result.data || [];
-            
-            // Populate form dropdown
-            const formSelect = document.getElementById('regulationId');
-            if (formSelect) {
-                formSelect.innerHTML = '<option value="">Select Regulation</option>';
-                regulations.forEach(reg => {
-                    if (reg.is_active) {
-                        const option = document.createElement('option');
-                        option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_name}`;  // ✅ Use regulation_name
-                        formSelect.appendChild(option);
-                    }
-                });
+        const {
+            from_programme_id,
+            from_batch_id,
+            from_branch_id,
+            from_semester_id,
+            to_programme_id,
+            to_batch_id,
+            to_branch_id,
+            to_semester_id,
+            to_regulation_id,
+            to_section_id,
+            academic_year
+        } = req.body;
+
+        const connection = await promisePool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+
+            // 1️⃣ Get all "On Roll" students from source semester
+            const [students] = await connection.query(
+                `SELECT * FROM student_semester_history
+                 WHERE programme_id = ?
+                   AND batch_id = ?
+                   AND branch_id = ?
+                   AND semester_id = ?
+                   AND student_status = 'On Roll'`,
+                [
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester_id
+                ]
+            );
+
+            if (students.length === 0) {
+                throw new Error('No students found to promote');
             }
-            
-            // Populate filter dropdown
-            const filterSelect = document.getElementById('filterRegulation');
-            if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">All Regulations</option>';
-                regulations.forEach(reg => {
-                    if (reg.is_active) {
-                        const option = document.createElement('option');
-                        option.value = reg.regulation_id;
-                        option.textContent = `${reg.regulation_name}`;  // ✅ Use regulation_name
-                        filterSelect.appendChild(option);
-                    }
-                });
+
+            let promotedCount = 0;
+
+            // 2️⃣ Loop students
+            for (const student of students) {
+
+                const finalProgramme = to_programme_id ?? student.programme_id;
+                const finalBranch = to_branch_id ?? student.branch_id;
+                const finalBatch = to_batch_id ?? student.batch_id;
+                const finalRegulation = to_regulation_id ?? student.regulation_id;
+                const finalSection = to_section_id ?? student.section_id;
+
+                // 🔍 Duplicate check (FULL SAFE CHECK)
+                const [existing] = await connection.query(
+                    `SELECT semester_history_id
+                     FROM student_semester_history
+                     WHERE student_id = ?
+                       AND academic_year = ?
+                       AND semester_id = ?
+                       AND programme_id = ?
+                       AND branch_id = ?
+                       AND batch_id = ?`,
+                    [
+                        student.student_id,
+                        academic_year,
+                        to_semester_id,
+                        finalProgramme,
+                        finalBranch,
+                        finalBatch
+                    ]
+                );
+
+                if (existing.length > 0) {
+                    console.log(`Student ${student.student_id} already promoted. Skipping.`);
+                    continue;
+                }
+
+                // 3️⃣ Insert new semester record
+                await connection.query(
+                    `INSERT INTO student_semester_history (
+                        student_id,
+                        academic_year,
+                        semester_id,
+                        programme_id,
+                        branch_id,
+                        batch_id,
+                        regulation_id,
+                        section_id,
+                        roll_number,
+                        student_status,
+                        status_date,
+                        promoted_from_semester_history_id,
+                        is_promoted,
+                        promotion_date,
+                        created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'On Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
+                    [
+                        student.student_id,
+                        academic_year,
+                        to_semester_id,
+                        finalProgramme,
+                        finalBranch,
+                        finalBatch,
+                        finalRegulation,
+                        finalSection,
+                        student.roll_number,
+                        student.semester_history_id
+                    ]
+                );
+
+                promotedCount++;
             }
+
+            // 🚨 If all already promoted
+            if (promotedCount === 0) {
+                throw new Error('All students already promoted.');
+            }
+
+            // 4️⃣ Insert into promotion log
+            await connection.query(
+                `INSERT INTO promotion_batch_log (
+                    promotion_name,
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester,
+                    to_programme_id,
+                    to_batch_id,
+                    to_branch_id,
+                    to_semester,
+                    to_academic_year,
+                    to_regulation_id,
+                    total_students,
+                    promoted_count,
+                    skipped_count,
+                    executed_by,
+                    remarks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    `Sem-${from_semester_id} to Sem-${to_semester_id}`,
+                    from_programme_id,
+                    from_batch_id,
+                    from_branch_id,
+                    from_semester_id,
+                    to_programme_id,
+                    to_batch_id,
+                    to_branch_id,
+                    to_semester_id,
+                    academic_year,
+                    to_regulation_id,
+                    students.length,
+                    promotedCount,
+                    students.length - promotedCount,
+                    'system',
+                    'Promotion executed successfully'
+                ]
+            );
+
+            await connection.commit();
+
+            res.json({
+                status: 'success',
+                message: `Successfully promoted ${promotedCount} students to Semester ${to_semester_id}`,
+                data: {
+                    total_students: students.length,
+                    promoted: promotedCount,
+                    skipped: students.length - promotedCount
+                }
+            });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
         }
+
     } catch (error) {
-        console.error('Error loading regulations:', error);
+        console.error('Error promoting students:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to promote students',
+            error: error.message
+        });
     }
-}
+});
 
-// ==================== ALERT FUNCTIONS ====================
 
-// Show alert message
-function showAlert(message, type) {
-    const alertContainer = document.getElementById('alertContainer');
-    if (!alertContainer) return;
-    
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
-    alert.textContent = message;
-    
-    alertContainer.innerHTML = '';
-    alertContainer.appendChild(alert);
-    
-    // Auto dismiss after 5 seconds
-    setTimeout(() => {
-        alert.remove();
-    }, 5000);
-    
-    // Scroll to top to show alert
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// ==================== HELPER FUNCTIONS ====================
-
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text ? String(text).replace(/[&<>"']/g, m => map[m]) : '';
-}
-
-// Format date for display
-function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-}
-
-// Close modal
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const studentModal = document.getElementById('studentModal');
-    const photoModal = document.getElementById('photoModal');
-    
-    if (event.target === studentModal) {
-        closeModal('studentModal');
-    }
-    if (event.target === photoModal) {
-        closeModal('photoModal');
-    }
-};
+module.exports = { initializeRouter };
