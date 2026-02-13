@@ -543,7 +543,7 @@ function displayStatistics(stats) {
 
 function getStatusColor(status) {
     switch(status) {
-        case 'On Roll': return '#28a745';
+        case 'In Roll': return '#28a745';
         case 'Detained': return '#ffc107';
         case 'Left': return '#dc3545';
         default: return '#6c757d';
@@ -919,7 +919,7 @@ async function performPromotion() {
         return;
     }
 
-    if (!confirm(`Are you sure you want to promote all On Roll students from Semester ${fromSemester} to Semester ${toSemester}?`)) {
+    if (!confirm(`Are you sure you want to promote all In Roll students from Semester ${fromSemester} to Semester ${toSemester}?`)) {
         return;
     }
 
