@@ -1271,7 +1271,8 @@ async function moveStudentsBetweenBoxes(studentIds, fromBox, toBox) {
     
     let movedCount = 0;
     studentIds.forEach(id => {
-        const studentElement = fromElement.querySelector(`input[value="${id}"]`)?.closest('.student-checkbox-item');
+        // Try both possible checkbox IDs (avail- and mapped-)
+        const studentElement = fromElement.querySelector(`input[value="${id}"]`)?.closest('.elective-student-item');
         if (studentElement) {
             toElement.appendChild(studentElement);
             // Uncheck the checkbox after moving
@@ -1412,9 +1413,12 @@ document.addEventListener('keydown', function(event) {
     }
     
     const currentBox = currentFocusBox === 'available' ? 'available-students-box' : 'mapped-students-box';
-    const studentItems = document.querySelectorAll(`#${currentBox} .student-checkbox-item`);
+    const studentItems = document.querySelectorAll(`#${currentBox} .elective-student-item`);
     
-    if (studentItems.length === 0) return;
+    if (studentItems.length === 0) {
+        console.log('No students found in current box for keyboard navigation');
+        return;
+    }
     
     console.log('Key pressed:', event.key, 'Shift:', event.shiftKey, 'Current box:', currentFocusBox);
     
@@ -1463,7 +1467,7 @@ document.addEventListener('keydown', function(event) {
     // Handle Shift + Arrow keys for range selection
     if (event.shiftKey && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
         event.preventDefault();
-        console.log('Shift + Arrow detected');
+        console.log('Shift + Arrow detected - selecting range');
         selectRange(studentItems, event.key === 'ArrowDown' ? 1 : -1);
     }
 });
@@ -1517,7 +1521,7 @@ function selectAllInCurrentBox() {
     
     checkboxes.forEach(checkbox => {
         checkbox.checked = true;
-        const item = checkbox.closest('.student-checkbox-item');
+        const item = checkbox.closest('.elective-student-item');
         if (item) item.style.backgroundColor = '#e3f2fd';
     });
 }
