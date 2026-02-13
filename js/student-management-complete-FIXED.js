@@ -1155,7 +1155,7 @@ async function addStudentsToElective() {
 }
 
 
-asyncfunction removeStudentsFromElective() {
+async function removeStudentsFromElective() {
     const selectedCheckboxes = document.querySelectorAll(
         '#mapped-students-box input[type="checkbox"]:checked'
     );
