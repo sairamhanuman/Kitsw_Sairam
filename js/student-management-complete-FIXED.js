@@ -18,6 +18,38 @@ function showAlert(message, type = 'info') {
     alert(message);
 }
 
+// Non-blocking notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'info' ? '#007bff' : type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#6c757d'};
+        color: white;
+        border-radius: 4px;
+        z-index: 9999;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: opacity 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
 function showLoading(elementId, show = true) {
     const element = document.getElementById(elementId);
     if (!element) return;
@@ -1139,10 +1171,14 @@ async function addStudentsToElective() {
         pendingRemovals.delete(id); // Remove from pending removals if it was there
     });
     
-    // Move students visually between boxes
+    // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'available', 'mapped');
     
-    showAlert(`Added ${selectedIds.length} students to mapping (not yet saved)`, 'info');
+    // Show info message without blocking
+    console.log(`Added ${selectedIds.length} students to mapping (not yet saved)`);
+    
+    // Optional: Show a non-blocking notification
+    showNotification(`Added ${selectedIds.length} students to mapping (not yet saved)`, 'info');
 }
 
 async function removeStudentsFromElective() {
@@ -1161,10 +1197,14 @@ async function removeStudentsFromElective() {
         pendingAdditions.delete(id); // Remove from pending additions if it was there
     });
     
-    // Move students visually between boxes
+    // Move students visually between boxes IMMEDIATELY
     await moveStudentsBetweenBoxes(selectedIds, 'mapped', 'available');
     
-    showAlert(`Removed ${selectedIds.length} students from mapping (not yet saved)`, 'info');
+    // Show info message without blocking
+    console.log(`Removed ${selectedIds.length} students from mapping (not yet saved)`);
+    
+    // Optional: Show a non-blocking notification
+    showNotification(`Removed ${selectedIds.length} students from mapping (not yet saved)`, 'info');
 }
 
 // Move students visually between boxes
@@ -1264,7 +1304,7 @@ async function saveElectiveMapping() {
         }
         showAlert(message, 'success');
         
-        // Reload data to ensure consistency
+        // Reload data to ensure consistency - this will restore the proper lists
         await loadAvailableStudents();
         await loadMappedStudents();
         
