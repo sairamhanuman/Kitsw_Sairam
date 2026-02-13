@@ -894,7 +894,7 @@ router.post('/promotions/promote', async (req, res) => {
 
         try {
 
-            // 1️⃣ Get all "On Roll" students from source semester
+            // 1️⃣ Get all "In Roll" students from source semester
             const [students] = await connection.query(
                 `SELECT * FROM student_semester_history
                  WHERE programme_id = ?
