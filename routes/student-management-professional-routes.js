@@ -870,6 +870,64 @@ router.get('/promotions/stats', async (req, res) => {
 
 
 // ========================================
+// PROMOTION SUMMARY (NEW!)
+// ========================================
+router.post('/promotions/summary', async (req, res) => {
+    try {
+        const { programme_id, batch_id, branch_id, semester_id } = req.body;
+
+        if (!programme_id || !batch_id || !branch_id || !semester_id) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Missing required fields'
+            });
+        }
+
+        // Get students summary for promotion
+        const [students] = await connection.query(
+            `SELECT 
+                COUNT(*) as total_students,
+                SUM(CASE WHEN student_status = 'In Roll' THEN 1 ELSE 0 END) as in_roll,
+                SUM(CASE WHEN student_status = 'Detained' THEN 1 ELSE 0 END) as detained,
+                SUM(CASE WHEN student_status = 'Left' THEN 1 ELSE 0 END) as left,
+                SUM(CASE WHEN student_status = 'Completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN student_status = 'Dropout' THEN 1 ELSE 0 END) as dropout
+            FROM student_semester_history
+            WHERE programme_id = ?
+            AND batch_id = ?
+            AND branch_id = ?
+            AND semester_id = ?
+            AND student_status IN ('In Roll', 'Detained', 'Left', 'Completed', 'Dropout')
+            `,
+            [programme_id, batch_id, branch_id, semester_id]
+        );
+
+        const summary = students[0];
+
+        res.json({
+            status: 'success',
+            data: {
+                total_students: summary.total_students,
+                in_roll: summary.in_roll,
+                detained: summary.detained,
+                left: summary.left,
+                completed: summary.completed,
+                dropout: summary.dropout,
+                eligible_for_promotion: summary.in_roll // Only "In Roll" students can be promoted
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting promotion summary:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to get promotion summary',
+            error: error.message
+        });
+    }
+});
+
+// ========================================
 // PERFORM PROMOTION
 // ========================================
 router.post('/promotions/promote', async (req, res) => {
