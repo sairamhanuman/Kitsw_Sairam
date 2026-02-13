@@ -426,17 +426,29 @@ router.post('/sync', async (req, res) => {
             student_ids
         } = req.body;
         
-        console.log('Syncing elective mapping:', {
-            programme_id,
-            batch_id,
-            branch_id,
-            semester_id,
-            subject_id,
-            academic_year,
-            student_count: student_ids.length
-        });
+        console.log('========================================');
+        console.log('ELECTIVE MAPPING SYNC REQUEST');
+        console.log('========================================');
+        console.log('Programme ID:', programme_id);
+        console.log('Batch ID:', batch_id);
+        console.log('Branch ID:', branch_id);
+        console.log('Semester ID:', semester_id);
+        console.log('Subject ID:', subject_id);
+        console.log('Academic Year:', academic_year);
+        console.log('Student IDs:', student_ids);
+        console.log('========================================');
         
-        // Step 1: Delete all existing mappings for this subject/semester/batch combination
+        // Validate required parameters
+        if (!programme_id || !batch_id || !branch_id || !semester_id || !subject_id || !academic_year) {
+            await connection.rollback();
+            connection.release();
+            return res.status(400).json({
+                status: 'error',
+                message: 'Missing required parameters'
+            });
+        }
+        
+        // Step 1: Delete all existing mappings for this combination
         const deleteSQL = `
             DELETE FROM elective_mapping 
             WHERE programme_id = ? 
@@ -456,9 +468,11 @@ router.post('/sync', async (req, res) => {
             academic_year
         ]);
         
-        console.log(`Deleted ${deleteResult.affectedRows} existing mappings`);
+        console.log(`✅ Deleted ${deleteResult.affectedRows} existing mappings`);
         
-        // Step 2: Insert new mappings for all students in the mapped box
+        // Step 2: Insert new mappings if there are students
+        let insertedCount = 0;
+        
         if (student_ids && student_ids.length > 0) {
             const insertSQL = `
                 INSERT INTO elective_mapping (
@@ -485,19 +499,22 @@ router.post('/sync', async (req, res) => {
             ]);
             
             const [insertResult] = await connection.query(insertSQL, [values]);
+            insertedCount = insertResult.affectedRows;
             
-            console.log(`Inserted ${insertResult.affectedRows} new mappings`);
+            console.log(`✅ Inserted ${insertedCount} new mappings`);
         }
         
         await connection.commit();
         connection.release();
+        
+        console.log('✅ Sync completed successfully');
         
         res.json({
             status: 'success',
             message: 'Elective mapping synchronized successfully',
             data: {
                 deleted: deleteResult.affectedRows,
-                inserted: student_ids ? student_ids.length : 0
+                inserted: insertedCount
             }
         });
         
@@ -506,7 +523,8 @@ router.post('/sync', async (req, res) => {
             await connection.rollback();
             connection.release();
         }
-        console.error('Error syncing elective mapping:', error);
+        
+        console.error('❌ Error syncing elective mapping:', error);
         res.status(500).json({
             status: 'error',
             message: 'Failed to sync elective mapping',
@@ -514,6 +532,8 @@ router.post('/sync', async (req, res) => {
         });
     }
 });
+
+
 
 
 module.exports = { initializeRouter };
