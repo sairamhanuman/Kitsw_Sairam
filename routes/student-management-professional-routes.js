@@ -477,8 +477,6 @@ router.post('/import-photos/upload', upload.single('file'), async (req, res) => 
         });
     }
 });
-
-// ========================================
 // TAB 3: STUDENT MANAGEMENT (VIEW)
 // ========================================
 
@@ -826,18 +824,20 @@ router.get('/promotions/stats', async (req, res) => {
                 SUM(CASE WHEN student_status = 'Detained' THEN 1 ELSE 0 END) as detained,
                 SUM(CASE WHEN student_status = 'Left' THEN 1 ELSE 0 END) as left_out
             FROM student_semester_history
-            WHERE 1=1
+            WHERE programme_id = ?
+            AND batch_id = ?
+            AND branch_id = ?
+            AND semester_id = ?
+            AND student_status IN ('In Roll', 'Detained', 'Left', 'Completed', 'Dropout')
         `;
 
         const params = [];
 
         if (programme_id) {
-            query += ' AND programme_id = ?';
             params.push(programme_id);
         }
 
         if (batch_id) {
-            query += ' AND batch_id = ?';
             params.push(batch_id);
         }
 
@@ -901,7 +901,7 @@ router.post('/promotions/promote', async (req, res) => {
                    AND batch_id = ?
                    AND branch_id = ?
                    AND semester_id = ?
-                   AND student_status = 'In Roll'`,
+                   AND student_status IN ('In Roll', 'Detained', 'Left', 'Completed', 'Dropout')`,
                 [
                     from_programme_id,
                     from_batch_id,
@@ -930,18 +930,10 @@ router.post('/promotions/promote', async (req, res) => {
                     `SELECT semester_history_id
                      FROM student_semester_history
                      WHERE student_id = ?
-                       AND academic_year = ?
-                       AND semester_id = ?
-                       AND programme_id = ?
-                       AND branch_id = ?
-                       AND batch_id = ?`,
+                       AND semester_id = ?`,
                     [
                         student.student_id,
-                        academic_year,
-                        to_semester_id,
-                        finalProgramme,
-                        finalBranch,
-                        finalBatch
+                        to_semester_id
                     ]
                 );
 
@@ -950,7 +942,18 @@ router.post('/promotions/promote', async (req, res) => {
                     continue;
                 }
 
-                // 3️⃣ Insert new semester record
+                // 3️⃣ UPDATE OLD SEMESTER RECORD TO "Promoted"
+                await connection.query(
+                    `UPDATE student_semester_history 
+                    SET student_status = 'Promoted', 
+                        is_promoted = 1, 
+                        promotion_date = CURDATE(),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE semester_history_id = ?`,
+                    [student.semester_history_id]
+                );
+
+                // 4️⃣ INSERT NEW SEMESTER RECORD
                 await connection.query(
                     `INSERT INTO student_semester_history (
                         student_id,
@@ -968,7 +971,7 @@ router.post('/promotions/promote', async (req, res) => {
                         is_promoted,
                         promotion_date,
                         created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Roll', CURDATE(), ?, 1, CURDATE(), 'system')`,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Roll', CURDATE(), ?, 0, NULL, 'system')`,
                     [
                         student.student_id,
                         academic_year,
