@@ -338,6 +338,10 @@ app.use('/api/subjects', subjectRoutes);
 const seatingPlanRoutes = require('./routes/seating-plans')(promisePool);
 app.use('/api/seating-plans', seatingPlanRoutes);
 
+// MSE Exam Type Management Routes
+const mseExamTypeRoutes = require('./routes/mse-exam-types')(promisePool);
+app.use('/api/mse-exam-types', mseExamTypeRoutes);
+
 // Handle 404 for API routes
 app.use('/api', (req, res) => {
     res.status(404).json({ 
