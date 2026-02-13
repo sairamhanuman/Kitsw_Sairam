@@ -971,6 +971,14 @@ async function performPromotion() {
 
     try {
         // First, get the students that will be promoted
+        console.log('=== PROMOTION SUMMARY REQUEST ===');
+        console.log('Sending data:', {
+            programme_id: fromProgrammeId,
+            batch_id: fromBatchId,
+            branch_id: fromBranchId,
+            semester_id: fromSemester
+        });
+        
         const summaryResponse = await fetch('/api/student-management/promotions/summary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -981,6 +989,9 @@ async function performPromotion() {
                 semester_id: fromSemester
             })
         });
+
+        console.log('Response status:', summaryResponse.status);
+        console.log('Response ok:', summaryResponse.ok);
 
         if (summaryResponse.ok) {
             const summary = await summaryResponse.json();
