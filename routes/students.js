@@ -834,6 +834,9 @@ router.put('/:id', async (req, res) => {
         
         console.log('Executing UPDATE query...');
         
+       
+        await connection.beginTransaction();
+        
         const [result] = await connection.query(updateSQL, updateValues);
         
         console.log('Update result:', {
@@ -842,7 +845,33 @@ router.put('/:id', async (req, res) => {
             warningCount: result.warningCount
         });
         
+        // Update student_semester_history table as well
+        if (semester_id && student_status) {
+            const historyUpdateSQL = `
+                UPDATE student_semester_history 
+                SET 
+                    student_status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE student_id = ? 
+                  AND semester_id = ? 
+                  AND is_active = 1
+            `;
+            
+            const [historyResult] = await connection.query(historyUpdateSQL, [
+                student_status,
+                studentId,
+                semester_id
+            ]);
+            
+            console.log('Semester history update result:', {
+                affectedRows: historyResult.affectedRows,
+                changedRows: historyResult.changedRows
+            });
+        }
+        
+        await connection.commit();
         connection.release();
+
         
         if (result.affectedRows === 0) {
             console.warn('⚠️ No rows affected - student may not exist or no changes');
