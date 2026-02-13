@@ -967,102 +967,63 @@ router.post('/promotions/promote', async (req, res) => {
 
             // 2️⃣ Loop students
             for (const student of students) {
+                // Only promote "In Roll" students
+                if (student.student_status === 'In Roll') {
+                    // ✅ Update old semester record to "Promoted"
+                    await promisePool.query(
+                        `UPDATE student_semester_history 
+                         SET student_status = 'Promoted',
+                             is_promoted = 1,
+                             promotion_date = CURRENT_DATE,
+                             updated_at = CURRENT_TIMESTAMP
+                         WHERE semester_history_id = ?`,
+                        [student.semester_history_id]
+                    );
 
-                const finalProgramme = to_programme_id ?? student.programme_id;
-                const finalBranch = to_branch_id ?? student.branch_id;
-                const finalBatch = to_batch_id ?? student.batch_id;
-                const finalRegulation = to_regulation_id ?? student.regulation_id;
-                const finalSection = to_section_id ?? student.section_id;
+                    // ✅ Insert new semester record with "In Roll" status
+                    await promisePool.query(
+                        `INSERT INTO student_semester_history 
+                         (student_id, academic_year, semester_id, programme_id, branch_id, batch_id, 
+                          regulation_id, section_id, roll_number, student_status, status_date, 
+                          is_promoted, promotion_date, created_at, updated_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Roll', CURRENT_DATE, 0, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                        [
+                            student.student_id,
+                            academic_year,
+                            to_semester_id,
+                            student.programme_id,
+                            student.branch_id,
+                            student.batch_id,
+                            to_regulation_id || student.regulation_id,
+                            student.section_id,
+                            student.roll_number
+                        ]
+                    );
 
-                // 🔍 Duplicate check (FULL SAFE CHECK)
-                const [existing] = await connection.query(
-                    `SELECT semester_history_id
-                     FROM student_semester_history
-                     WHERE student_id = ?
-                       AND semester_id = ?`,
-                    [
-                        student.student_id,
-                        to_semester_id
-                    ]
-                );
-
-                if (existing.length > 0) {
-                    console.log(`Student ${student.student_id} already promoted. Skipping.`);
-                    continue;
+                    promotedCount++;
                 }
-
-                // 3️⃣ UPDATE OLD SEMESTER RECORD TO "Promoted"
-                await connection.query(
-                    `UPDATE student_semester_history 
-                    SET student_status = 'Promoted', 
-                        is_promoted = 1, 
-                        promotion_date = CURDATE(),
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE semester_history_id = ?`,
-                    [student.semester_history_id]
-                );
-
-                // 4️⃣ INSERT NEW SEMESTER RECORD
-                await connection.query(
-                    `INSERT INTO student_semester_history (
-                        student_id,
-                        academic_year,
-                        semester_id,
-                        programme_id,
-                        branch_id,
-                        batch_id,
-                        regulation_id,
-                        section_id,
-                        roll_number,
-                        student_status,
-                        status_date,
-                        promoted_from_semester_history_id,
-                        is_promoted,
-                        promotion_date,
-                        created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Roll', CURDATE(), ?, 0, NULL, 'system')`,
-                    [
-                        student.student_id,
-                        academic_year,
-                        to_semester_id,
-                        finalProgramme,
-                        finalBranch,
-                        finalBatch,
-                        finalRegulation,
-                        finalSection,
-                        student.roll_number,
-                        student.semester_history_id
-                    ]
-                );
-
-                promotedCount++;
             }
 
-            // 🚨 If all already promoted
-            if (promotedCount === 0) {
-                throw new Error('All students already promoted.');
-            }
-
-            // 4️⃣ Insert into promotion log
-            await connection.query(
-                `INSERT INTO promotion_batch_log (
-                    promotion_name,
-                    from_programme_id,
-                    from_batch_id,
-                    from_branch_id,
-                    from_semester,
-                    to_programme_id,
-                    to_batch_id,
-                    to_branch_id,
-                    to_semester,
-                    to_academic_year,
-                    to_regulation_id,
-                    total_students,
-                    promoted_count,
-                    skipped_count,
-                    executed_by,
-                    remarks
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            // 3️⃣ Log the promotion
+            await promisePool.query(
+                `INSERT INTO promotion_batch_log 
+                 (promotion_name,
+                  from_programme_id,
+                  from_batch_id,
+                  from_branch_id,
+                  from_semester,
+                  to_programme_id,
+                  to_batch_id,
+                  to_branch_id,
+                  to_semester,
+                  to_academic_year,
+                  to_regulation_id,
+                  total_students,
+                  promoted_count,
+                  skipped_count,
+                  executed_by,
+                  remarks)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     `Sem-${from_semester_id} to Sem-${to_semester_id}`,
                     from_programme_id,
@@ -1083,7 +1044,7 @@ router.post('/promotions/promote', async (req, res) => {
                 ]
             );
 
-            await connection.commit();
+            await promisePool.commit();
 
             res.json({
                 status: 'success',
@@ -1096,10 +1057,8 @@ router.post('/promotions/promote', async (req, res) => {
             });
 
         } catch (error) {
-            await connection.rollback();
+            await promisePool.rollback();
             throw error;
-        } finally {
-            connection.release();
         }
 
     } catch (error) {
