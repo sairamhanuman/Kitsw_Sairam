@@ -608,8 +608,7 @@ router.get('/students', async (req, res) => {
 // Get students for mapping
 router.get('/mapping/students', async (req, res) => {
     try {
-        // ADD branch_id here:
-        const { programme_id, batch_id, branch_id, semester_id, student_status } = req.query;
+        const { programme_id, batch_id, semester_id, student_status } = req.query;
         
         let query = `
             SELECT 
@@ -640,12 +639,6 @@ router.get('/mapping/students', async (req, res) => {
             params.push(batch_id);
         }
         
-        // ADD THIS BRANCH FILTER:
-        if (branch_id) {
-            query += ' AND ssh.branch_id = ?';
-            params.push(branch_id);
-        }
-        
         if (semester_id) {
             query += ' AND ssh.semester_id = ?';
             params.push(semester_id);
@@ -674,7 +667,6 @@ router.get('/mapping/students', async (req, res) => {
         });
     }
 });
-
 
 // Get semester-wise mapping view
 router.get('/mapping/semester-view', async (req, res) => {
