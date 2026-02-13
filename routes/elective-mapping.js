@@ -100,7 +100,7 @@ router.get('/available-students', async (req, res) => {
             AND ssh.batch_id = ?
             AND ssh.branch_id = ?
             AND ssh.semester_id = ?
-            AND ssh.student_status = 'In Roll'
+            AND ssh.student_status IN ('In Roll', 'Detained', 'Left', 'Completed', 'Dropout')
             AND sm.student_id NOT IN (
                 SELECT student_id 
                 FROM student_elective_mapping 
