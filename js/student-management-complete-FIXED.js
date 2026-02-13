@@ -931,7 +931,7 @@ async function loadPromotionStats() {
     params.append('programme_id', programmeId);
     params.append('batch_id', batchId);
     params.append('branch_id', branchId);
-    params.append('semester_id', semesterNumber);
+    params.append('semester_number', semesterNumber);
 
     try {
         const response = await fetch(`/api/student-management/promotions/stats?${params}`);
