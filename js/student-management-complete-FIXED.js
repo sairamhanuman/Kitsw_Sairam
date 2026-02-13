@@ -1123,212 +1123,93 @@ function updateMappedSelectedCount() {
     document.getElementById('mapped-selected-count').textContent = count;
 }
 
-// NEW: Move students to right box (without saving)
-moveStudentsToRight() {
-    const selectedCheckboxes = document.querySelectorAll('#available-students-box input[type="checkbox"]:checked');
+async function addStudentsToElective() {
+    const selectedIds = Array.from(
+        document.querySelectorAll('#available-students-box input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
     
-    if (selectedCheckboxes.length === 0) {
+    if (selectedIds.length === 0) {
         showAlert('Please select students to add', 'error');
         return;
     }
     
-    console.log(`Moving ${selectedCheckboxes.length} students to right box...`);
+    const programmeId = document.getElementById('elective-programme').value;
+    const batchId = document.getElementById('elective-batch').value;
+    const branchId = document.getElementById('elective-branch').value;
+    const semesterNumber = document.getElementById('elective-semester').value;
+    const subjectId = document.getElementById('elective-subject').value;
+    const academicYear = document.getElementById('elective-academic-year').value;
     
-    const mappedBox = document.getElementById('mapped-students-box');
-    if (!mappedBox) {
-        console.error('Mapped students box not found!');
-        return;
-    }
-    
-    let movedCount = 0;
-    
-    selectedCheckboxes.forEach(checkbox => {
-        const studentDiv = checkbox.closest('.student-checkbox');
-        if (studentDiv) {
-            // Clone the entire div
-            const clonedDiv = studentDiv.cloneNode(true);
-            
-            // Uncheck the checkbox in the new location
-            const clonedCheckbox = clonedDiv.querySelector('input[type="checkbox"]');
-            if (clonedCheckbox) {
-                clonedCheckbox.checked = false;
-            }
-            
-            // Append to mapped box
-            mappedBox.appendChild(clonedDiv);
-            
-            // Remove from available box
-            studentDiv.remove();
-            
-            movedCount++;
+    try {
+        const response = await fetch('/api/elective-mapping/add-students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_ids: selectedIds,
+                programme_id: programmeId,
+                batch_id: batchId,
+                branch_id: branchId,
+                semester_id: semesterNumber,
+                subject_id: subjectId,
+                academic_year: academicYear
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert(`Added ${result.data.added} students to elective`, 'success');
+            // Reload both boxes
+            await loadAvailableStudents();
+            await loadMappedStudents();
+        } else {
+            showAlert(result.message, 'error');
         }
-    });
-    
-    console.log(`✅ Moved ${movedCount} students`);
-    showAlert(`Moved ${movedCount} student(s) to mapped box. Click SAVE to commit changes.`, 'info');
-    
-    // Update counters
-    updateStudentCounts();
+    } catch (error) {
+        console.error('Error adding students:', error);
+        showAlert('Failed to add students', 'error');
+    }
 }
 
-// And moveStudentsToLeft function:
-
-function moveStudentsToLeft() {
-    const selectedCheckboxes = document.querySelectorAll('#mapped-students-box input[type="checkbox"]:checked');
+async function removeStudentsFromElective() {
+    const selectedIds = Array.from(
+        document.querySelectorAll('#mapped-students-box input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
     
-    if (selectedCheckboxes.length === 0) {
+    if (selectedIds.length === 0) {
         showAlert('Please select students to remove', 'error');
         return;
     }
     
-    console.log(`Moving ${selectedCheckboxes.length} students to left box...`);
-    
-    const availableBox = document.getElementById('available-students-box');
-    if (!availableBox) {
-        console.error('Available students box not found!');
-        return;
-    }
-    
-    let movedCount = 0;
-    
-    selectedCheckboxes.forEach(checkbox => {
-        const studentDiv = checkbox.closest('.student-checkbox');
-        if (studentDiv) {
-            // Clone the entire div
-            const clonedDiv = studentDiv.cloneNode(true);
-            
-            // Uncheck the checkbox in the new location
-            const clonedCheckbox = clonedDiv.querySelector('input[type="checkbox"]');
-            if (clonedCheckbox) {
-                clonedCheckbox.checked = false;
-            }
-            
-            // Append to available box
-            availableBox.appendChild(clonedDiv);
-            
-            // Remove from mapped box
-            studentDiv.remove();
-            
-            movedCount++;
-        }
-    });
-    
-    console.log(`✅ Moved ${movedCount} students`);
-    showAlert(`Moved ${movedCount} student(s) to available box. Click SAVE to commit changes.`, 'info');
-    
-    // Update counters
-    updateStudentCounts();
-}
-
-// Add this helper function:
-
-function updateStudentCounts() {
-    const availableCount = document.querySelectorAll('#available-students-box .student-checkbox').length;
-    const mappedCount = document.querySelectorAll('#mapped-students-box .student-checkbox').length;
-    
-    // Update display if you have count elements
-    const availableCountEl = document.querySelector('#available-students-box .count');
-    if (availableCountEl) {
-        availableCountEl.textContent = availableCount;
-    }
-    
-    const mappedCountEl = document.querySelector('#mapped-students-box .count');
-    if (mappedCountEl) {
-        mappedCountEl.textContent = mappedCount;
-    }
-}
-
-// ============================================================
-// COMPLETE saveElectiveMapping function:
-// ============================================================
-
-async function saveElectiveMapping() {
-    console.log('=== SAVE ELECTIVE MAPPING ===');
-    
-    const programmeId = document.getElementById('elective-programme')?.value;
-    const batchId = document.getElementById('elective-batch')?.value;
-    const branchId = document.getElementById('elective-branch')?.value;
-    const semesterNumber = document.getElementById('elective-semester')?.value;
-    const subjectId = document.getElementById('elective-subject')?.value;
-    const academicYear = document.getElementById('elective-academic-year')?.value;
-    
-    console.log('Filters:', { programmeId, batchId, branchId, semesterNumber, subjectId, academicYear });
-    
-    // Validate all required fields
-    if (!programmeId || !batchId || !branchId || !semesterNumber || !subjectId || !academicYear) {
-        showAlert('Please select all filters before saving', 'error');
-        return;
-    }
-    
-    // Get all student IDs currently in the mapped box
-    const mappedStudentCheckboxes = document.querySelectorAll('#mapped-students-box .student-checkbox input[type="checkbox"]');
-    const mappedStudentIds = Array.from(mappedStudentCheckboxes).map(cb => cb.value);
-    
-    console.log('Mapped student IDs:', mappedStudentIds);
-    console.log('Total mapped students:', mappedStudentIds.length);
-    
-    const requestData = {
-        programme_id: parseInt(programmeId),
-        batch_id: parseInt(batchId),
-        branch_id: parseInt(branchId),
-        semester_id: parseInt(semesterNumber),
-        subject_id: parseInt(subjectId),
-        academic_year: academicYear,
-        student_ids: mappedStudentIds
-    };
-    
-    console.log('Request data:', requestData);
+    const subjectId = document.getElementById('elective-subject').value;
+    const semesterNumber = document.getElementById('elective-semester').value;
     
     try {
-        console.log('Sending request to /api/elective-mapping/sync...');
-        
-        const response = await fetch('/api/elective-mapping/sync', {
+        const response = await fetch('/api/elective-mapping/remove-students', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_ids: selectedIds,
+                subject_id: subjectId,
+                semester_id: semesterNumber
+            })
         });
         
-        console.log('Response status:', response.status);
-        
-        let result;
-        try {
-            result = await response.json();
-        } catch (e) {
-            console.error('Failed to parse response:', e);
-            throw new Error('Invalid server response');
-        }
-        
-        console.log('Response data:', result);
+        const result = await response.json();
         
         if (response.ok) {
-            showAlert(`Elective mapping saved successfully! (${result.data.inserted} students mapped)`, 'success');
-            
-            // Reload the boxes to reflect saved state
+            showAlert(`Removed ${result.data.removed} students from elective`, 'success');
+            // Reload both boxes
             await loadAvailableStudents();
             await loadMappedStudents();
         } else {
-            showAlert(result.message || 'Failed to save elective mapping', 'error');
+            showAlert(result.message, 'error');
         }
     } catch (error) {
-        console.error('Error saving elective mapping:', error);
-        showAlert('Failed to save elective mapping: ' + error.message, 'error');
+        console.error('Error removing students:', error);
+        showAlert('Failed to remove students', 'error');
     }
 }
-
-
-
-// NEW: Cancel changes and reload original state
-async function cancelElectiveChanges() {
-    if (confirm('Are you sure you want to cancel all unsaved changes?')) {
-        await loadAvailableStudents();
-        await loadMappedStudents();
-        showAlert('Changes cancelled', 'info');
-    }
-}
-
-
 
 // ========================================
 // INITIALIZATION
