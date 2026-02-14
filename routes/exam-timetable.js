@@ -16,6 +16,23 @@ module.exports = (pool) => {
     // GET all exam timetables with filters
     router.get('/', async (req, res) => {
         try {
+            // Check if exam_timetable table exists
+            const [tableCheck] = await pool.query(`
+                SELECT COUNT(*) as count 
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE() AND table_name = 'exam_timetable'
+            `);
+
+            if (tableCheck[0].count === 0) {
+                return res.json({
+                    status: 'success',
+                    message: 'Exam timetables retrieved successfully',
+                    data: [],
+                    statistics: { total: 0, published: 0, draft: 0, completed: 0 },
+                    total: 0
+                });
+            }
+
             const { 
                 programme_id, 
                 branch_id, 

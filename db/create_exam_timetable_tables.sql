@@ -248,18 +248,18 @@ BEGIN
     END IF;
 END//
 
--- Trigger to update allocated students count
-CREATE TRIGGER update_allocated_students
-AFTER INSERT ON exam_schedule
-FOR EACH ROW
-BEGIN
-    UPDATE exam_timetable 
-    SET allocated_students = (
-        SELECT COUNT(DISTINCT student_id) 
-        FROM exam_student_registrations 
-        WHERE schedule_id = NEW.schedule_id
-    )
-    WHERE timetable_id = NEW.timetable_id;
-END//
+-- Trigger to update allocated students count (will be activated when student registrations are implemented)
+-- CREATE TRIGGER update_allocated_students
+-- AFTER INSERT ON exam_schedule
+-- FOR EACH ROW
+-- BEGIN
+--     UPDATE exam_timetable 
+--     SET allocated_students = (
+--         SELECT COUNT(DISTINCT student_id) 
+--         FROM exam_student_registrations 
+--         WHERE schedule_id = NEW.schedule_id
+--     )
+--     WHERE timetable_id = NEW.timetable_id;
+-- END//
 
 DELIMITER ;

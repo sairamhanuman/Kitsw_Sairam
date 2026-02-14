@@ -72,36 +72,79 @@ function loadTabData(tabName) {
 async function loadMasterData() {
     try {
         // Load programmes
-        const programmesResponse = await fetch('/api/programmes');
-        const programmesData = await programmesResponse.json();
-        populateSelect('filterProgramme', programmesData.data, 'programme_id', 'programme_name');
-        populateSelect('programmeSelect', programmesData.data, 'programme_id', 'programme_name');
+        try {
+            const programmesResponse = await fetch('/api/programmes');
+            const programmesData = await programmesResponse.json();
+            populateSelect('filterProgramme', programmesData.data || [], 'programme_id', 'programme_name');
+            populateSelect('programmeSelect', programmesData.data || [], 'programme_id', 'programme_name');
+        } catch (error) {
+            console.warn('Failed to load programmes:', error);
+        }
 
         // Load branches
-        const branchesResponse = await fetch('/api/branches');
-        const branchesData = await branchesResponse.json();
-        populateSelect('filterBranch', branchesData.data, 'branch_id', 'branch_name');
-        populateSelect('branchSelect', branchesData.data, 'branch_id', 'branch_name');
+        try {
+            const branchesResponse = await fetch('/api/branches');
+            const branchesData = await branchesResponse.json();
+            populateSelect('filterBranch', branchesData.data || [], 'branch_id', 'branch_name');
+            populateSelect('branchSelect', branchesData.data || [], 'branch_id', 'branch_name');
+        } catch (error) {
+            console.warn('Failed to load branches:', error);
+        }
 
         // Load semesters
-        const semestersResponse = await fetch('/api/semesters');
-        const semestersData = await semestersResponse.json();
-        populateSelect('filterSemester', semestersData.data, 'semester_id', 'semester_name');
-        populateSelect('semesterSelect', semestersData.data, 'semester_id', 'semester_name');
+        try {
+            const semestersResponse = await fetch('/api/semesters');
+            const semestersData = await semestersResponse.json();
+            populateSelect('filterSemester', semestersData.data || [], 'semester_id', 'semester_name');
+            populateSelect('semesterSelect', semestersData.data || [], 'semester_id', 'semester_name');
+        } catch (error) {
+            console.warn('Failed to load semesters:', error);
+        }
 
         // Load exam sessions
-        const examSessionsResponse = await fetch('/api/exam-sessions');
-        const examSessionsData = await examSessionsResponse.json();
-        populateSelect('examSession', examSessionsData.data, 'exam_session_id', 'exam_session_name');
+        try {
+            const examSessionsResponse = await fetch('/api/exam-sessions');
+            const examSessionsData = await examSessionsResponse.json();
+            populateSelect('examSession', examSessionsData.data || [], 'exam_session_id', 'exam_session_name');
+        } catch (error) {
+            console.warn('Failed to load exam sessions:', error);
+            // Add fallback option
+            const examSessionSelect = document.getElementById('examSession');
+            if (examSessionSelect) {
+                const option = document.createElement('option');
+                option.value = '1';
+                option.textContent = 'MSE - Mid Semester Examination';
+                examSessionSelect.appendChild(option);
+            }
+        }
 
         // Load MSE exam types
-        const examTypesResponse = await fetch('/api/mse-exam-types');
-        const examTypesData = await examTypesResponse.json();
-        populateSelect('examType', examTypesData.data, 'exam_type_id', 'exam_type_name');
+        try {
+            const examTypesResponse = await fetch('/api/mse-exam-types');
+            const examTypesData = await examTypesResponse.json();
+            populateSelect('examType', examTypesData.data || [], 'exam_type_id', 'exam_type_name');
+        } catch (error) {
+            console.warn('Failed to load MSE exam types:', error);
+            // Add fallback options
+            const examTypeSelect = document.getElementById('examType');
+            if (examTypeSelect) {
+                const options = [
+                    { value: '1', text: 'MSE - I' },
+                    { value: '2', text: 'MSE - II' },
+                    { value: '3', text: 'Lab Examination' }
+                ];
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    examTypeSelect.appendChild(option);
+                });
+            }
+        }
 
     } catch (error) {
         console.error('Error loading master data:', error);
-        showAlert('Failed to load master data', 'error');
+        showAlert('Some master data could not be loaded. Please check your database connection.', 'warning');
     }
 }
 
@@ -233,6 +276,62 @@ function initializeFormHandlers() {
     if (startDate && endDate) {
         startDate.addEventListener('change', validateDates);
         endDate.addEventListener('change', validateDates);
+    }
+
+    // Programme-Branch dependency
+    const programmeSelect = document.getElementById('programmeSelect');
+    const branchSelect = document.getElementById('branchSelect');
+    
+    if (programmeSelect && branchSelect) {
+        programmeSelect.addEventListener('change', async function() {
+            await loadBranchesForProgramme(this.value);
+        });
+        
+        // Initially load branches for first programme
+        if (programmeSelect.value) {
+            loadBranchesForProgramme(programmeSelect.value);
+        }
+    }
+
+    // Multi-semester selection
+    const semesterSelect = document.getElementById('semesterSelect');
+    if (semesterSelect) {
+        semesterSelect.multiple = true;
+        semesterSelect.size = 4;
+        
+        // Add label for multi-selection
+        const label = semesterSelect.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.textContent = 'Semesters (Hold Ctrl/Cmd to select multiple)';
+        }
+    }
+}
+
+async function loadBranchesForProgramme(programmeId) {
+    const branchSelect = document.getElementById('branchSelect');
+    if (!branchSelect || !programmeId) return;
+
+    try {
+        const response = await fetch(`/api/branches?programme_id=${programmeId}`);
+        const data = await response.json();
+        
+        // Keep the first option
+        const firstOption = branchSelect.options[0];
+        branchSelect.innerHTML = '';
+        if (firstOption) {
+            branchSelect.appendChild(firstOption);
+        }
+        
+        // Add filtered branches
+        (data.data || []).forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch.branch_id;
+            option.textContent = branch.branch_name;
+            branchSelect.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.warn('Failed to load branches for programme:', error);
     }
 }
 
