@@ -163,27 +163,51 @@ router.post('/', async (req, res) => {
             exam_type,
             exam_name_id,
             session_id,
-            month_year_id,
-            start_date,
-            end_date
         });
 
         // Validation
-        if (!notification_id || !notification_title || !exam_type || !exam_name_id || 
-            !session_id || !month_year_id || !start_date || !end_date) {
-            console.log('❌ Validation failed - missing required fields');
+        const requiredFields = [
+            'notification_id', 'notification_title', 'exam_type', 'exam_name_id', 
+            'session_id', 'month_year_id', 'start_date', 'end_date'
+        ];
+        
+        const missingFields = [];
+        for (const field of requiredFields) {
+            const value = notificationData[field];
+            if (!value || value === '' || value === null) {
+                missingFields.push(field);
+            }
+        }
+        
+        if (missingFields.length > 0) {
+            console.log('❌ Validation failed - missing fields:', missingFields);
             return res.status(400).json({
                 status: 'error',
-                message: 'Missing required fields'
+                message: `Missing required fields: ${missingFields.join(', ')}`
             });
         }
 
         console.log('✅ Validation passed');
+        console.log('🔍 Final notification data:', {
+            notification_id: notificationData.notification_id,
+            notification_title: notificationData.notification_title,
+            exam_type: notificationData.exam_type,
+            exam_name_id: notificationData.exam_name_id,
+            session_id: notificationData.session_id,
+            month_year_id: notificationData.month_year_id,
+            start_date: notificationData.start_date,
+            end_date: notificationData.end_date,
+            start_time: notificationData.start_time,
+            end_time: notificationData.end_time,
+            status: notificationData.status,
+            created_by: notificationData.created_by
+        });
 
         // Check if notification ID already exists
-        console.log('🔍 Checking for existing notification ID:', notification_id);
+        console.log('🔍 Checking for existing notification ID:', notificationData.notification_id);
         const [existingNotification] = await promisePool.query(
             'SELECT notification_id FROM exam_notifications WHERE notification_id = ?',
+            [notificationData.notification_id]
             [notification_id]
         );
         
