@@ -231,13 +231,6 @@ const electiveMappingRoutes = require('./routes/elective-mapping');
 const electiveMgmtRoutes = electiveMappingRoutes.initializeRouter(promisePool);
 app.use('/api/elective-mapping', electiveMgmtRoutes);
 
-// Exam Timetable routes
-const examTimetableRoutes = require('./routes/exam-timetable');
-app.use('/api/exam-timetable', examTimetableRoutes(promisePool));
-
-// Enhanced Exam Scheduling routes
-const examScheduleEnhancedRoutes = require('./routes/exam-schedule-enhanced');
-app.use('/api/exam-schedule-enhanced', examScheduleEnhancedRoutes.initializeRouter(promisePool));
 
 const studentManagementProfessional = require('./routes/student-management-professional-routes');
 const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
@@ -344,10 +337,6 @@ app.use('/api/subjects', subjectRoutes);
 // Seating Plan Management Routes
 const seatingPlanRoutes = require('./routes/seating-plans')(promisePool);
 app.use('/api/seating-plans', seatingPlanRoutes);
-
-// MSE Exam Type Management Routes
-const mseExamTypeRoutes = require('./routes/mse-exam-types')(promisePool);
-app.use('/api/mse-exam-types', mseExamTypeRoutes);
 
 // Handle 404 for API routes
 app.use('/api', (req, res) => {
