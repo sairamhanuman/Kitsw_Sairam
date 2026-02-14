@@ -156,8 +156,8 @@ const batchRoutes = require('./routes/batches')(promisePool);
 app.use('/api/batches', batchRoutes);
 
 // MSE Exam Type Management Routes
-const mseExamTypeRoutes = require('./routes/mse-exam-types')(promisePool);
-app.use('/api/mse-exam-types', mseExamTypeRoutes);
+// const mseExamTypeRoutes = require('./routes/mse-exam-types')(promisePool);
+// app.use('/api/mse-exam-types', mseExamTypeRoutes);
 
 // Master Management Routes
 const sessionsMasterRoutes = require('./routes/sessions-master');
