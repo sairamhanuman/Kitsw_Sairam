@@ -155,6 +155,22 @@ app.use('/api/branches', branchRoutes);
 const batchRoutes = require('./routes/batches')(promisePool);
 app.use('/api/batches', batchRoutes);
 
+// MSE Exam Type Management Routes
+const mseExamTypeRoutes = require('./routes/mse-exam-types')(promisePool);
+app.use('/api/mse-exam-types', mseExamTypeRoutes);
+
+// Master Management Routes
+const sessionsMasterRoutes = require('./routes/sessions-master');
+const monthYearMasterRoutes = require('./routes/month-year-master');
+const examNamingMasterRoutes = require('./routes/exam-naming-master');
+const examTypesMasterRoutes = require('./routes/exam-types-master');
+
+// Initialize routes with database pool
+app.use('/api/sessions-master', sessionsMasterRoutes.initializeRouter(promisePool));
+app.use('/api/month-year-master', monthYearMasterRoutes.initializeRouter(promisePool));
+app.use('/api/exam-naming-master', examNamingMasterRoutes.initializeRouter(promisePool));
+app.use('/api/exam-types-master', examTypesMasterRoutes.initializeRouter(promisePool));
+
 // Semester Management Routes
 const semesterRoutes = require('./routes/semesters')(promisePool);
 app.use('/api/semesters', semesterRoutes);
