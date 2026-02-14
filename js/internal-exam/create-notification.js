@@ -61,56 +61,82 @@ function generateNotificationId() {
 
 // Load master data from API
 async function loadMasterData() {
+    console.log('🔄 Loading master data...');
     try {
         // Load exam names
+        console.log('📚 Loading exam names...');
         const examNamesResponse = await fetch('/api/exam-naming-master');
         const examNamesResult = await examNamesResponse.json();
         if (examNamesResult.status === 'success') {
             masterData.examNames = examNamesResult.data;
+            console.log('✅ Exam names loaded:', examNamesResult.data.length, 'items');
+        } else {
+            console.error('❌ Failed to load exam names:', examNamesResult.message);
         }
 
         // Load sessions from exam_session_master (not sessions_master)
+        console.log('🕐 Loading sessions...');
         const sessionsResponse = await fetch('/api/exam-sessions');
         const sessionsResult = await sessionsResponse.json();
         if (sessionsResult.status === 'success') {
             masterData.sessions = sessionsResult.data;
+            console.log('✅ Sessions loaded:', sessionsResult.data.length, 'items');
             populateSessions();
+        } else {
+            console.error('❌ Failed to load sessions:', sessionsResult.message);
         }
 
         // Load month/year
+        console.log('📅 Loading month/year...');
         const monthYearResponse = await fetch('/api/month-year-master');
         const monthYearResult = await monthYearResponse.json();
         if (monthYearResult.status === 'success') {
             masterData.monthYears = monthYearResult.data;
+            console.log('✅ Month/Year loaded:', monthYearResult.data.length, 'items');
             populateMonthYears();
+        } else {
+            console.error('❌ Failed to load month/year:', monthYearResult.message);
         }
 
         // Load programmes
+        console.log('🎓 Loading programmes...');
         const programmesResponse = await fetch('/api/programmes');
         const programmesResult = await programmesResponse.json();
         if (programmesResult.status === 'success') {
             masterData.programmes = programmesResult.data;
+            console.log('✅ Programmes loaded:', programmesResult.data.length, 'items');
             populateProgrammes();
+        } else {
+            console.error('❌ Failed to load programmes:', programmesResult.message);
         }
 
         // Load batches
+        console.log('📦 Loading batches...');
         const batchesResponse = await fetch('/api/batches');
         const batchesResult = await batchesResponse.json();
         if (batchesResult.status === 'success') {
             masterData.batches = batchesResult.data;
+            console.log('✅ Batches loaded:', batchesResult.data.length, 'items');
             populateBatches();
+        } else {
+            console.error('❌ Failed to load batches:', batchesResult.message);
         }
 
         // Load regulations
+        console.log('📋 Loading regulations...');
         const regulationsResponse = await fetch('/api/regulations');
         const regulationsResult = await regulationsResponse.json();
         if (regulationsResult.status === 'success') {
             masterData.regulations = regulationsResult.data;
+            console.log('✅ Regulations loaded:', regulationsResult.data.length, 'items');
             populateRegulations();
+        } else {
+            console.error('❌ Failed to load regulations:', regulationsResult.message);
         }
 
+        console.log('🎉 All master data loaded successfully!');
     } catch (error) {
-        console.error('Error loading master data:', error);
+        console.error('💥 Error loading master data:', error);
         showAlert('Error loading master data', 'error');
     }
 }
@@ -163,6 +189,8 @@ function populateRegulations() {
 // Populate sessions dropdown
 function populateSessions() {
     const sessionSelect = document.getElementById('session');
+    if (!sessionSelect) return;
+    
     sessionSelect.innerHTML = '<option value="">Select Session</option>';
     
     masterData.sessions.forEach(session => {
@@ -178,6 +206,8 @@ function populateSessions() {
 // Populate month/year dropdown
 function populateMonthYears() {
     const monthYearSelect = document.getElementById('monthYear');
+    if (!monthYearSelect) return;
+    
     monthYearSelect.innerHTML = '<option value="">Select Month/Year</option>';
     
     masterData.monthYears.forEach(monthYear => {
