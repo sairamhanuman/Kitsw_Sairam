@@ -158,6 +158,9 @@ function populateSelect(selectId, data, valueField, textField) {
     const select = document.getElementById(selectId);
     if (!select) return;
 
+    // Handle different data formats
+    const dataArray = Array.isArray(data) ? data : (data && data.data ? data.data : []);
+    
     // Keep the first option (usually "All..." or "Select...")
     const firstOption = select.options[0];
     select.innerHTML = '';
@@ -165,7 +168,7 @@ function populateSelect(selectId, data, valueField, textField) {
         select.appendChild(firstOption);
     }
 
-    data.forEach(item => {
+    dataArray.forEach(item => {
         const option = document.createElement('option');
         option.value = item[valueField];
         option.textContent = item[textField];

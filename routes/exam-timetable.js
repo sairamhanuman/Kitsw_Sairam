@@ -43,21 +43,20 @@ module.exports = (pool) => {
                 offset = 0 
             } = req.query;
 
+            // Simple query without complex joins first
             let query = `
                 SELECT et.*, 
                        es.session_name,
                        met.exam_type_name,
                        pm.programme_name,
                        bm.branch_name,
-                       sm.semester_name,
-                       CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as created_by_name
+                       sm.semester_name
                 FROM exam_timetable et
                 LEFT JOIN exam_session_master es ON et.exam_session_id = es.session_id
                 LEFT JOIN mse_exam_type_master met ON et.exam_type_id = met.exam_type_id
                 LEFT JOIN programme_master pm ON et.programme_id = pm.programme_id
                 LEFT JOIN branch_master bm ON et.branch_id = bm.branch_id
                 LEFT JOIN semester_master sm ON et.semester_id = sm.semester_id
-                LEFT JOIN staff_master s ON et.created_by = s.staff_id
                 WHERE et.deleted_at IS NULL
             `;
 
