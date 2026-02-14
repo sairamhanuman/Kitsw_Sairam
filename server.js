@@ -171,6 +171,10 @@ app.use('/api/month-year-master', monthYearMasterRoutes.initializeRouter(promise
 app.use('/api/exam-naming-master', examNamingMasterRoutes.initializeRouter(promisePool));
 app.use('/api/exam-types-master', examTypesMasterRoutes.initializeRouter(promisePool));
 
+// Setup Masters Route
+const setupMastersRoutes = require('./routes/setup-masters');
+app.use('/api/setup', setupMastersRoutes.initializeRouter(promisePool));
+
 // Semester Management Routes
 const semesterRoutes = require('./routes/semesters')(promisePool);
 app.use('/api/semesters', semesterRoutes);
