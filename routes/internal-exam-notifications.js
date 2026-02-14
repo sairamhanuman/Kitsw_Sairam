@@ -92,6 +92,9 @@ router.get('/:id', async (req, res) => {
 // POST new notification
 router.post('/', async (req, res) => {
     try {
+        console.log('=== POST NOTIFICATION START ===');
+        console.log('Request body:', req.body);
+        
         const {
             notification_id,
             notification_title,
@@ -112,29 +115,48 @@ router.post('/', async (req, res) => {
             created_by
         } = req.body;
 
+        console.log('Extracted data:', {
+            notification_id,
+            notification_title,
+            exam_type,
+            exam_name_id,
+            session_id,
+            month_year_id,
+            start_date,
+            end_date
+        });
+
         // Validation
         if (!notification_id || !notification_title || !exam_type || !exam_name_id || 
             !session_id || !month_year_id || !start_date || !end_date) {
+            console.log('❌ Validation failed - missing required fields');
             return res.status(400).json({
                 status: 'error',
                 message: 'Missing required fields'
             });
         }
 
+        console.log('✅ Validation passed');
+
         // Check if notification ID already exists
+        console.log('🔍 Checking for existing notification ID:', notification_id);
         const [existingNotification] = await promisePool.query(
             'SELECT notification_id FROM exam_notifications WHERE notification_id = ?',
             [notification_id]
         );
-
+        
         if (existingNotification.length > 0) {
+            console.log('❌ Notification ID already exists');
             return res.status(400).json({
                 status: 'error',
                 message: 'Notification ID already exists'
             });
         }
 
+        console.log('✅ Notification ID is unique');
+
         // Insert new notification
+        console.log('💾 Inserting notification...');
         const [result] = await promisePool.query(
             `INSERT INTO exam_notifications 
              (notification_id, notification_title, description, programmes, batches, semesters, 
@@ -162,12 +184,16 @@ router.post('/', async (req, res) => {
             ]
         );
 
+        console.log('✅ Insert successful, result:', result);
+
         // Log status change
+        console.log('📝 Logging status change...');
         await promisePool.query(
             'INSERT INTO notification_status_log (notification_id, status_to, changed_by, change_reason) VALUES (?, ?, ?, ?)',
             [notification_id, status, created_by, 'Notification created']
         );
 
+        console.log('🎉 Notification created successfully!');
         res.status(201).json({
             status: 'success',
             message: 'Notification created successfully',
@@ -177,8 +203,14 @@ router.post('/', async (req, res) => {
                 status
             }
         });
+        
     } catch (error) {
-        console.error('Error creating notification:', error);
+        console.error('=== POST NOTIFICATION ERROR ===');
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
+        console.error('SQL:', error.sql);
+        console.error('Full error:', error);
+        
         res.status(500).json({
             status: 'error',
             message: 'Failed to create notification',
