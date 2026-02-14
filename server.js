@@ -233,11 +233,11 @@ app.use('/api/elective-mapping', electiveMgmtRoutes);
 
 // Exam Timetable routes
 const examTimetableRoutes = require('./routes/exam-timetable');
-app.use('/api/exam-timetable', examTimetableRoutes.initializeRouter(pool));
+app.use('/api/exam-timetable', examTimetableRoutes(promisePool));
 
 // Enhanced Exam Scheduling routes
 const examScheduleEnhancedRoutes = require('./routes/exam-schedule-enhanced');
-app.use('/api/exam-schedule-enhanced', examScheduleEnhancedRoutes.initializeRouter(pool));
+app.use('/api/exam-schedule-enhanced', examScheduleEnhancedRoutes.initializeRouter(promisePool));
 
 const studentManagementProfessional = require('./routes/student-management-professional-routes');
 const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
