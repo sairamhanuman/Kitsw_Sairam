@@ -175,6 +175,10 @@ app.use('/api/exam-types-master', examTypesMasterRoutes.initializeRouter(promise
 const setupMastersRoutes = require('./routes/setup-masters');
 app.use('/api/setup', setupMastersRoutes.initializeRouter(promisePool));
 
+// Internal Exam Notifications Route
+const internalExamNotificationsRoutes = require('./routes/internal-exam-notifications');
+app.use('/api/internal-exam/notifications', internalExamNotificationsRoutes.initializeRouter(promisePool));
+
 // Semester Management Routes
 const semesterRoutes = require('./routes/semesters')(promisePool);
 app.use('/api/semesters', semesterRoutes);

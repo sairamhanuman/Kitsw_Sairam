@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Exam Notification - KITSW Exam Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container-fluid {
+            padding: 2rem;
+        }
+        
+        .header-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .form-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .action-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #229954);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            padding: 0.75rem;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .multi-select-container {
+            min-height: 100px;
+        }
+        
+        .select2-container--default .select2-selection--multiple {
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            min-height: 45px;
+        }
+        
+        .section-title {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .notification-id {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header Section -->
+        <div class="header-section">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h2 class="mb-0">
+                        <i class="fas fa-bell text-primary"></i> Create Exam Notification
+                    </h2>
+                    <p class="text-muted mb-0">Create and manage exam notifications</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="notification-id" id="notificationId">NOT-2026-001</span>
+                    <button class="btn btn-primary ms-2" onclick="window.location.href='../index.html'">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Details Section -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-info-circle text-primary"></i> Notification Information
+            </h4>
+            <form id="notificationForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="notificationTitle" class="form-label">Notification Title *</label>
+                        <input type="text" class="form-control" id="notificationTitle" required 
+                               placeholder="e.g., Mid-Term Examination 1 - February 2026">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="notificationDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="notificationDescription" rows="3" 
+                                  placeholder="Enter notification description..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status">
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="createdBy" class="form-label">Created By</label>
+                        <input type="text" class="form-control" id="createdBy" readonly value="Admin">
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Academic Selection Section -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-graduation-cap text-success"></i> Academic Selection (Multi-Select)
+            </h4>
+            <form id="academicForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="programmes" class="form-label">Programme *</label>
+                        <select class="form-control multi-select" id="programmes" multiple required>
+                            <option value="BTECH">BTECH</option>
+                            <option value="MTECH">MTECH</option>
+                            <option value="MCA">MCA</option>
+                            <option value="MBA">MBA</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="batches" class="form-label">Batch *</label>
+                        <select class="form-control multi-select" id="batches" multiple required>
+                            <option value="2025-26">2025-26</option>
+                            <option value="2026-27">2026-27</option>
+                            <option value="2027-28">2027-28</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="semesters" class="form-label">Semester *</label>
+                        <select class="form-control multi-select" id="semesters" multiple required>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="IV">IV</option>
+                            <option value="V">V</option>
+                            <option value="VI">VI</option>
+                            <option value="VII">VII</option>
+                            <option value="VIII">VIII</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="regulations" class="form-label">Regulation *</label>
+                        <select class="form-control multi-select" id="regulations" multiple required>
+                            <option value="URR-18">URR-18</option>
+                            <option value="R20">R20</option>
+                            <option value="R19">R19</option>
+                            <option value="R16">R16</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Exam Configuration Section -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-cog text-warning"></i> Exam Configuration
+            </h4>
+            <form id="examConfigForm">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="examType" class="form-label">Exam Type *</label>
+                        <select class="form-select" id="examType" required>
+                            <option value="">Select Exam Type</option>
+                            <option value="MT1">MT1 - Mid-Term 1</option>
+                            <option value="MT2">MT2 - Mid-Term 2</option>
+                            <option value="Unit">Unit Test</option>
+                            <option value="Practical">Practical Exam</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="examName" class="form-label">Exam Name *</label>
+                        <select class="form-select" id="examName" required>
+                            <option value="">Select Exam Name</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="session" class="form-label">Session *</label>
+                        <select class="form-select" id="session" required>
+                            <option value="">Select Session</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="monthYear" class="form-label">Month/Year *</label>
+                        <select class="form-select" id="monthYear" required>
+                            <option value="">Select Month/Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="startDate" class="form-label">Exam Start Date *</label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="endDate" class="form-label">Exam End Date *</label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="startTime" class="form-label">Start Time *</label>
+                        <input type="time" class="form-control" id="startTime" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="endTime" class="form-label">End Time *</label>
+                        <input type="time" class="form-control" id="endTime" required>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Action Section -->
+        <div class="action-section">
+            <h4 class="section-title">
+                <i class="fas fa-tools text-info"></i> Actions
+            </h4>
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <button type="button" class="btn btn-warning me-2" onclick="validateSelections()">
+                        <i class="fas fa-check-circle"></i> Validate Selections
+                    </button>
+                    <button type="button" class="btn btn-success me-2" onclick="generateTimetable()">
+                        <i class="fas fa-calendar-alt"></i> Generate Timetable
+                    </button>
+                    <button type="button" class="btn btn-primary me-2" onclick="saveNotification()">
+                        <i class="fas fa-save"></i> Save Notification
+                    </button>
+                    <button type="button" class="btn btn-secondary me-2" onclick="clearForm()">
+                        <i class="fas fa-times"></i> Clear Form
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="viewNotifications()">
+                        <i class="fas fa-list"></i> View Notifications
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="../js/internal-exam/create-notification.js"></script>
+</body>
+</html>
