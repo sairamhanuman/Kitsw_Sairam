@@ -80,7 +80,7 @@ async function handleAutoGeneration() {
     
     // Get generation parameters
     const params = {
-        timetable_id: currentTimetableId,
+        timetable_id: document.getElementById('genTimetable')?.value,
         exam_session_id: document.getElementById('genExamSession')?.value,
         branch_id: document.getElementById('genBranch')?.value,
         semester_id: document.getElementById('genSemester')?.value,
@@ -115,7 +115,7 @@ async function handleAutoGeneration() {
         
         if (result.status === 'success') {
             showAlert(`Successfully generated ${result.data.generated_schedules} exam schedules!`, 'success');
-            loadEnhancedSchedules(currentTimetableId);
+            loadEnhancedSchedules(params.timetable_id);
             renderCalendar();
         } else {
             showAlert(result.message || 'Auto-generation failed', 'error');
@@ -380,7 +380,7 @@ function renderCalendar() {
 
 async function loadAvailableRooms() {
     try {
-        const response = await fetch('/api/rooms');
+        const response = await fetch('/api/seating-plans/rooms');
         const result = await response.json();
         
         if (result.status === 'success') {

@@ -365,6 +365,13 @@
                 <h4>🤖 Auto-Generation</h4>
                 
                 <div class="form-group">
+                    <label for="genTimetable">Timetable *</label>
+                    <select id="genTimetable">
+                        <option value="">Select Timetable</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
                     <label for="genExamSession">Exam Session</label>
                     <select id="genExamSession">
                         <option value="">Select Session</option>
@@ -374,21 +381,21 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="genBranch">Branch</label>
+                    <label for="genBranch">Branch *</label>
                     <select id="genBranch">
                         <option value="">Select Branch</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="genSemester">Semester</label>
+                    <label for="genSemester">Semester *</label>
                     <select id="genSemester">
                         <option value="">Select Semester</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="genAcademicYear">Academic Year</label>
+                    <label for="genAcademicYear">Academic Year *</label>
                     <input type="text" id="genAcademicYear" placeholder="e.g., 2025-26">
                 </div>
                 
@@ -500,6 +507,15 @@
         // Load master data for dropdowns
         async function loadMasterData() {
             try {
+                // Load timetables
+                const timetablesResponse = await fetch('/api/exam-timetable');
+                const timetablesData = await timetablesResponse.json();
+                const timetableSelect = document.getElementById('genTimetable');
+                if (timetablesData.status === 'success') {
+                    timetableSelect.innerHTML = '<option value="">Select Timetable</option>' + 
+                        timetablesData.data.map(t => `<option value="${t.timetable_id}">${t.exam_name} - ${t.programme_name} - ${t.branch_name}</option>`).join('');
+                }
+                
                 // Load branches
                 const branchesResponse = await fetch('/api/branches');
                 const branchesData = await branchesResponse.json();
