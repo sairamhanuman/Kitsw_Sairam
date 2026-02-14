@@ -23,22 +23,35 @@ function loadExamNames() {
     const examType = document.getElementById('examType').value;
     const examNameSelect = document.getElementById('examName');
     
+    console.log('🔄 Loading exam names for type:', examType);
+    console.log('📚 Available exams:', masterData.examNames);
+    
     examNameSelect.innerHTML = '<option value="">Select Exam Name</option>';
     
-    if (!examType) return;
+    if (!examType) {
+        console.log('❌ No exam type selected');
+        return;
+    }
 
     // Filter exams based on exam type
-    const filteredExams = masterData.examNames.filter(exam => 
-        exam.exam_code.toLowerCase().includes(examType.toLowerCase()) ||
-        exam.exam_type.toLowerCase().includes(examType.toLowerCase())
-    );
+    const filteredExams = masterData.examNames.filter(exam => {
+        const matchesType = exam.exam_code.toLowerCase().includes(examType.toLowerCase()) ||
+                              exam.exam_type.toLowerCase().includes(examType.toLowerCase());
+        console.log(`🔍 Exam ${exam.exam_name} (${exam.exam_code}) matches ${examType}:`, matchesType);
+        return matchesType;
+    });
 
+    console.log(`✅ Filtered ${filteredExams.length} exams for type ${examType}`);
+    
     filteredExams.forEach(exam => {
         const option = document.createElement('option');
         option.value = exam.exam_naming_id;
         option.textContent = `${exam.exam_name} (${exam.exam_code})`;
         examNameSelect.appendChild(option);
+        console.log(`➕ Added option: ${exam.exam_name} (${exam.exam_code})`);
     });
+    
+    console.log(`✅ Exam names dropdown populated with ${filteredExams.length} options`);
 }
 
 // Initialize multi-select dropdowns

@@ -216,7 +216,11 @@ app.get('/api/regulations', async (req, res) => {
             console.log('Regulations:', regulations.map(r => r.regulation_name).join(', '));
         }
         
-        res.json(regulations);
+        res.json({
+            status: 'success',
+            message: 'Regulations retrieved successfully',
+            data: regulations
+        });
         
     } catch (error) {
         console.error('=== GET REGULATIONS ERROR ===');
