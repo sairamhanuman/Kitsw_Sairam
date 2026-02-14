@@ -112,18 +112,27 @@ router.post('/auto-generate', async (req, res) => {
             ORDER BY b.block_name, r.room_name
         `);
 
-        // Step 4: Get student enrollment
-        const [enrollments] = await promisePool.query(`
-            SELECT subject_id, student_count
-            FROM exam_student_enrollment 
-            WHERE timetable_id = ? AND branch_id = ? AND semester_id = ? AND academic_year = ?
-        `, [timetable_id, branch_id, semester_id, academic_year]);
+        // Step 4: Get student enrollment (with fallback)
+        let enrollmentMap = {};
+        try {
+            const [enrollments] = await promisePool.query(`
+                SELECT subject_id, student_count
+                FROM exam_student_enrollment 
+                WHERE timetable_id = ? AND branch_id = ? AND semester_id = ? AND academic_year = ?
+            `, [timetable_id, branch_id, semester_id, academic_year]);
 
-        // Create enrollment map
-        const enrollmentMap = {};
-        enrollments.forEach(enrollment => {
-            enrollmentMap[enrollment.subject_id] = enrollment.student_count;
-        });
+            // Create enrollment map
+            enrollments.forEach(enrollment => {
+                enrollmentMap[enrollment.subject_id] = enrollment.student_count;
+            });
+            console.log(`📊 Found ${enrollments.length} enrollment records`);
+        } catch (error) {
+            console.warn('⚠️ exam_student_enrollment table not found, using default student count');
+            // Use default student count if enrollment table doesn't exist
+            subjects.forEach(subject => {
+                enrollmentMap[subject.subject_id] = 30; // Default to 30 students
+            });
+        }
 
         // Step 5: Generate schedule matrix
         const generatedSchedules = [];
