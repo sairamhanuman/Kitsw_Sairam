@@ -231,6 +231,10 @@ const electiveMappingRoutes = require('./routes/elective-mapping');
 const electiveMgmtRoutes = electiveMappingRoutes.initializeRouter(promisePool);
 app.use('/api/elective-mapping', electiveMgmtRoutes);
 
+// Exam Timetable Management Routes (NEW!)
+const examTimetableRoutes = require('./routes/exam-timetable')(promisePool);
+app.use('/api/exam-timetable', examTimetableRoutes);
+
 
 const studentManagementProfessional = require('./routes/student-management-professional-routes');
 const studentMgmtRoutes = studentManagementProfessional.initializeRouter(promisePool);
