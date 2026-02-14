@@ -18,6 +18,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('endDate').addEventListener('change', validateDates);
 });
 
+// Load exam names based on exam type selection
+function loadExamNames() {
+    const examType = document.getElementById('examType').value;
+    const examNameSelect = document.getElementById('examName');
+    
+    examNameSelect.innerHTML = '<option value="">Select Exam Name</option>';
+    
+    if (!examType) return;
+
+    // Filter exams based on exam type
+    const filteredExams = masterData.examNames.filter(exam => 
+        exam.exam_code.toLowerCase().includes(examType.toLowerCase()) ||
+        exam.exam_type.toLowerCase().includes(examType.toLowerCase())
+    );
+
+    filteredExams.forEach(exam => {
+        const option = document.createElement('option');
+        option.value = exam.exam_naming_id;
+        option.textContent = `${exam.exam_name} (${exam.exam_code})`;
+        examNameSelect.appendChild(option);
+    });
+}
+
 // Initialize multi-select dropdowns
 function initializeMultiSelect() {
     $('.multi-select').select2({
@@ -44,11 +67,10 @@ async function loadMasterData() {
         const examNamesResult = await examNamesResponse.json();
         if (examNamesResult.status === 'success') {
             masterData.examNames = examNamesResult.data;
-            populateExamNames();
         }
 
-        // Load sessions
-        const sessionsResponse = await fetch('/api/sessions-master');
+        // Load sessions from exam_session_master (not sessions_master)
+        const sessionsResponse = await fetch('/api/exam-sessions');
         const sessionsResult = await sessionsResponse.json();
         if (sessionsResult.status === 'success') {
             masterData.sessions = sessionsResult.data;
@@ -62,29 +84,79 @@ async function loadMasterData() {
             masterData.monthYears = monthYearResult.data;
             populateMonthYears();
         }
+
+        // Load programmes
+        const programmesResponse = await fetch('/api/programmes');
+        const programmesResult = await programmesResponse.json();
+        if (programmesResult.status === 'success') {
+            masterData.programmes = programmesResult.data;
+            populateProgrammes();
+        }
+
+        // Load batches
+        const batchesResponse = await fetch('/api/batches');
+        const batchesResult = await batchesResponse.json();
+        if (batchesResult.status === 'success') {
+            masterData.batches = batchesResult.data;
+            populateBatches();
+        }
+
+        // Load regulations
+        const regulationsResponse = await fetch('/api/regulations');
+        const regulationsResult = await regulationsResponse.json();
+        if (regulationsResult.status === 'success') {
+            masterData.regulations = regulationsResult.data;
+            populateRegulations();
+        }
+
     } catch (error) {
         console.error('Error loading master data:', error);
         showAlert('Error loading master data', 'error');
     }
 }
 
-// Populate exam names dropdown
-function populateExamNames() {
-    const examNameSelect = document.getElementById('examName');
-    examNameSelect.innerHTML = '<option value="">Select Exam Name</option>';
+// Populate programmes dropdown
+function populateProgrammes() {
+    const programmeSelect = document.getElementById('programmes');
+    if (!programmeSelect) return;
     
-    const examType = document.getElementById('examType').value;
-    if (!examType) return;
+    masterData.programmes.forEach(programme => {
+        if (programme.is_active) {
+            const option = document.createElement('option');
+            option.value = programme.programme_code;
+            option.textContent = `${programme.programme_name} (${programme.programme_code})`;
+            programmeSelect.appendChild(option);
+        }
+    });
+}
 
-    const filteredExams = masterData.examNames.filter(exam => 
-        exam.exam_code.toLowerCase().includes(examType.toLowerCase())
-    );
+// Populate batches dropdown
+function populateBatches() {
+    const batchSelect = document.getElementById('batches');
+    if (!batchSelect) return;
+    
+    masterData.batches.forEach(batch => {
+        if (batch.is_active) {
+            const option = document.createElement('option');
+            option.value = batch.batch_id;
+            option.textContent = batch.batch_name;
+            batchSelect.appendChild(option);
+        }
+    });
+}
 
-    filteredExams.forEach(exam => {
-        const option = document.createElement('option');
-        option.value = exam.exam_naming_id;
-        option.textContent = `${exam.exam_name} (${exam.exam_code})`;
-        examNameSelect.appendChild(option);
+// Populate regulations dropdown
+function populateRegulations() {
+    const regulationSelect = document.getElementById('regulations');
+    if (!regulationSelect) return;
+    
+    masterData.regulations.forEach(regulation => {
+        if (regulation.is_active) {
+            const option = document.createElement('option');
+            option.value = regulation.regulation_id;
+            option.textContent = `${regulation.regulation_name} (${regulation.regulation_year})`;
+            regulationSelect.appendChild(option);
+        }
     });
 }
 

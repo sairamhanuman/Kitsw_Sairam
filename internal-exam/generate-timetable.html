@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Timetable - KITSW Exam Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container-fluid {
+            padding: 2rem;
+        }
+        
+        .header-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .info-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .timetable-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #229954);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+        
+        .section-title {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .notification-id {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .timetable-grid {
+            display: grid;
+            grid-template-columns: 120px repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1px;
+            background: #ddd;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .timetable-header {
+            background: #3498db;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .timetable-cell {
+            background: white;
+            padding: 0.5rem;
+            min-height: 80px;
+            border: 1px solid #eee;
+            position: relative;
+        }
+        
+        .subject-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        
+        .subject-card:hover {
+            background: #e3f2fd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .subject-card.dragging {
+            opacity: 0.5;
+        }
+        
+        .timetable-slot {
+            min-height: 80px;
+            background: #fafafa;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .timetable-slot.drag-over {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        
+        .unassigned-subjects {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .stats-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header Section -->
+        <div class="header-section">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h2 class="mb-0">
+                        <i class="fas fa-calendar-alt text-primary"></i> Generate Timetable
+                    </h2>
+                    <p class="text-muted mb-0">Create and manage exam timetable</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="notification-id" id="notificationId">Loading...</span>
+                    <button class="btn btn-primary ms-2" onclick="window.location.href='create-notification.html'">
+                        <i class="fas fa-arrow-left"></i> Back to Notification
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Info Section -->
+        <div class="info-section">
+            <h4 class="section-title">
+                <i class="fas fa-info-circle text-info"></i> Notification Details
+            </h4>
+            <div class="row" id="notificationInfo">
+                <div class="col-md-12">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>Loading notification details...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Section -->
+        <div class="info-section">
+            <h4 class="section-title">
+                <i class="fas fa-chart-bar text-success"></i> Generation Statistics
+            </h4>
+            <div class="row" id="statisticsSection">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h5 id="totalSubjects">0</h5>
+                        <small>Total Subjects</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h5 id="totalStudents">0</h5>
+                        <small>Total Students</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h5 id="totalSlots">0</h5>
+                        <small>Available Slots</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h5 id="assignedSlots">0</h5>
+                        <small>Assigned Slots</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timetable Generation Section -->
+        <div class="timetable-section">
+            <h4 class="section-title">
+                <i class="fas fa-magic text-warning"></i> Timetable Generation
+            </h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <button class="btn btn-success me-2" onclick="generateInitialTimetable()">
+                        <i class="fas fa-magic"></i> Generate Initial Timetable
+                    </button>
+                    <button class="btn btn-primary me-2" onclick="autoAssignSubjects()">
+                        <i class="fas fa-robot"></i> Auto-Assign Subjects
+                    </button>
+                    <button class="btn btn-warning me-2" onclick="clearTimetable()">
+                        <i class="fas fa-trash"></i> Clear Timetable
+                    </button>
+                    <button class="btn btn-info me-2" onclick="checkConflicts()">
+                        <i class="fas fa-exclamation-triangle"></i> Check Conflicts
+                    </button>
+                    <button class="btn btn-success" onclick="saveTimetable()">
+                        <i class="fas fa-save"></i> Save Timetable
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="filterProgramme" class="form-label">Programme</label>
+                    <select class="form-select" id="filterProgramme" onchange="filterTimetable()">
+                        <option value="">All Programmes</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterBatch" class="form-label">Batch</label>
+                    <select class="form-select" id="filterBatch" onchange="filterTimetable()">
+                        <option value="">All Batches</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterSemester" class="form-label">Semester</label>
+                    <select class="form-select" id="filterSemester" onchange="filterTimetable()">
+                        <option value="">All Semesters</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filterRegulation" class="form-label">Regulation</label>
+                    <select class="form-select" id="filterRegulation" onchange="filterTimetable()">
+                        <option value="">All Regulations</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p>Generating timetable...</p>
+            </div>
+            
+            <!-- Timetable Grid -->
+            <div id="timetableContainer" style="display: none;">
+                <div class="timetable-grid" id="timetableGrid">
+                    <!-- Grid will be generated dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Unassigned Subjects Section -->
+        <div class="timetable-section">
+            <h4 class="section-title">
+                <i class="fas fa-book text-danger"></i> Unassigned Subjects (Drag to Timetable)
+            </h4>
+            <div class="unassigned-subjects" id="unassignedSubjects">
+                <!-- Unassigned subjects will be listed here -->
+            </div>
+        </div>
+        
+        <!-- Actions Section -->
+        <div class="info-section">
+            <h4 class="section-title">
+                <i class="fas fa-tools text-primary"></i> Actions
+            </h4>
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <button class="btn btn-success me-2" onclick="exportTimetable()">
+                        <i class="fas fa-download"></i> Export Timetable
+                    </button>
+                    <button class="btn btn-primary me-2" onclick="generateHallTickets()">
+                        <i class="fas fa-ticket-alt"></i> Generate Hall Tickets
+                    </button>
+                    <button class="btn btn-warning me-2" onclick="publishNotification()">
+                        <i class="fas fa-bullhorn"></i> Publish Notification
+                    </button>
+                    <button class="btn btn-info" onclick="viewNotifications()">
+                        <i class="fas fa-list"></i> View All Notifications
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="../js/internal-exam/generate-timetable.js"></script>
+</body>
+</html>

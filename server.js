@@ -179,6 +179,10 @@ app.use('/api/setup', setupMastersRoutes.initializeRouter(promisePool));
 const internalExamNotificationsRoutes = require('./routes/internal-exam-notifications');
 app.use('/api/internal-exam/notifications', internalExamNotificationsRoutes.initializeRouter(promisePool));
 
+// Internal Exam Timetable Route
+const internalExamTimetableRoutes = require('./routes/internal-exam-timetable');
+app.use('/api/internal-exam/timetable', internalExamTimetableRoutes.initializeRouter(promisePool));
+
 // Semester Management Routes
 const semesterRoutes = require('./routes/semesters')(promisePool);
 app.use('/api/semesters', semesterRoutes);
