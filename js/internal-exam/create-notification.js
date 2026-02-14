@@ -345,7 +345,27 @@ async function saveNotification(redirectToView = true) {
             body: JSON.stringify(notificationData)
         });
 
-        const result = await response.json();
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', response.headers);
+
+        if (!response.ok) {
+            console.log('❌ Response not OK:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.log('❌ Response text:', errorText);
+            showAlert(`Failed to save notification: ${response.status} ${response.statusText}`, 'error');
+            return null;
+        }
+
+        let result;
+        try {
+            result = await response.json();
+            console.log('✅ Response JSON parsed successfully:', result);
+        } catch (jsonError) {
+            console.log('❌ Failed to parse JSON response:', jsonError);
+            console.log('📄 Raw response text:', await response.text());
+            showAlert('Invalid response from server', 'error');
+            return null;
+        }
         
         if (result.status === 'success') {
             showAlert('Notification saved successfully', 'success');
