@@ -105,16 +105,22 @@ async function loadMasterData() {
         try {
             const examSessionsResponse = await fetch('/api/exam-sessions');
             const examSessionsData = await examSessionsResponse.json();
-            populateSelect('examSession', examSessionsData.data || [], 'exam_session_id', 'exam_session_name');
+            populateSelect('examSession', examSessionsData || [], 'session_id', 'session_name');
         } catch (error) {
             console.warn('Failed to load exam sessions:', error);
-            // Add fallback option
+            // Add fallback options based on database data
             const examSessionSelect = document.getElementById('examSession');
             if (examSessionSelect) {
-                const option = document.createElement('option');
-                option.value = '1';
-                option.textContent = 'MSE - Mid Semester Examination';
-                examSessionSelect.appendChild(option);
+                const options = [
+                    { value: '1', text: 'FN - Forenoon Session' },
+                    { value: '2', text: 'AN - Afternoon Session' }
+                ];
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    examSessionSelect.appendChild(option);
+                });
             }
         }
 

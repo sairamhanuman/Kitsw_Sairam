@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS exam_timetable (
     deleted_at TIMESTAMP NULL,
     
     -- Foreign Keys
-    FOREIGN KEY (exam_session_id) REFERENCES exam_session_master(exam_session_id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_session_id) REFERENCES exam_session_master(session_id) ON DELETE CASCADE,
     FOREIGN KEY (exam_type_id) REFERENCES mse_exam_type_master(exam_type_id) ON DELETE RESTRICT,
     FOREIGN KEY (programme_id) REFERENCES programme_master(programme_id) ON DELETE RESTRICT,
     FOREIGN KEY (branch_id) REFERENCES branch_master(branch_id) ON DELETE RESTRICT,
