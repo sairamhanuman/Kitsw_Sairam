@@ -350,6 +350,18 @@ async function handleScheduleSubmit(event) {
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
     
+    // Debug: Log the data being sent
+    console.log('📤 Form data being submitted:', data);
+    
+    // Validate required fields
+    const requiredFields = ['exam_session_id', 'exam_name', 'exam_type_id', 'programme_id', 'branch_id', 'semester_id', 'academic_year', 'start_date', 'end_date'];
+    const missingFields = requiredFields.filter(field => !data[field]);
+    
+    if (missingFields.length > 0) {
+        showAlert(`Please fill in all required fields: ${missingFields.join(', ')}`, 'error');
+        return;
+    }
+    
     try {
         showLoading();
         
@@ -362,6 +374,9 @@ async function handleScheduleSubmit(event) {
         });
         
         const result = await response.json();
+        
+        // Debug: Log the response
+        console.log('📥 API response:', result);
         
         if (result.status === 'success') {
             showAlert('Exam timetable created successfully!', 'success');

@@ -185,6 +185,8 @@ module.exports = (pool) => {
     // CREATE new exam timetable
     router.post('/', async (req, res) => {
         try {
+            console.log('📥 Received timetable data:', req.body);
+            
             const {
                 exam_session_id,
                 exam_name,
@@ -204,21 +206,28 @@ module.exports = (pool) => {
             } = req.body;
 
             // Validate required fields
-            if (!exam_session_id || !exam_name || !exam_type_id || !programme_id || 
-                !branch_id || !semester_id || !academic_year || !start_date || !end_date) {
+            const requiredFields = ['exam_session_id', 'exam_name', 'exam_type_id', 'programme_id', 
+                'branch_id', 'semester_id', 'academic_year', 'start_date', 'end_date'];
+            
+            const missingFields = requiredFields.filter(field => !req.body[field]);
+            if (missingFields.length > 0) {
+                console.log('❌ Missing required fields:', missingFields);
                 return res.status(400).json({
                     status: 'error',
-                    message: 'Missing required fields'
+                    message: `Missing required fields: ${missingFields.join(', ')}`
                 });
             }
 
             // Validate dates
             if (new Date(start_date) > new Date(end_date)) {
+                console.log('❌ Invalid date range');
                 return res.status(400).json({
                     status: 'error',
                     message: 'Start date cannot be after end date'
                 });
             }
+
+            console.log('✅ Validation passed, inserting timetable...');
 
             const [result] = await pool.query(`
                 INSERT INTO exam_timetable (
@@ -234,6 +243,8 @@ module.exports = (pool) => {
                 remarks, created_by
             ]);
 
+            console.log('✅ Timetable inserted successfully:', result.insertId);
+
             res.status(201).json({
                 status: 'success',
                 message: 'Exam timetable created successfully',
@@ -244,7 +255,7 @@ module.exports = (pool) => {
                 }
             });
         } catch (error) {
-            console.error('Error creating exam timetable:', error);
+            console.error('❌ Error creating exam timetable:', error);
             res.status(500).json({ 
                 status: 'error', 
                 message: 'Failed to create exam timetable',
