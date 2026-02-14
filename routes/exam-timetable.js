@@ -121,25 +121,26 @@ module.exports = (pool) => {
         try {
             const { id } = req.params;
             
+            console.log('🔍 Fetching timetable with ID:', id);
+            
             const [timetables] = await pool.query(`
                 SELECT et.*, 
                        es.session_name,
                        met.exam_type_name,
                        pm.programme_name,
                        bm.branch_name,
-                       sm.semester_name,
-                       CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as created_by_name
+                       sm.semester_name
                 FROM exam_timetable et
                 LEFT JOIN exam_session_master es ON et.exam_session_id = es.session_id
                 LEFT JOIN mse_exam_type_master met ON et.exam_type_id = met.exam_type_id
                 LEFT JOIN programme_master pm ON et.programme_id = pm.programme_id
                 LEFT JOIN branch_master bm ON et.branch_id = bm.branch_id
                 LEFT JOIN semester_master sm ON et.semester_id = sm.semester_id
-                LEFT JOIN staff_master s ON et.created_by = s.staff_id
                 WHERE et.timetable_id = ? AND et.deleted_at IS NULL
             `, [id]);
 
             if (timetables.length === 0) {
+                console.log('❌ Timetable not found with ID:', id);
                 return res.status(404).json({
                     status: 'error',
                     message: 'Exam timetable not found'
@@ -153,16 +154,16 @@ module.exports = (pool) => {
                        sub.subject_code,
                        rm.room_name,
                        rm.room_code,
-                       blk.block_name,
-                       CONCAT(COALESCE(ci.first_name, ''), ' ', COALESCE(ci.last_name, '')) as chief_invigilator_name
+                       blk.block_name
                 FROM exam_schedule es
                 LEFT JOIN subject_master sub ON es.subject_id = sub.subject_id
                 LEFT JOIN room_master rm ON es.room_id = rm.room_id
                 LEFT JOIN block_master blk ON es.block_id = blk.block_id
-                LEFT JOIN staff_master ci ON es.chief_invigilator_id = ci.staff_id
                 WHERE es.timetable_id = ? AND es.deleted_at IS NULL
                 ORDER BY es.exam_date, es.start_time
             `, [id]);
+
+            console.log('✅ Timetable found and schedules loaded');
 
             res.json({
                 status: 'success',
@@ -173,7 +174,7 @@ module.exports = (pool) => {
                 }
             });
         } catch (error) {
-            console.error('Error fetching exam timetable:', error);
+            console.error('❌ Error fetching exam timetable:', error);
             res.status(500).json({ 
                 status: 'error', 
                 message: 'Failed to fetch exam timetable',
