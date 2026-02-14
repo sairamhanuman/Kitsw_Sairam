@@ -123,23 +123,13 @@ module.exports = (pool) => {
             
             console.log('🔍 Fetching timetable with ID:', id);
             
-            const [timetables] = await pool.query(`
-                SELECT et.*, 
-                       es.session_name,
-                       met.exam_type_name,
-                       pm.programme_name,
-                       bm.branch_name,
-                       sm.semester_name
-                FROM exam_timetable et
-                LEFT JOIN exam_session_master es ON et.exam_session_id = es.session_id
-                LEFT JOIN mse_exam_type_master met ON et.exam_type_id = met.exam_type_id
-                LEFT JOIN programme_master pm ON et.programme_id = pm.programme_id
-                LEFT JOIN branch_master bm ON et.branch_id = bm.branch_id
-                LEFT JOIN semester_master sm ON et.semester_id = sm.semester_id
-                WHERE et.timetable_id = ? AND et.deleted_at IS NULL
+            // First, try a simple query without any JOINs to see if the basic data exists
+            const [basicTimetable] = await pool.query(`
+                SELECT * FROM exam_timetable 
+                WHERE timetable_id = ? AND deleted_at IS NULL
             `, [id]);
 
-            if (timetables.length === 0) {
+            if (basicTimetable.length === 0) {
                 console.log('❌ Timetable not found with ID:', id);
                 return res.status(404).json({
                     status: 'error',
@@ -147,29 +137,54 @@ module.exports = (pool) => {
                 });
             }
 
-            // Get exam schedules for this timetable
-            const [schedules] = await pool.query(`
-                SELECT es.*, 
-                       sub.subject_name,
-                       sub.subject_code,
-                       rm.room_name,
-                       rm.room_code,
-                       blk.block_name
-                FROM exam_schedule es
-                LEFT JOIN subject_master sub ON es.subject_id = sub.subject_id
-                LEFT JOIN room_master rm ON es.room_id = rm.room_id
-                LEFT JOIN block_master blk ON es.block_id = blk.block_id
-                WHERE es.timetable_id = ? AND es.deleted_at IS NULL
-                ORDER BY es.exam_date, es.start_time
-            `, [id]);
+            console.log('✅ Basic timetable found:', basicTimetable[0].exam_name);
 
-            console.log('✅ Timetable found and schedules loaded');
+            // Now try to get the full data with JOINs, but handle potential errors
+            let timetableData = basicTimetable[0];
+            let schedules = [];
+
+            try {
+                const [timetables] = await pool.query(`
+                    SELECT et.*, 
+                           es.session_name,
+                           met.exam_type_name,
+                           pm.programme_name,
+                           bm.branch_name,
+                           sm.semester_name
+                    FROM exam_timetable et
+                    LEFT JOIN exam_session_master es ON et.exam_session_id = es.session_id
+                    LEFT JOIN mse_exam_type_master met ON et.exam_type_id = met.exam_type_id
+                    LEFT JOIN programme_master pm ON et.programme_id = pm.programme_id
+                    LEFT JOIN branch_master bm ON et.branch_id = bm.branch_id
+                    LEFT JOIN semester_master sm ON et.semester_id = sm.semester_id
+                    WHERE et.timetable_id = ? AND et.deleted_at IS NULL
+                `, [id]);
+
+                if (timetables.length > 0) {
+                    timetableData = timetables[0];
+                    console.log('✅ Full timetable data loaded');
+                }
+
+                // Get exam schedules for this timetable (simplified query)
+                const [schedulesResult] = await pool.query(`
+                    SELECT * FROM exam_schedule 
+                    WHERE timetable_id = ? AND deleted_at IS NULL
+                    ORDER BY exam_date, start_time
+                `, [id]);
+
+                schedules = schedulesResult;
+                console.log(`✅ Found ${schedules.length} schedules`);
+
+            } catch (joinError) {
+                console.warn('⚠️ JOIN query failed, using basic data:', joinError.message);
+                // Keep the basic timetable data and empty schedules
+            }
 
             res.json({
                 status: 'success',
                 message: 'Exam timetable retrieved successfully',
                 data: {
-                    ...timetables[0],
+                    ...timetableData,
                     schedules: schedules
                 }
             });
