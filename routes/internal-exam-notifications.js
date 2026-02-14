@@ -89,6 +89,48 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// Test endpoint for debugging
+router.get('/test', async (req, res) => {
+    try {
+        console.log('=== TEST ENDPOINT ===');
+        
+        // Test basic database connection
+        const [testResult] = await promisePool.query('SELECT 1 as test');
+        console.log('✅ Database connection test:', testResult);
+        
+        // Test table structure
+        const [tableInfo] = await promisePool.query('DESCRIBE exam_notifications');
+        console.log('✅ Table structure:', tableInfo);
+        
+        // Test count query
+        const [countResult] = await promisePool.query('SELECT COUNT(*) as count FROM exam_notifications');
+        console.log('✅ Record count:', countResult);
+        
+        res.json({
+            status: 'success',
+            message: 'Test completed successfully',
+            data: {
+                database_connection: 'OK',
+                table_structure: tableInfo,
+                record_count: countResult[0].count
+            }
+        });
+        
+    } catch (error) {
+        console.error('=== TEST ENDPOINT ERROR ===');
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
+        console.error('SQL:', error.sql);
+        console.error('Full error:', error);
+        
+        res.status(500).json({
+            status: 'error',
+            message: 'Test failed',
+            error: error.message
+        });
+    }
+});
+
 // POST new notification
 router.post('/', async (req, res) => {
     try {
