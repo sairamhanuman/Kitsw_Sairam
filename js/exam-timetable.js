@@ -302,16 +302,20 @@ function initializeFormHandlers() {
         }
     }
 
-    // Multi-semester selection
+    // Multi-semester selection (disabled for now - will be enhanced later)
     const semesterSelect = document.getElementById('semesterSelect');
     if (semesterSelect) {
-        semesterSelect.multiple = true;
-        semesterSelect.size = 4;
+        // semesterSelect.multiple = true;
+        // semesterSelect.size = 4;
         
-        // Add label for multi-selection
+        // Keep single selection for now
+        semesterSelect.multiple = false;
+        semesterSelect.size = 1;
+        
+        // Update label
         const label = semesterSelect.previousElementSibling;
         if (label && label.tagName === 'LABEL') {
-            label.textContent = 'Semesters (Hold Ctrl/Cmd to select multiple)';
+            label.textContent = 'Semester *';
         }
     }
 }
@@ -349,6 +353,15 @@ async function handleScheduleSubmit(event) {
     
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
+    
+    // Handle multi-select for semesters
+    const semesterSelect = document.getElementById('semesterSelect');
+    if (semesterSelect && semesterSelect.multiple) {
+        const selectedSemesters = Array.from(semesterSelect.selectedOptions)
+            .map(option => option.value)
+            .filter(value => value);
+        data.semester_id = selectedSemesters[0] || ''; // Take first selected for now
+    }
     
     // Debug: Log the data being sent
     console.log('📤 Form data being submitted:', data);

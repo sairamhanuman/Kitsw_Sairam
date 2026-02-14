@@ -700,67 +700,67 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="examSession">Exam Session *</label>
-                                    <select id="examSession" required>
+                                    <select id="examSession" name="exam_session_id" required>
                                         <option value="">Select Exam Session</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="examType">Exam Type *</label>
-                                    <select id="examType" required>
+                                    <select id="examType" name="exam_type_id" required>
                                         <option value="">Select Exam Type</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="examName">Exam Name *</label>
-                                    <input type="text" id="examName" required placeholder="e.g., Mid-Semester Examination - I">
+                                    <input type="text" id="examName" name="exam_name" required placeholder="e.g., Mid-Semester Examination - I">
                                 </div>
                                 <div class="form-group">
                                     <label for="academicYear">Academic Year *</label>
-                                    <input type="text" id="academicYear" required placeholder="e.g., 2024-25">
+                                    <input type="text" id="academicYear" name="academic_year" required placeholder="e.g., 2024-25">
                                 </div>
                             </div>
 
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="programmeSelect">Programme *</label>
-                                    <select id="programmeSelect" required>
+                                    <select id="programmeSelect" name="programme_id" required>
                                         <option value="">Select Programme</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="branchSelect">Branch *</label>
-                                    <select id="branchSelect" required>
+                                    <select id="branchSelect" name="branch_id" required>
                                         <option value="">Select Branch</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="semesterSelect">Semester *</label>
-                                    <select id="semesterSelect" required>
+                                    <select id="semesterSelect" name="semester_id" required>
                                         <option value="">Select Semester</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="examDuration">Duration (Minutes) *</label>
-                                    <input type="number" id="examDuration" required min="30" max="300" value="120">
+                                    <input type="number" id="examDuration" name="exam_duration_minutes" required min="30" max="300" value="120">
                                 </div>
                             </div>
 
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="startDate">Start Date *</label>
-                                    <input type="date" id="startDate" required>
+                                    <input type="date" id="startDate" name="start_date" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="endDate">End Date *</label>
-                                    <input type="date" id="endDate" required>
+                                    <input type="date" id="endDate" name="end_date" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="maxStudentsRoom">Max Students/Room</label>
-                                    <input type="number" id="maxStudentsRoom" value="30" min="1" max="100">
+                                    <input type="number" id="maxStudentsRoom" name="max_students_per_room" value="30" min="1" max="100">
                                 </div>
                                 <div class="form-group">
                                     <label for="seatingPattern">Seating Pattern</label>
-                                    <select id="seatingPattern">
+                                    <select id="seatingPattern" name="seating_pattern">
                                         <option value="branch_wise">Branch Wise</option>
                                         <option value="section_wise">Section Wise</option>
                                         <option value="roll_number_wise">Roll Number Wise</option>
@@ -772,7 +772,7 @@
 
                             <div class="form-group">
                                 <label for="remarks">Remarks</label>
-                                <textarea id="remarks" rows="3" placeholder="Additional remarks or instructions..."></textarea>
+                                <textarea id="remarks" name="remarks" rows="3" placeholder="Additional remarks or instructions..."></textarea>
                             </div>
 
                             <div class="btn-group">
