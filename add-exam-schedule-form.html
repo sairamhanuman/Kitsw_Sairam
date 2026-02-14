@@ -1,0 +1,209 @@
+<!-- Add this section to your exam-timetable.html after the main timetable form -->
+
+<!-- INDIVIDUAL EXAM SCHEDULING SECTION -->
+<div class="form-section" style="margin-top: 30px; border-top: 2px solid #e9ecef; padding-top: 20px;">
+    <h3>📅 Add Subject-wise Exam Schedule</h3>
+    <p style="color: #6c757d; margin-bottom: 20px;">
+        Add individual subjects with specific dates and times within your timetable.
+    </p>
+    
+    <form id="individualExamScheduleForm">
+        <input type="hidden" name="timetable_id" id="scheduleTimetableId">
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="subjectSelect">Subject *</label>
+                <select id="subjectSelect" name="subject_id" required>
+                    <option value="">Select Subject</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="examDate">Exam Date *</label>
+                <input type="date" id="examDate" name="exam_date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="startTime">Start Time *</label>
+                <input type="time" id="startTime" name="start_time" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="endTime">End Time *</label>
+                <input type="time" id="endTime" name="end_time" required>
+            </div>
+        </div>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="roomSelect">Room *</label>
+                <select id="roomSelect" name="room_id" required>
+                    <option value="">Select Room</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="blockSelect">Block</label>
+                <select id="blockSelect" name="block_id">
+                    <option value="">Select Block</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="chiefInvigilator">Chief Invigilator</label>
+                <select id="chiefInvigilator" name="chief_invigilator_id">
+                    <option value="">Select Invigilator</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="maxStudents">Max Students</label>
+                <input type="number" id="maxStudents" name="max_students" min="1" value="30">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="specialInstructions">Special Instructions</label>
+            <textarea id="specialInstructions" name="special_instructions" rows="3" 
+                placeholder="Any special instructions for this exam..."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="equipmentRequired">Equipment Required</label>
+            <textarea id="equipmentRequired" name="equipment_required" rows="2" 
+                placeholder="List any special equipment needed..."></textarea>
+        </div>
+        
+        <div class="btn-group">
+            <button type="submit" class="btn btn-success">📅 Add Exam Schedule</button>
+            <button type="button" class="btn btn-secondary" onclick="resetScheduleForm()">🔄 Reset</button>
+        </div>
+    </form>
+</div>
+
+<!-- Add this JavaScript to your exam-timetable.js -->
+<script>
+// Add these functions to handle individual exam scheduling
+
+async function loadSubjects() {
+    try {
+        const response = await fetch('/api/subjects');
+        const data = await response.json();
+        
+        const select = document.getElementById('subjectSelect');
+        if (data.status === 'success' && data.data) {
+            populateSelect('subjectSelect', data.data, 'subject_id', 'subject_name');
+        }
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+    }
+}
+
+async function loadRooms() {
+    try {
+        const response = await fetch('/api/rooms');
+        const data = await response.json();
+        
+        const select = document.getElementById('roomSelect');
+        if (data.status === 'success' && data.data) {
+            populateSelect('roomSelect', data.data, 'room_id', 'room_name');
+        }
+    } catch (error) {
+        console.error('Error loading rooms:', error);
+    }
+}
+
+async function loadBlocks() {
+    try {
+        const response = await fetch('/api/blocks');
+        const data = await response.json();
+        
+        const select = document.getElementById('blockSelect');
+        if (data.status === 'success' && data.data) {
+            populateSelect('blockSelect', data.data, 'block_id', 'block_name');
+        }
+    } catch (error) {
+        console.error('Error loading blocks:', error);
+    }
+}
+
+async function loadStaff() {
+    try {
+        const response = await fetch('/api/staff');
+        const data = await response.json();
+        
+        const select = document.getElementById('chiefInvigilator');
+        if (data.status === 'success' && data.data) {
+            populateSelect('chiefInvigilator', data.data, 'staff_id', 'full_name');
+        }
+    } catch (error) {
+        console.error('Error loading staff:', error);
+    }
+}
+
+async function handleIndividualScheduleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    console.log('📤 Individual schedule data:', data);
+    
+    try {
+        showLoading();
+        
+        const response = await fetch('/api/exam-schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showAlert('Exam schedule added successfully!', 'success');
+            resetIndividualScheduleForm();
+            loadTimetables(); // Refresh the main timetable
+        } else {
+            showAlert(result.message || 'Failed to add exam schedule', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding exam schedule:', error);
+        showAlert('Failed to add exam schedule', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function resetIndividualScheduleForm() {
+    const form = document.getElementById('individualExamScheduleForm');
+    if (form) {
+        form.reset();
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Load master data for individual scheduling
+    loadSubjects();
+    loadRooms();
+    loadBlocks();
+    loadStaff();
+    
+    // Add form submit handler
+    const form = document.getElementById('individualExamScheduleForm');
+    if (form) {
+        form.addEventListener('submit', handleIndividualScheduleSubmit);
+    }
+});
+
+// Set timetable ID when viewing/editing a timetable
+function setScheduleTimetableId(timetableId) {
+    const hiddenField = document.getElementById('scheduleTimetableId');
+    if (hiddenField) {
+        hiddenField.value = timetableId;
+    }
+}
+</script>
